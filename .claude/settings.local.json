@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx --yes create-next-app@latest . --typescript --tailwind --app --eslint --no-src-dir --import-alias \"@/*\" --use-npm --turbopack --yes)",
+      "Bash(mv /Users/rafesilva2025/Documents/floow-crm/.env.local /tmp/floow-env.local)",
+      "Bash(mv /Users/rafesilva2025/Documents/floow-crm/CLAUDE.md /tmp/floow-CLAUDE.md)"
+    ]
+  }
+}
