@@ -16,6 +16,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "floow CRM",
   description: "CRM interno da Floow Digital",
+  applicationName: "floow CRM",
+  appleWebApp: {
+    capable: true,
+    title: "floow CRM",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export default function RootLayout({

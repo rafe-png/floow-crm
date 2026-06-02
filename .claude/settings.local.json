@@ -39,7 +39,12 @@
       "Bash(./node_modules/.bin/vercel deploy *)",
       "Bash(curl -s -o /dev/null -w \"Página inicial: HTTP %{http_code} → %{redirect_url}\\\\n\" https://floow-crm.vercel.app)",
       "Bash(curl -s -o /dev/null -w \"Tela de login:  HTTP %{http_code}\\\\n\" https://floow-crm.vercel.app/login)",
-      "Bash(git commit -q -m 'Identidade visual: logo do infinito \\(∞\\) em SVG + favicon próprio *)"
+      "Bash(git commit -q -m 'Identidade visual: logo do infinito \\(∞\\) em SVG + favicon próprio *)",
+      "Bash(curl -s -o /dev/null -w \"icon.svg: HTTP %{http_code} \\(%{content_type}\\)\\\\n\" https://floow-crm.vercel.app/icon.svg)",
+      "Bash(curl -s https://floow-crm.vercel.app/login)",
+      "Bash(git commit -q -m 'PWA: instalável como app de desktop \\(manifesto + ícones\\) *)",
+      "Bash(curl -s -o /dev/null -w \"manifest: HTTP %{http_code} \\(%{content_type}\\)\\\\n\" https://floow-crm.vercel.app/manifest.webmanifest)",
+      "Bash(curl -s -o /dev/null -w \"icon-512: HTTP %{http_code}\\\\n\" https://floow-crm.vercel.app/icon-512.png)"
     ]
   }
 }
