@@ -12,7 +12,13 @@
       "Bash(node *)",
       "Bash(pkill -f \"next dev\")",
       "Bash(git add *)",
-      "Bash(git commit -q -m 'Fases 2.1–2.6: dashboard, kanban, agenda, login, Google Calendar, tarefas, relatórios *)"
+      "Bash(git commit -q -m 'Fases 2.1–2.6: dashboard, kanban, agenda, login, Google Calendar, tarefas, relatórios *)",
+      "Bash(command -v brew)",
+      "Bash(brew --version)",
+      "Bash(echo \"SIM: $\\(brew --version)",
+      "Bash(npm i *)",
+      "Bash(vercel --version)",
+      "Bash(git commit -q -m 'Adiciona guia de publicação \\(DEPLOY.md\\) para crm.floowdigital.com.br *)"
     ]
   }
 }
