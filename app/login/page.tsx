@@ -3,6 +3,7 @@
 import { Suspense, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabase } from "@/lib/supabase/client";
+import { FloowLogo } from "@/components/icons/FloowLogo";
 
 export default function LoginPage() {
   return (
@@ -43,7 +44,7 @@ function LoginForm() {
     <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a] px-4">
       <div className="w-full max-w-sm rounded-2xl border border-zinc-900 bg-zinc-950 p-8 shadow-2xl">
         <div className="mb-6 flex flex-col items-center gap-2">
-          <span className="text-4xl font-bold leading-none text-[#f5c518]">∞</span>
+          <FloowLogo size={44} className="text-[#f5c518]" />
           <h1 className="text-lg font-bold text-zinc-100">floow CRM</h1>
           <p className="text-xs text-zinc-500">Acesso interno</p>
         </div>

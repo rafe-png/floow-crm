@@ -18,7 +18,28 @@
       "Bash(echo \"SIM: $\\(brew --version)",
       "Bash(npm i *)",
       "Bash(vercel --version)",
-      "Bash(git commit -q -m 'Adiciona guia de publicação \\(DEPLOY.md\\) para crm.floowdigital.com.br *)"
+      "Bash(git commit -q -m 'Adiciona guia de publicação \\(DEPLOY.md\\) para crm.floowdigital.com.br *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(npx --yes vercel@latest --version)",
+      "Bash(npx --yes vercel@latest whoami)",
+      "Bash(npx --yes vercel@latest env ls)",
+      "Bash(npx --yes vercel@latest ls)",
+      "Bash(npx --yes vercel@latest domains ls)",
+      "Bash(npx --yes vercel@latest env pull /tmp/floow_env_check.txt --environment=production --yes)",
+      "Read(//tmp/**)",
+      "Bash(rm -f /tmp/floow_env_check.txt)",
+      "Bash(npx --yes vercel@latest env rm GOOGLE_REDIRECT_URI production --yes)",
+      "Bash(npx --yes vercel@latest env add GOOGLE_REDIRECT_URI production)",
+      "Bash(npx --yes vercel@latest env pull /tmp/chk.txt --environment=production --yes)",
+      "Bash(npx --yes vercel@latest inspect https://floow-d1wgonhmg-floowdigital.vercel.app)",
+      "Bash(grep -iA8 \"alias\")",
+      "Bash(npx --yes vercel@latest env pull /tmp/chk2.txt --environment=production --yes)",
+      "Bash(npx --yes vercel@latest env pull /tmp/chk3.txt --environment=production --yes)",
+      "Bash(./node_modules/.bin/vercel deploy *)",
+      "Bash(curl -s -o /dev/null -w \"Página inicial: HTTP %{http_code} → %{redirect_url}\\\\n\" https://floow-crm.vercel.app)",
+      "Bash(curl -s -o /dev/null -w \"Tela de login:  HTTP %{http_code}\\\\n\" https://floow-crm.vercel.app/login)",
+      "Bash(git commit -q -m 'Identidade visual: logo do infinito \\(∞\\) em SVG + favicon próprio *)"
     ]
   }
 }

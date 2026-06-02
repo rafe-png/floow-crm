@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, Calendar, CheckSquare, LayoutDashboard, Kanban, Settings } from "lucide-react";
+import { FloowLogo } from "@/components/icons/FloowLogo";
 
 type NavItem = {
   href: string;
@@ -29,7 +30,7 @@ export function Sidebar() {
     <aside className="group hidden md:flex fixed left-0 top-0 bottom-0 z-30 w-16 hover:w-56 transition-[width] duration-200 bg-black border-r border-zinc-900 flex-col">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-zinc-900 px-5 overflow-hidden">
-        <span className="text-2xl font-bold text-[#f5c518] leading-none shrink-0">∞</span>
+        <FloowLogo size={26} className="text-[#f5c518] shrink-0" />
         <span className="text-base font-semibold text-zinc-100 tracking-tight opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
           floow
         </span>
