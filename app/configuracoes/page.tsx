@@ -2,9 +2,11 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertCircle, Check, ExternalLink, LogOut } from "lucide-react";
+import { AlertCircle, Check, ExternalLink, LogOut, X } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
+import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { getSupabase } from "@/lib/supabase/client";
+import type { Owner, TeamMember } from "@/lib/types";
 
 export default function ConfiguracoesPage() {
   return (
@@ -108,6 +110,9 @@ function ConfiguracoesContent() {
             )}
           </Card>
 
+          {/* Equipe */}
+          <EquipeCard />
+
           {/* Conta */}
           <Card title="Conta" subtitle="Sessão atual">
             {authUserEmail && (
@@ -126,6 +131,111 @@ function ConfiguracoesContent() {
         </div>
       </main>
     </>
+  );
+}
+
+function EquipeCard() {
+  const { sdrs, closers, addMember, deactivateMember } = useTeamContext();
+  const [name, setName] = useState("");
+  const [role, setRole] = useState<Owner>("SDR");
+  const [saving, setSaving] = useState(false);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    const n = name.trim();
+    if (!n || saving) return;
+    setSaving(true);
+    try {
+      await addMember(n, role);
+      setName("");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card title="Equipe" subtitle="Quem aparece como SDR e Closer nos formulários do CRM">
+      <div className="space-y-4">
+        <TeamGroup label="SDR" members={sdrs} onRemove={deactivateMember} color="text-sky-300" />
+        <TeamGroup label="Closer" members={closers} onRemove={deactivateMember} color="text-fuchsia-300" />
+
+        <form
+          onSubmit={handleAdd}
+          className="flex flex-wrap items-center gap-2 border-t border-zinc-900 pt-4"
+        >
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nome do membro"
+            className="min-w-[140px] flex-1 rounded-md border border-zinc-800 bg-[#0f1218] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[#f5c518]"
+          />
+          <div className="flex rounded-md border border-zinc-800 bg-zinc-900 p-0.5 text-xs">
+            {(["SDR", "Closer"] as Owner[]).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRole(r)}
+                className={`rounded px-3 py-1 transition-colors ${
+                  role === r
+                    ? "bg-[#f5c518] font-semibold text-zinc-950"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <button
+            type="submit"
+            disabled={saving || !name.trim()}
+            className="rounded-md bg-[#f5c518] px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-[#ffd633] disabled:opacity-50"
+          >
+            Adicionar
+          </button>
+        </form>
+      </div>
+    </Card>
+  );
+}
+
+function TeamGroup({
+  label, members, onRemove, color,
+}: {
+  label: string;
+  members: TeamMember[];
+  onRemove: (id: string) => void | Promise<void>;
+  color: string;
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+        {label}
+      </div>
+      {members.length === 0 ? (
+        <p className="text-xs text-zinc-600">Ninguém cadastrado.</p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {members.map((m) => (
+            <span
+              key={m.id}
+              className={`inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs ${color}`}
+            >
+              {m.name}
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm(`Remover ${m.name} da equipe?`)) onRemove(m.id);
+                }}
+                className="text-zinc-600 hover:text-rose-400"
+                title="Remover"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

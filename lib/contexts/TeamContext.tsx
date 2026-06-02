@@ -18,12 +18,16 @@ type TeamContextValue = {
    * Senão retorna o primeiro SDR cadastrado. Mesmo pra Closer.
    */
   defaultFor: (role: Owner) => TeamMember | null;
+  /** Adiciona um membro (aparece na hora via realtime) */
+  addMember: (name: string, role: Owner) => Promise<void>;
+  /** Desativa um membro (some das listas, sem apagar histórico) */
+  deactivateMember: (id: string) => Promise<void>;
 };
 
 const TeamContext = createContext<TeamContextValue | null>(null);
 
 export function TeamProvider({ children }: { children: React.ReactNode }) {
-  const { members, loading } = useTeamMembers();
+  const { members, loading, addMember, deactivateMember } = useTeamMembers();
   const { user } = useAuth();
 
   const value = useMemo<TeamContextValue>(() => {
@@ -42,8 +46,10 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
         if (currentMember && currentMember.role === role) return currentMember;
         return (role === "SDR" ? sdrs[0] : closers[0]) ?? null;
       },
+      addMember,
+      deactivateMember,
     };
-  }, [members, loading, user]);
+  }, [members, loading, user, addMember, deactivateMember]);
 
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 }

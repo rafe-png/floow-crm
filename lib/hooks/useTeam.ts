@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getSupabase } from "@/lib/supabase/client";
-import type { TeamMember } from "@/lib/types";
+import type { Owner, TeamMember } from "@/lib/types";
 
 export function useTeamMembers() {
   const { user } = useAuth();
@@ -41,9 +41,10 @@ export function useTeamMembers() {
               );
             }
             if (payload.eventType === "UPDATE") {
-              return prev.map((m) =>
-                m.id === (payload.new as TeamMember).id ? (payload.new as TeamMember) : m,
-              );
+              const m = payload.new as TeamMember;
+              // Membro desativado some da lista (a query inicial filtra active=true)
+              if (!m.active) return prev.filter((x) => x.id !== m.id);
+              return prev.map((x) => (x.id === m.id ? m : x));
             }
             if (payload.eventType === "DELETE") {
               return prev.filter((m) => m.id !== (payload.old as TeamMember).id);
@@ -60,5 +61,13 @@ export function useTeamMembers() {
     };
   }, [userId]);
 
-  return { members, loading };
+  const addMember = useCallback(async (name: string, role: Owner) => {
+    await getSupabase().from("team_members").insert({ name: name.trim(), role });
+  }, []);
+
+  const deactivateMember = useCallback(async (id: string) => {
+    await getSupabase().from("team_members").update({ active: false }).eq("id", id);
+  }, []);
+
+  return { members, loading, addMember, deactivateMember };
 }

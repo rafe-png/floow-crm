@@ -6,13 +6,20 @@ import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { MeetingModal } from "@/components/agenda/MeetingModal";
+import { DayView } from "@/components/agenda/DayView";
 import { MonthView } from "@/components/agenda/MonthView";
 import { WeekView } from "@/components/agenda/WeekView";
 import { LostReasonDialog } from "@/components/lead/LostReasonDialog";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import type { Lead, MotivoPerda } from "@/lib/types";
 
-type ViewMode = "mes" | "semana";
+type ViewMode = "dia" | "semana" | "mes";
+
+const VIEW_LABELS: Record<ViewMode, string> = {
+  dia: "Dia",
+  semana: "Semana",
+  mes: "Mês",
+};
 
 export default function AgendaPage() {
   const { leads, updateLead, deleteLead } = useLeadsContext();
@@ -49,18 +56,20 @@ export default function AgendaPage() {
     setPendingLost(null);
   }
 
-  function prev() {
+  function step(dir: 1 | -1) {
     const d = new Date(cursor);
-    if (view === "mes") d.setMonth(d.getMonth() - 1);
-    else d.setDate(d.getDate() - 7);
+    if (view === "mes") d.setMonth(d.getMonth() + dir);
+    else if (view === "semana") d.setDate(d.getDate() + 7 * dir);
+    else d.setDate(d.getDate() + dir);
     setCursor(d);
   }
 
+  function prev() {
+    step(-1);
+  }
+
   function next() {
-    const d = new Date(cursor);
-    if (view === "mes") d.setMonth(d.getMonth() + 1);
-    else d.setDate(d.getDate() + 7);
-    setCursor(d);
+    step(1);
   }
 
   function goToday() {
@@ -70,7 +79,9 @@ export default function AgendaPage() {
   const title =
     view === "mes"
       ? format(cursor, "MMMM 'de' yyyy", { locale: ptBR })
-      : `Semana de ${format(startOfWeek(cursor), "d MMM", { locale: ptBR })}`;
+      : view === "semana"
+        ? `Semana de ${format(startOfWeek(cursor), "d MMM", { locale: ptBR })}`
+        : format(cursor, "EEEE, d 'de' MMMM", { locale: ptBR });
 
   return (
     <>
@@ -102,7 +113,7 @@ export default function AgendaPage() {
         </div>
 
         <div className="flex rounded-md border border-zinc-800 bg-zinc-900 p-0.5 text-xs">
-          {(["mes", "semana"] as ViewMode[]).map((v) => (
+          {(["dia", "semana", "mes"] as ViewMode[]).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
@@ -112,7 +123,7 @@ export default function AgendaPage() {
                   : "text-zinc-400 hover:text-zinc-200"
               }`}
             >
-              {v === "mes" ? "Mês" : "Semana"}
+              {VIEW_LABELS[v]}
             </button>
           ))}
         </div>
@@ -121,8 +132,10 @@ export default function AgendaPage() {
       <main className="flex flex-1 flex-col overflow-hidden">
         {view === "mes" ? (
           <MonthView cursor={cursor} leads={leads} onClickLead={setSelected} />
-        ) : (
+        ) : view === "semana" ? (
           <WeekView cursor={cursor} leads={leads} onClickLead={setSelected} />
+        ) : (
+          <DayView cursor={cursor} leads={leads} onClickLead={setSelected} />
         )}
       </main>
 
