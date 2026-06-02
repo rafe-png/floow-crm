@@ -3,7 +3,16 @@
     "allow": [
       "Bash(npx --yes create-next-app@latest . --typescript --tailwind --app --eslint --no-src-dir --import-alias \"@/*\" --use-npm --turbopack --yes)",
       "Bash(mv /Users/rafesilva2025/Documents/floow-crm/.env.local /tmp/floow-env.local)",
-      "Bash(mv /Users/rafesilva2025/Documents/floow-crm/CLAUDE.md /tmp/floow-CLAUDE.md)"
+      "Bash(mv /Users/rafesilva2025/Documents/floow-crm/CLAUDE.md /tmp/floow-CLAUDE.md)",
+      "Bash(mv /tmp/floow-env.local /Users/rafesilva2025/Documents/floow-crm/.env.local)",
+      "Bash(mv /tmp/floow-CLAUDE.md /Users/rafesilva2025/Documents/floow-crm/CLAUDE.md)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(node *)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'Fases 2.1–2.6: dashboard, kanban, agenda, login, Google Calendar, tarefas, relatórios *)"
     ]
   }
 }

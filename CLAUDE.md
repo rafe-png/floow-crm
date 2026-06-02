@@ -1,1 +1,107 @@
-@AGENTS.md
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project: floow CRM
+
+Internal CRM for Floow Digital (B2B sales for confecções atacadistas). Team of 2: 1 SDR + 1 Closer.
+
+## Stack
+
+- Next.js 16 (App Router, Turbopack) + React 19 + TypeScript
+- Supabase (Postgres + Realtime) for persistence
+- Tailwind CSS v4 (dark theme, brand yellow `#f5c518`)
+- `@dnd-kit` for kanban drag-and-drop
+- `lucide-react` for icons (note: v1.x — `Instagram` icon doesn't exist, use `AtSign`)
+- `date-fns` (ptBR locale) for date formatting
+
+Env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local`.
+
+## Commands
+
+- `npm run dev` — dev server with Turbopack
+- `npm run build` — production build (use to validate before reporting done)
+- `npm run lint` — ESLint (React 19 strict rules enabled — no setState in effect bodies, no ref access during render)
+- `npx tsc --noEmit` — typecheck only
+
+## Architecture
+
+**Single source of truth = Supabase Postgres.** UI is a projection of `leads.status`. Realtime subscriptions sync changes between SDR and Closer without polling.
+
+### Data model
+
+- `leads` — central table. Status enum drives the kanban column. Triggers in Postgres append to `lead_events` on every status change (cannot be bypassed by client).
+- `lead_events` — append-only history. UI never inserts directly; it reads to render the timeline.
+- `user_goals` — one row per owner (SDR / Closer). For SDR the `daily_goal`/`weekly_goal` mean appointments scheduled; for Closer they mean deals won.
+
+### Phase 2.1 schema additions
+
+`leads` has fields for B2B qualification:
+- Decisor / empresa: `cargo`, `empresa`, `instagram`
+- Qualificação (enums): `estoque`, `historico`, `estrutura`
+- BANT (enums): `bant_budget`, `bant_authority`, `bant_need`, `bant_timing`
+- Agendamento: `data_agendamento`, `google_event_id`, `google_calendar_id` (last two unused until Phase 2.4)
+
+### Frontend layout
+
+- `app/layout.tsx` wraps everything in `<AppShell>` which provides:
+  - `LeadsProvider` — single `useLeads()` subscription shared via context (`useLeadsContext()`). Pages never call `useLeads()` directly to avoid duplicate realtime channels.
+  - `<Sidebar />` — fixed left, hover-expand (16px → 224px). Mobile: `<MobileBottomNav />` instead.
+- Routes:
+  - `/` → Dashboard (KPIs, funil, próximas reuniões)
+  - `/kanban` → Kanban board
+  - `/agenda` → Placeholder (built in 2.3)
+- `<TopBar>` is rendered per-page (not in layout) so each page sets its own title. It reads leads from context and shows SDR + Closer goal gauges.
+
+### Conventions
+
+- All UI text in pt-BR.
+- Dark theme always. Background `#0a0a0a`. Brand accent `#f5c518` (hover `#ffd633`). Status badges use Tailwind hue/10 + hue/30 borders.
+- Optimistic updates with rollback in `useLeads.updateLead`. Snapshot before patch, restore on Supabase error.
+- Drag-and-drop: card is the drag handle (whole card). For nested interactive elements (WhatsApp link), stop both `onClick` AND `onPointerDown` to prevent drag activation.
+- Brazilian phone → wa.me link via `whatsappLink(telefone)` helper in `lib/types.ts`. Defaults to country code 55 if not provided.
+
+### React 19 gotchas this codebase respects
+
+- Never `useRef(createClient()).current` — refs aren't allowed during render. Use a module-level singleton (`getSupabase()`).
+- Never `setState` synchronously inside `useEffect` for prop syncing. Use `key={lead.id}` on the parent to force remount instead.
+- LeadDetailsPanel is rendered only when `selectedLead` exists, with `key={selectedLead.id}` — guarantees fresh state per lead.
+
+## Migrations
+
+SQL migrations live in `supabase/migrations/`. They are applied manually via Supabase SQL Editor (no CLI workflow yet).
+
+- `001_init.sql` — core schema, triggers, RLS, realtime
+- `002_phase2_b2b.sql` — B2B fields, Closer goals
+
+## Phased delivery — current state
+
+- Phase 1 (done) — Kanban, lead CRUD, status history, SDR goals, Supabase realtime
+- Phase 2.1 (done) — Sidebar nav, Dashboard, B2B lead form with BANT obrigatório, WhatsApp button, Closer goals
+- Phase 2.2 (done) — Gamification: pontos, streak, nível, badges, ranking SDR vs Closer (all derived from `lead_events`)
+- Phase 2.3 (done) — Agenda visual com toggle mês/semana, navegação por período, click → painel lateral
+- Phase 2.4 (todo) — Google Calendar OAuth (requires adding auth — login flow)
+- Phase 3 (todo) — WhatsApp lead capture (Evolution API or Z-API)
+
+### Gamification details (Phase 2.2)
+
+All metrics are **derived client-side from `leads` + `lead_events`** — no extra tables. See `lib/gamification.ts`:
+- `computePoints(leads, events, owner)` — SDR: +10 por agendamento criado, -5 por no-show. Closer: +20 por reunião realizada, +100 por negócio ganho + 1% do valor.
+- `computeStreak(leads, events, goal, owner)` — dias consecutivos batendo `daily_goal`. Today doesn't break streak (dia ainda em curso).
+- `computeLevel(points)` — Bronze 0-500 · Prata 501-2000 · Ouro 2001-5000 · Diamante 5001+
+- `computeBadges(...)` — derivados das contagens (primeira venda, streak 5/15, big deal, low no-show, 10 fechamentos…).
+- `computeWeeklyPoints(...)` — pontos só na semana corrente (pra ranking).
+
+Hook `useAllLeadEvents()` busca os últimos 2000 eventos com realtime INSERT. Não está em contexto (single subscription, só Dashboard usa). Se for usado em outro lugar, mover pra context pra evitar canais duplicados.
+
+### Agenda details (Phase 2.3)
+
+`app/agenda/page.tsx` controla `cursor` (Date) + `view` (`'mes' | 'semana'`). Os componentes (`MonthView`, `WeekView`) são puros e recebem os leads. Reuniões são leads com `data_agendamento` preenchido. Cores seguem `STATUS_COLORS` do lead.
+- Month grid: 7×6 (sempre 42 células), dias fora do mês ficam acinzentados, "+N mais" se passar de 3 reuniões no dia.
+- Week timeline: 7 colunas, 7h-21h, posição vertical proporcional ao minuto.
+
+## Conventions to maintain
+
+- Don't add features beyond the current phase. User gates each phase.
+- Keep components in language-aware structure: `app/<route>/page.tsx`, `components/<area>/...`, `lib/...`.
+- Update this file when schema changes or new architectural patterns emerge.

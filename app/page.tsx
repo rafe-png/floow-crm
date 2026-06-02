@@ -1,65 +1,207 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useMemo } from "react";
+import { TopBar } from "@/components/layout/TopBar";
+import { MetaRing } from "@/components/dashboard/MetaRing";
+import { Funnel } from "@/components/dashboard/Funnel";
+import { UpcomingMeetings } from "@/components/dashboard/UpcomingMeetings";
+import { useLeadsContext } from "@/lib/contexts/LeadsContext";
+import { useGoalsContext } from "@/lib/contexts/GoalsContext";
+import type { Lead, Owner } from "@/lib/types";
+
+function startOfIsoWeek(d: Date) {
+  const x = new Date(d);
+  const day = x.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  x.setDate(x.getDate() + diff);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function startOfMonth(d: Date) {
+  const x = new Date(d);
+  x.setDate(1);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+// Contagem estável usando agendado_em / ganho_em (one-shot na transição).
+// Agendou hoje → conta hoje pra sempre; ganhou hoje → conta hoje pra sempre.
+function countWeekMonth(leads: Lead[], owner: Owner) {
+  const week = startOfIsoWeek(new Date());
+  const month = startOfMonth(new Date());
+  let w = 0, m = 0;
+  for (const l of leads) {
+    if (l.dono !== owner) continue;
+    const tsField = owner === "SDR" ? l.agendado_em : l.ganho_em;
+    if (!tsField) continue;
+    const ref = new Date(tsField);
+    if (ref >= week) w++;
+    if (ref >= month) m++;
+  }
+  return { week: w, month: m };
+}
+
+function pipelineValue(leads: Lead[]) {
+  let total = 0;
+  for (const l of leads) {
+    if (l.status === "negocio_perdido") continue;
+    if (l.valor) total += Number(l.valor);
+  }
+  return total;
+}
+
+function wonValueMonth(leads: Lead[]) {
+  const month = startOfMonth(new Date());
+  let total = 0;
+  for (const l of leads) {
+    if (!l.ganho_em) continue;
+    if (new Date(l.ganho_em) < month) continue;
+    if (l.valor) total += Number(l.valor);
+  }
+  return total;
+}
+
+export default function DashboardPage() {
+  const { leads } = useLeadsContext();
+  const { goals } = useGoalsContext();
+
+  const sdr = useMemo(() => countWeekMonth(leads, "SDR"), [leads]);
+  const closer = useMemo(() => countWeekMonth(leads, "Closer"), [leads]);
+  const pipeline = useMemo(() => pipelineValue(leads), [leads]);
+  const wonMonth = useMemo(() => wonValueMonth(leads), [leads]);
+
+  const sdrWeekly = goals.SDR?.weekly_goal ?? 0;
+  const sdrMonthly = sdrWeekly * 4;
+  const closerWeekly = goals.Closer?.weekly_goal ?? 0;
+  const closerMonthly = closerWeekly * 4;
+
+  const fmtBRL = (n: number) =>
+    new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      maximumFractionDigits: 0,
+    }).format(n);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <>
+      <TopBar title="Dashboard" />
+      <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+        {/* Metas SDR + Closer */}
+        <section className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <OwnerCard
+            owner="SDR"
+            metricLabel="Agendamentos"
+            weekly={{ current: sdr.week, target: sdrWeekly }}
+            monthly={{ current: sdr.month, target: sdrMonthly }}
+            accent="#38bdf8"
+          />
+          <OwnerCard
+            owner="Closer"
+            metricLabel="Fechamentos"
+            weekly={{ current: closer.week, target: closerWeekly }}
+            monthly={{ current: closer.month, target: closerMonthly }}
+            accent="#e879f9"
+          />
+        </section>
+
+        {/* Pipeline + Faturamento */}
+        <section className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <BigStat
+            label="Pipeline ativo"
+            value={fmtBRL(pipeline)}
+            hint="valor total de leads em andamento"
+            accent="#f5c518"
+          />
+          <BigStat
+            label="Fechado este mês"
+            value={fmtBRL(wonMonth)}
+            hint="negócios ganhos no mês corrente"
+            accent="#34d399"
+          />
+        </section>
+
+        {/* Funil + Próximas reuniões */}
+        <section className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <Funnel leads={leads} />
+          <UpcomingMeetings leads={leads} />
+        </section>
       </main>
+    </>
+  );
+}
+
+function OwnerCard({
+  owner,
+  metricLabel,
+  weekly,
+  monthly,
+  accent,
+}: {
+  owner: Owner;
+  metricLabel: string;
+  weekly: { current: number; target: number };
+  monthly: { current: number; target: number };
+  accent: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 p-5">
+      <div className="mb-5 flex items-center gap-2">
+        <span
+          className="h-2.5 w-2.5 rounded-full"
+          style={{ backgroundColor: accent }}
+        />
+        <h2 className="text-base font-bold text-zinc-100">{owner}</h2>
+        <span className="text-xs text-zinc-500">· {metricLabel}</span>
+      </div>
+
+      <div className="flex items-center justify-around gap-4">
+        <MetaRing
+          label="Semana"
+          current={weekly.current}
+          target={weekly.target}
+          accent={accent}
+        />
+        <MetaRing
+          label="Mês"
+          current={monthly.current}
+          target={monthly.target}
+          accent={accent}
+        />
+      </div>
+    </div>
+  );
+}
+
+function BigStat({
+  label,
+  value,
+  hint,
+  accent,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  accent: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 p-5">
+      <div className="flex items-center gap-2">
+        <span
+          className="h-2 w-2 rounded-full"
+          style={{ backgroundColor: accent }}
+        />
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+          {label}
+        </span>
+      </div>
+      <div
+        className="mt-3 text-3xl font-bold sm:text-4xl"
+        style={{ color: accent }}
+      >
+        {value}
+      </div>
+      {hint && <div className="mt-1 text-[11px] text-zinc-500">{hint}</div>}
     </div>
   );
 }
