@@ -87,6 +87,7 @@ export default function TarefasPage() {
   const { leads } = useLeadsContext();
   const [filter, setFilter] = useState<FilterKey>("abertas");
   const [newOpen, setNewOpen] = useState(false);
+  const [editing, setEditing] = useState<Task | null>(null);
 
   const filtered = useMemo(() => filterTasks(tasks, filter), [tasks, filter]);
   const groups = useMemo(() => groupTasks(filtered), [filtered]);
@@ -147,7 +148,7 @@ export default function TarefasPage() {
                 </h2>
                 <div className="space-y-1.5">
                   {items.map((t) => (
-                    <TaskItem key={t.id} task={t} />
+                    <TaskItem key={t.id} task={t} onEdit={setEditing} />
                   ))}
                 </div>
               </section>
@@ -159,6 +160,13 @@ export default function TarefasPage() {
       <NewTaskDialog
         open={newOpen}
         onClose={() => setNewOpen(false)}
+        leadsForPicker={leads}
+      />
+
+      <NewTaskDialog
+        open={editing != null}
+        task={editing}
+        onClose={() => setEditing(null)}
         leadsForPicker={leads}
       />
     </>

@@ -10,6 +10,7 @@ import {
   BANT_NEED_LABELS,
   BANT_TIMING_LABELS,
   ESTOQUE_LABELS,
+  SEGMENTO_LABELS,
   type Lead,
   whatsappLink,
 } from "@/lib/types";
@@ -64,8 +65,13 @@ export function LeadCard({ lead, onClick }: Props) {
       </div>
 
       {/* Badges de qualificação */}
-      {(lead.estoque || lead.bant_need || lead.bant_timing) && (
+      {(lead.segmento || lead.estoque || lead.bant_need || lead.bant_timing) && (
         <div className="mt-2 flex flex-wrap gap-1">
+          {lead.segmento && (
+            <span className="rounded bg-[#f5c518]/10 px-1.5 py-0.5 text-[10px] font-medium text-[#f5c518]">
+              👕 {SEGMENTO_LABELS[lead.segmento]}
+            </span>
+          )}
           {lead.estoque && (
             <Badge label={`📦 ${ESTOQUE_LABELS[lead.estoque]}`} />
           )}

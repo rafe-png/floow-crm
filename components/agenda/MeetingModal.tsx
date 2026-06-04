@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -8,6 +8,7 @@ import {
   Check,
   Pencil,
   Phone,
+  Star,
   Trash2,
   User,
   Video,
@@ -15,26 +16,34 @@ import {
 } from "lucide-react";
 import { InstagramIcon, WhatsAppIcon } from "@/components/icons/BrandIcons";
 import { CargoSelect } from "@/components/ui/CargoSelect";
-import { DateTimePicker, joinIso, splitIso } from "@/components/ui/DateTimePicker";
+import { DateTimePicker, busyStartsForDate, joinIso, splitIso } from "@/components/ui/DateTimePicker";
 import { LocalSelect } from "@/components/ui/LocalSelect";
 import { PersonSelect } from "@/components/ui/PersonSelect";
+import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
 import { LeadTasks } from "@/components/tasks/LeadTasks";
+import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import {
   BANT_AUTHORITY_LABELS,
   BANT_BUDGET_LABELS,
   BANT_NEED_LABELS,
   BANT_TIMING_LABELS,
+  CANAL_VENDAS_LABELS,
   ESTOQUE_LABELS,
   ESTRUTURA_LABELS,
+  EXPERIENCIA_LABELS,
   HISTORICO_LABELS,
   LOCAL_ICONS,
   LOCAL_LABELS,
+  SEGMENTO_LABELS,
+  SITUACAO_LABELS,
   STATUS_COLORS,
   STATUS_LABELS,
   type Lead,
   type LocalReuniao,
+  type SegmentoConfeccao,
   whatsappLink,
 } from "@/lib/types";
+import { computeLeadScore, PRIORITY_LABELS, PRIORITY_META } from "@/lib/lead-score";
 
 type Props = {
   lead: Lead;
@@ -44,6 +53,7 @@ type Props = {
 };
 
 export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
+  const { leads } = useLeadsContext();
   const [editing, setEditing] = useState(false);
   const initialDateTime = splitIso(lead.data_agendamento);
 
@@ -53,6 +63,7 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
   const [cargo, setCargo] = useState<string | null>(lead.cargo);
   const [empresa, setEmpresa] = useState(lead.empresa ?? "");
   const [instagram, setInstagram] = useState(lead.instagram ?? "");
+  const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(lead.segmento);
   const [valor, setValor] = useState(lead.valor != null ? String(lead.valor) : "");
   const [observacoes, setObservacoes] = useState(lead.observacoes ?? "");
   const [sdrResp, setSdrResp] = useState<string | null>(lead.sdr_responsavel);
@@ -62,6 +73,11 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
   const [local, setLocal] = useState<LocalReuniao | null>(lead.local);
   const [meetLink, setMeetLink] = useState(lead.meet_link ?? "");
   const [saving, setSaving] = useState(false);
+
+  const busyStarts = useMemo(
+    () => busyStartsForDate(leads, dateStr, lead.id),
+    [leads, dateStr, lead.id],
+  );
 
   async function handleSave() {
     setSaving(true);
@@ -73,6 +89,7 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
         cargo,
         empresa: empresa.trim() || null,
         instagram: instagram.trim().replace(/^@/, "") || null,
+        segmento,
         valor: parsedValor != null && !Number.isNaN(parsedValor) ? parsedValor : null,
         observacoes: observacoes.trim() || null,
         sdr_responsavel: sdrResp,
@@ -94,6 +111,7 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
     setCargo(lead.cargo);
     setEmpresa(lead.empresa ?? "");
     setInstagram(lead.instagram ?? "");
+    setSegmento(lead.segmento);
     setValor(lead.valor != null ? String(lead.valor) : "");
     setObservacoes(lead.observacoes ?? "");
     setSdrResp(lead.sdr_responsavel);
@@ -206,6 +224,7 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {editing ? (
             <EditView
+              busyStarts={busyStarts}
               dateStr={dateStr} setDateStr={setDateStr}
               timeStr={timeStr} setTimeStr={setTimeStr}
               local={local} setLocal={setLocal}
@@ -215,6 +234,7 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
               cargo={cargo} setCargo={setCargo}
               empresa={empresa} setEmpresa={setEmpresa}
               instagram={instagram} setInstagram={setInstagram}
+              segmento={segmento} setSegmento={setSegmento}
               sdrResp={sdrResp} setSdrResp={setSdrResp}
               closerResp={closerResp} setCloserResp={setCloserResp}
               valor={valor} setValor={setValor}
@@ -271,6 +291,9 @@ function SummaryView({ lead }: { lead: Lead }) {
         )}
       </div>
 
+      {/* Qualidade do lead */}
+      <QualityBox lead={lead} />
+
       {/* Decisor + Empresa */}
       <SectionTitle>Decisor</SectionTitle>
       <div className="rounded-lg border border-zinc-900 bg-zinc-950/40 p-3 space-y-1">
@@ -280,6 +303,9 @@ function SummaryView({ lead }: { lead: Lead }) {
         </div>
         {lead.empresa && (
           <div className="text-sm text-zinc-300">{lead.empresa}</div>
+        )}
+        {lead.segmento && (
+          <div className="text-xs text-[#f5c518]">👕 {SEGMENTO_LABELS[lead.segmento]}</div>
         )}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-400">
           <span className="flex items-center gap-1">
@@ -314,11 +340,15 @@ function SummaryView({ lead }: { lead: Lead }) {
       )}
 
       {/* Qualificação / BANT */}
-      {(lead.estoque || lead.historico || lead.estrutura ||
+      {(lead.experiencia || lead.situacao || lead.canal_vendas ||
+        lead.estoque || lead.historico || lead.estrutura ||
         lead.bant_budget || lead.bant_authority || lead.bant_need || lead.bant_timing) && (
         <>
           <SectionTitle>Qualificação · BANT</SectionTitle>
           <div className="flex flex-wrap gap-1.5">
+            {lead.experiencia && <Chip>🕒 {EXPERIENCIA_LABELS[lead.experiencia]}</Chip>}
+            {lead.situacao && <Chip>👥 {SITUACAO_LABELS[lead.situacao]}</Chip>}
+            {lead.canal_vendas && <Chip>🛒 {CANAL_VENDAS_LABELS[lead.canal_vendas]}</Chip>}
             {lead.estoque && <Chip>📦 {ESTOQUE_LABELS[lead.estoque]}</Chip>}
             {lead.historico && <Chip>📈 {HISTORICO_LABELS[lead.historico]}</Chip>}
             {lead.estrutura && <Chip>👥 {ESTRUTURA_LABELS[lead.estrutura]}</Chip>}
@@ -360,6 +390,7 @@ function SummaryView({ lead }: { lead: Lead }) {
 // Edit (form)
 // ============================================================
 type EditProps = {
+  busyStarts: number[];
   dateStr: string; setDateStr: (v: string) => void;
   timeStr: string; setTimeStr: (v: string) => void;
   local: LocalReuniao | null; setLocal: (v: LocalReuniao | null) => void;
@@ -369,6 +400,7 @@ type EditProps = {
   cargo: string | null; setCargo: (v: string | null) => void;
   empresa: string; setEmpresa: (v: string) => void;
   instagram: string; setInstagram: (v: string) => void;
+  segmento: SegmentoConfeccao | null; setSegmento: (v: SegmentoConfeccao | null) => void;
   sdrResp: string | null; setSdrResp: (v: string | null) => void;
   closerResp: string | null; setCloserResp: (v: string | null) => void;
   valor: string; setValor: (v: string) => void;
@@ -384,6 +416,7 @@ function EditView(props: EditProps) {
           time={props.timeStr}
           onDateChange={props.setDateStr}
           onTimeChange={props.setTimeStr}
+          busyStarts={props.busyStarts}
           showClear
         />
         <Field label="Local">
@@ -429,6 +462,9 @@ function EditView(props: EditProps) {
             </div>
           </Field>
         </div>
+        <Field label="Segmento da confecção">
+          <SegmentoSelect value={props.segmento} onChange={props.setSegmento} />
+        </Field>
       </Section>
 
       <Section title="Responsáveis">
@@ -497,6 +533,65 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1 block text-xs font-medium text-zinc-400">{label}</span>
       {children}
     </label>
+  );
+}
+
+// ============================================================
+// Box de qualidade do lead — resumo pro Closer antes da reunião
+// ============================================================
+function QualityBox({ lead }: { lead: Lead }) {
+  const { stars, priority, score, answered, total } = computeLeadScore(lead);
+  const prio = PRIORITY_META[priority];
+
+  // Resumo curto: 2-3 sinais que mais pesam
+  const resumo: string[] = [];
+  if (lead.bant_budget === "tem_verba") resumo.push("tem verba");
+  else if (lead.bant_budget === "nao_tem") resumo.push("sem verba agora");
+  if (lead.bant_authority === "decisor") resumo.push("fala com o decisor");
+  else if (lead.bant_authority === "precisa_aprovar") resumo.push("precisa aprovar com outro");
+  if (lead.bant_timing === "agora") resumo.push("quer começar já");
+  else if (lead.bant_timing === "sem_urgencia") resumo.push("sem urgência");
+  if (lead.situacao === "com_com_demanda") resumo.push("tem clientes e demanda");
+  else if (lead.situacao === "sem_clientes") resumo.push("ainda sem clientes");
+
+  return (
+    <div className={`rounded-xl border p-4 ${prio.bg} ${prio.border}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+            Qualidade do lead
+          </div>
+          <StarRating stars={stars} />
+        </div>
+        <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${prio.text}`}>
+          <span>{prio.emoji}</span>
+          {PRIORITY_LABELS[priority]}
+        </div>
+      </div>
+      {resumo.length > 0 && (
+        <p className="mt-2 text-sm text-zinc-300">
+          {resumo.join(" · ")}.
+        </p>
+      )}
+      <div className="mt-2 text-[11px] text-zinc-500">
+        Score {score}/100 · baseado em {answered} de {total} respostas
+      </div>
+    </div>
+  );
+}
+
+function StarRating({ stars }: { stars: number }) {
+  return (
+    <div className="mt-1 flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star
+          key={n}
+          size={18}
+          className={n <= stars ? "fill-[#f5c518] text-[#f5c518]" : "fill-zinc-800 text-zinc-700"}
+        />
+      ))}
+      <span className="ml-1.5 text-sm font-semibold text-zinc-200">{stars}/5</span>
+    </div>
   );
 }
 

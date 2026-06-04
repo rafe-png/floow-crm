@@ -23,7 +23,7 @@ const VIEW_LABELS: Record<ViewMode, string> = {
 
 export default function AgendaPage() {
   const { leads, updateLead, deleteLead } = useLeadsContext();
-  const [view, setView] = useState<ViewMode>("mes");
+  const [view, setView] = useState<ViewMode>("semana");
   const [cursor, setCursor] = useState(new Date());
   const [selected, setSelected] = useState<Lead | null>(null);
   const [pendingLost, setPendingLost] = useState<{

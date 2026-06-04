@@ -181,17 +181,19 @@ export function WeekView({ cursor, leads, onClickLead }: Props) {
                   const date = new Date(l.data_agendamento!);
                   if (date.getHours() < START_HOUR || date.getHours() >= END_HOUR) return null;
                   const top = meetingPosition(date);
+                  const end = new Date(date.getTime() + 60 * 60 * 1000);
+                  const isPast = date.getTime() < now.getTime();
                   const c = STATUS_COLORS[l.status];
                   return (
                     <button
                       key={l.id}
                       onClick={() => onClickLead(l)}
-                      className={`absolute left-1 right-1 overflow-hidden rounded p-1.5 text-left ${c.bg} ${c.border} border hover:brightness-125`}
-                      style={{ top, height: 44 }}
-                      title={`${format(date, "HH:mm")} · ${l.empresa || l.nome}`}
+                      className={`absolute left-1 right-1 overflow-hidden rounded p-1.5 text-left ${c.bg} ${c.border} border ${isPast ? "brightness-[0.55] hover:brightness-90" : "hover:brightness-125"}`}
+                      style={{ top, height: HOUR_HEIGHT - 2 }}
+                      title={`${format(date, "HH:mm")}–${format(end, "HH:mm")} · ${l.empresa || l.nome}`}
                     >
                       <div className={`truncate text-[10px] font-medium ${c.text}`}>
-                        {format(date, "HH:mm")}
+                        {format(date, "HH:mm")}–{format(end, "HH:mm")}
                       </div>
                       <div className="truncate text-[11px] font-medium text-zinc-200">
                         {l.empresa || l.nome}

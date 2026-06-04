@@ -80,11 +80,12 @@ export function useLeads() {
     };
   }, [userId]);
 
-  const createLead = useCallback(async (input: NewLeadInput) => {
+  const createLead = useCallback(async (input: NewLeadInput & { status?: LeadStatus }) => {
     const supabase = getSupabase();
+    const { status, ...rest } = input;
     const { data, error } = await supabase
       .from("leads")
-      .insert({ ...input, status: "reuniao_agendada" })
+      .insert({ ...rest, status: status ?? "reuniao_agendada" })
       .select()
       .single();
     if (error) throw error;
@@ -105,6 +106,12 @@ export function useLeads() {
   }, []);
 
   const updateLead = useCallback(async (id: string, patch: UpdateLeadInput) => {
+    // Mover para no-show limpa o agendamento: zera a data (e, via lógica abaixo,
+    // deleta o evento do Google Calendar e limpa google_event_id/meet_link).
+    if (patch.status === "no_show") {
+      patch = { ...patch, data_agendamento: null };
+    }
+
     const supabase = getSupabase();
     let prevSnapshot: Lead[] = [];
     let prevLead: Lead | undefined;

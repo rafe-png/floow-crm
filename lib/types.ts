@@ -1,4 +1,5 @@
 export type LeadStatus =
+  | "qualificado"
   | "reuniao_agendada"
   | "no_show"
   | "follow_up"
@@ -14,6 +15,26 @@ export type Owner = "SDR" | "Closer";
 export type EstoqueNivel = "muito" | "medio" | "pouco";
 export type HistoricoTrafego = "ja_fez" | "fazendo" | "nunca_fez";
 export type EstruturaComercial = "2_mais_vendedores" | "1_vendedor" | "dono_vende";
+
+// Maturidade / momento da empresa
+export type Experiencia = "menos_6m" | "6m_1ano" | "1_5anos" | "mais_5anos";
+export type Situacao = "sem_clientes" | "com_sem_demanda" | "com_com_demanda";
+export type CanalVendas = "box" | "loja" | "online";
+
+// Segmento da confecção
+export type SegmentoConfeccao =
+  | "moda_feminina"
+  | "moda_masculina"
+  | "moda_infantil"
+  | "moda_fitness"
+  | "moda_praia"
+  | "moda_lingerie"
+  | "moda_jeans"
+  | "moda_intima"
+  | "moda_plus_size"
+  | "moda_modestia"
+  | "pijamas"
+  | "outro";
 
 // BANT
 export type BantBudget = "tem_verba" | "tem_indefinida" | "nao_tem";
@@ -53,12 +74,16 @@ export type Lead = {
   cargo: string | null;
   empresa: string | null;
   instagram: string | null;
+  segmento: SegmentoConfeccao | null;
 
   // Responsáveis (pré-auth: texto livre; pós-auth: auto-preenchido)
   sdr_responsavel: string | null;
   closer_responsavel: string | null;
 
   // Qualificação
+  experiencia: Experiencia | null;
+  situacao: Situacao | null;
+  canal_vendas: CanalVendas | null;
   estoque: EstoqueNivel | null;
   historico: HistoricoTrafego | null;
   estrutura: EstruturaComercial | null;
@@ -141,6 +166,7 @@ export type NewTaskInput = {
 // Constantes de UI
 // ============================================================
 export const STATUS_ORDER: LeadStatus[] = [
+  "qualificado",
   "reuniao_agendada",
   "no_show",
   "follow_up",
@@ -150,6 +176,7 @@ export const STATUS_ORDER: LeadStatus[] = [
 ];
 
 export const STATUS_LABELS: Record<LeadStatus, string> = {
+  qualificado: "Qualificado",
   reuniao_agendada: "Reunião agendada",
   no_show: "No show",
   follow_up: "Follow-up",
@@ -159,12 +186,32 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
 };
 
 export const STATUS_COLORS: Record<LeadStatus, { bg: string; text: string; border: string; dot: string }> = {
+  qualificado:      { bg: "bg-indigo-500/10",  text: "text-indigo-300",  border: "border-indigo-500/30",  dot: "bg-indigo-400" },
   reuniao_agendada: { bg: "bg-blue-500/10",    text: "text-blue-300",    border: "border-blue-500/30",    dot: "bg-blue-400" },
   no_show:          { bg: "bg-amber-500/10",   text: "text-amber-300",   border: "border-amber-500/30",   dot: "bg-amber-400" },
   follow_up:        { bg: "bg-violet-500/10",  text: "text-violet-300",  border: "border-violet-500/30",  dot: "bg-violet-400" },
   carteira:         { bg: "bg-cyan-500/10",    text: "text-cyan-300",    border: "border-cyan-500/30",    dot: "bg-cyan-400" },
   negocio_ganho:    { bg: "bg-emerald-500/10", text: "text-emerald-300", border: "border-emerald-500/30", dot: "bg-emerald-400" },
   negocio_perdido:  { bg: "bg-rose-500/10",    text: "text-rose-300",    border: "border-rose-500/30",    dot: "bg-rose-400" },
+};
+
+export const EXPERIENCIA_LABELS: Record<Experiencia, string> = {
+  menos_6m: "Menos de 6 meses",
+  "6m_1ano": "6 meses a 1 ano",
+  "1_5anos": "1 a 5 anos",
+  mais_5anos: "+5 anos",
+};
+
+export const SITUACAO_LABELS: Record<Situacao, string> = {
+  sem_clientes: "Sem clientes",
+  com_sem_demanda: "Com clientes, sem demanda",
+  com_com_demanda: "Com clientes e com demanda",
+};
+
+export const CANAL_VENDAS_LABELS: Record<CanalVendas, string> = {
+  box: "Box",
+  loja: "Loja",
+  online: "Somente online",
 };
 
 export const ESTOQUE_LABELS: Record<EstoqueNivel, string> = {
@@ -214,6 +261,23 @@ export const LOCAL_LABELS: Record<LocalReuniao, string> = {
   online: "Online",
   presencial: "Presencial",
 };
+
+export const SEGMENTO_LABELS: Record<SegmentoConfeccao, string> = {
+  moda_feminina: "Moda feminina",
+  moda_masculina: "Moda masculina",
+  moda_infantil: "Moda infantil",
+  moda_fitness: "Moda fitness",
+  moda_praia: "Moda praia",
+  moda_lingerie: "Moda lingerie",
+  moda_jeans: "Moda jeans",
+  moda_intima: "Moda íntima",
+  moda_plus_size: "Moda plus size",
+  moda_modestia: "Moda modéstia",
+  pijamas: "Pijamas",
+  outro: "Outro",
+};
+
+export const SEGMENTO_OPTIONS = Object.keys(SEGMENTO_LABELS) as SegmentoConfeccao[];
 
 export const LOCAL_ICONS: Record<LocalReuniao, string> = {
   online: "💻",

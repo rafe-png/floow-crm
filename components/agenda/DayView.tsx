@@ -128,18 +128,20 @@ export function DayView({ cursor, leads, onClickLead }: Props) {
 
             {visibleMeetings.map((l) => {
               const date = new Date(l.data_agendamento!);
+              const end = new Date(date.getTime() + 60 * 60 * 1000);
               const top = position(date);
+              const isPast = date.getTime() < now.getTime();
               const c = STATUS_COLORS[l.status];
               return (
                 <button
                   key={l.id}
                   onClick={() => onClickLead(l)}
-                  className={`absolute left-2 right-2 overflow-hidden rounded-md p-2 text-left ${c.bg} ${c.border} border hover:brightness-125`}
-                  style={{ top, height: 52 }}
-                  title={`${format(date, "HH:mm")} · ${l.empresa || l.nome}`}
+                  className={`absolute left-2 right-2 overflow-hidden rounded-md p-2 text-left ${c.bg} ${c.border} border ${isPast ? "brightness-[0.55] hover:brightness-90" : "hover:brightness-125"}`}
+                  style={{ top, height: HOUR_HEIGHT - 4 }}
+                  title={`${format(date, "HH:mm")}–${format(end, "HH:mm")} · ${l.empresa || l.nome}`}
                 >
                   <div className={`text-[11px] font-semibold ${c.text}`}>
-                    {format(date, "HH:mm")}
+                    {format(date, "HH:mm")}–{format(end, "HH:mm")}
                   </div>
                   <div className="truncate text-xs font-medium text-zinc-200">
                     {l.empresa || l.nome}

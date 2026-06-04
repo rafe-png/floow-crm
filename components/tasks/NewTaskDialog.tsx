@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import { DateTimePicker, joinIso } from "@/components/ui/DateTimePicker";
+import { DateTimePicker, joinIso, splitIso } from "@/components/ui/DateTimePicker";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useTasksContext } from "@/lib/contexts/TasksContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
-import type { Lead } from "@/lib/types";
+import type { Lead, Task } from "@/lib/types";
 
 type Props = {
   open: boolean;
@@ -15,33 +15,49 @@ type Props = {
   lead?: Lead | null;
   /** Lista de leads pra picker quando não veio fixo (tarefa standalone) */
   leadsForPicker?: Lead[];
+  /** Se passado, abre em modo edição dessa tarefa */
+  task?: Task | null;
 };
 
-export function NewTaskDialog({ open, onClose, lead, leadsForPicker }: Props) {
+export function NewTaskDialog({ open, onClose, lead, leadsForPicker, task }: Props) {
   if (!open) return null;
-  return <Body onClose={onClose} lead={lead ?? null} leadsForPicker={leadsForPicker ?? []} />;
+  return (
+    <Body
+      onClose={onClose}
+      lead={lead ?? null}
+      leadsForPicker={leadsForPicker ?? []}
+      task={task ?? null}
+    />
+  );
 }
 
 function Body({
   onClose,
   lead,
   leadsForPicker,
+  task,
 }: {
   onClose: () => void;
   lead: Lead | null;
   leadsForPicker: Lead[];
+  task: Task | null;
 }) {
-  const { createTask } = useTasksContext();
+  const { createTask, updateTask } = useTasksContext();
   const { members, currentMember } = useTeamContext();
   const { user } = useAuth();
 
-  const [titulo, setTitulo] = useState("");
-  const [descricao, setDescricao] = useState("");
-  const [dateStr, setDateStr] = useState("");
-  const [timeStr, setTimeStr] = useState("");
-  const [assignee, setAssignee] = useState<string | null>(currentMember?.name ?? null);
-  const [leadId, setLeadId] = useState<string | null>(lead?.id ?? null);
-  const [notify, setNotify] = useState(true);
+  const editing = task != null;
+  const initialDue = splitIso(task?.due_at ?? null);
+
+  const [titulo, setTitulo] = useState(task?.titulo ?? "");
+  const [descricao, setDescricao] = useState(task?.descricao ?? "");
+  const [dateStr, setDateStr] = useState(initialDue.date);
+  const [timeStr, setTimeStr] = useState(initialDue.time);
+  const [assignee, setAssignee] = useState<string | null>(
+    task ? task.assignee : currentMember?.name ?? null,
+  );
+  const [leadId, setLeadId] = useState<string | null>(task ? task.lead_id : lead?.id ?? null);
+  const [notify, setNotify] = useState(task ? task.notify : true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,17 +70,28 @@ function Body({
     setSaving(true);
     setError(null);
     try {
-      await createTask(
-        {
+      if (editing && task) {
+        await updateTask(task.id, {
           lead_id: leadId,
           titulo: titulo.trim(),
           descricao: descricao.trim() || null,
           due_at: joinIso(dateStr, timeStr),
           assignee,
           notify,
-        },
-        user?.email ?? null,
-      );
+        });
+      } else {
+        await createTask(
+          {
+            lead_id: leadId,
+            titulo: titulo.trim(),
+            descricao: descricao.trim() || null,
+            due_at: joinIso(dateStr, timeStr),
+            assignee,
+            notify,
+          },
+          user?.email ?? null,
+        );
+      }
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar.");
@@ -84,7 +111,9 @@ function Body({
       >
         <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
           <div>
-            <h2 className="text-base font-semibold text-zinc-100">Nova tarefa</h2>
+            <h2 className="text-base font-semibold text-zinc-100">
+              {editing ? "Editar tarefa" : "Nova tarefa"}
+            </h2>
             {lead && (
               <p className="text-[11px] text-zinc-500">
                 vinculada a <span className="text-zinc-300">{lead.empresa || lead.nome}</span>
@@ -208,7 +237,7 @@ function Body({
             disabled={saving}
             className="rounded-md bg-[#f5c518] px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-[#ffd633] disabled:opacity-50"
           >
-            {saving ? "Salvando…" : "Criar tarefa"}
+            {saving ? "Salvando…" : editing ? "Salvar" : "Criar tarefa"}
           </button>
         </footer>
 

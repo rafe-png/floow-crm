@@ -2,7 +2,7 @@
 
 import { format, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, ExternalLink, Trash2, User } from "lucide-react";
+import { Calendar, ExternalLink, Pencil, Trash2, User } from "lucide-react";
 import Link from "next/link";
 import { useTasksContext } from "@/lib/contexts/TasksContext";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
@@ -11,9 +11,10 @@ import type { Task } from "@/lib/types";
 type Props = {
   task: Task;
   showLead?: boolean;
+  onEdit?: (task: Task) => void;
 };
 
-export function TaskItem({ task, showLead = true }: Props) {
+export function TaskItem({ task, showLead = true, onEdit }: Props) {
   const { toggleDone, deleteTask } = useTasksContext();
   const { leads } = useLeadsContext();
 
@@ -70,7 +71,7 @@ export function TaskItem({ task, showLead = true }: Props) {
           )}
           {showLead && lead && (
             <Link
-              href="/kanban"
+              href={`/kanban?lead=${lead.id}`}
               className="flex items-center gap-1 rounded bg-zinc-900 px-1.5 py-0.5 text-zinc-400 hover:text-zinc-200"
             >
               <ExternalLink size={9} />
@@ -80,17 +81,28 @@ export function TaskItem({ task, showLead = true }: Props) {
         </div>
       </div>
 
-      <button
-        onClick={() => {
-          if (confirm(`Excluir tarefa "${task.titulo}"?`)) {
-            deleteTask(task.id);
-          }
-        }}
-        className="opacity-0 transition-opacity group-hover:opacity-100 text-zinc-500 hover:text-rose-400"
-        aria-label="Excluir"
-      >
-        <Trash2 size={13} />
-      </button>
+      <div className="flex items-center gap-1.5">
+        {onEdit && (
+          <button
+            onClick={() => onEdit(task)}
+            className="text-zinc-500 hover:text-zinc-200"
+            aria-label="Editar"
+          >
+            <Pencil size={14} />
+          </button>
+        )}
+        <button
+          onClick={() => {
+            if (confirm(`Excluir tarefa "${task.titulo}"?`)) {
+              deleteTask(task.id);
+            }
+          }}
+          className="text-zinc-500 hover:text-rose-400"
+          aria-label="Excluir"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
     </div>
   );
 }

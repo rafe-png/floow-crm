@@ -59,6 +59,10 @@ export function computePoints(
       if (owner === "SDR" && ev.to_status === "no_show") {
         total += POINTS.no_show;
       }
+      // Lead criado em "Qualificado" e depois agendado conta o +10 do SDR.
+      if (owner === "SDR" && ev.to_status === "reuniao_agendada") {
+        total += POINTS.agendamento_criado;
+      }
     }
   }
 
@@ -97,6 +101,7 @@ export function computeStreak(
 
     const isHit =
       (owner === "SDR" && ev.tipo === "created" && ev.to_status === "reuniao_agendada") ||
+      (owner === "SDR" && ev.tipo === "status_change" && ev.to_status === "reuniao_agendada") ||
       (owner === "Closer" && ev.tipo === "status_change" && ev.to_status === "negocio_ganho");
 
     if (!isHit) continue;

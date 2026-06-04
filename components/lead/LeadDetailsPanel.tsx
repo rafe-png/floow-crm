@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowRight, Calendar, Check, Pencil, Trash2, X } from "lucide-react";
 import { InstagramIcon, WhatsAppIcon } from "@/components/icons/BrandIcons";
 import { CargoSelect } from "@/components/ui/CargoSelect";
-import { DateTimePicker, joinIso, splitIso } from "@/components/ui/DateTimePicker";
+import { DateTimePicker, busyStartsForDate, joinIso, splitIso } from "@/components/ui/DateTimePicker";
 import { LocalSelect } from "@/components/ui/LocalSelect";
 import { PersonSelect } from "@/components/ui/PersonSelect";
+import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
 import { LeadTasks } from "@/components/tasks/LeadTasks";
 import { useLeadEvents } from "@/lib/hooks/useLeads";
+import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import {
   BANT_AUTHORITY_LABELS,
   BANT_BUDGET_LABELS,
@@ -35,6 +37,7 @@ import {
   type LeadStatus,
   type LocalReuniao,
   type Owner,
+  type SegmentoConfeccao,
   whatsappLink,
 } from "@/lib/types";
 
@@ -46,6 +49,7 @@ type Props = {
 };
 
 export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
+  const { leads } = useLeadsContext();
   const initialDateTime = splitIso(lead.data_agendamento);
 
   const [nome, setNome] = useState(lead.nome);
@@ -53,6 +57,7 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
   const [cargo, setCargo] = useState<string | null>(lead.cargo);
   const [empresa, setEmpresa] = useState(lead.empresa ?? "");
   const [instagram, setInstagram] = useState(lead.instagram ?? "");
+  const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(lead.segmento);
   const [dono, setDono] = useState<Owner>(lead.dono);
   const [valor, setValor] = useState(lead.valor != null ? String(lead.valor) : "");
   const [observacoes, setObservacoes] = useState(lead.observacoes ?? "");
@@ -61,6 +66,11 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
   const [dateStr, setDateStr] = useState(initialDateTime.date);
   const [timeStr, setTimeStr] = useState(initialDateTime.time);
   const [local, setLocal] = useState<LocalReuniao | null>(lead.local);
+
+  const busyStarts = useMemo(
+    () => busyStartsForDate(leads, dateStr, lead.id),
+    [leads, dateStr, lead.id],
+  );
 
   // Qualificação + BANT (editáveis via card "Resumo pré-reunião")
   const [estoque, setEstoque] = useState<EstoqueNivel | null>(lead.estoque);
@@ -91,6 +101,7 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
         cargo: cargo,
         empresa: empresa.trim() || null,
         instagram: instagram.trim().replace(/^@/, "") || null,
+        segmento,
         dono,
         valor: parsedValor != null && !Number.isNaN(parsedValor) ? parsedValor : null,
         observacoes: observacoes.trim() || null,
@@ -212,6 +223,9 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
                 />
               </div>
             </Field>
+            <Field label="Segmento da confecção">
+              <SegmentoSelect value={segmento} onChange={(v) => { setSegmento(v); setDirty(true); }} />
+            </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Dono">
                 <div className="flex gap-1.5">
@@ -266,6 +280,7 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
               time={timeStr}
               onDateChange={(v) => { setDateStr(v); setDirty(true); }}
               onTimeChange={(v) => { setTimeStr(v); setDirty(true); }}
+              busyStarts={busyStarts}
               showClear
             />
             <Field label="Local">

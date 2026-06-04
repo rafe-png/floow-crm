@@ -1,62 +1,85 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { CargoSelect } from "@/components/ui/CargoSelect";
-import { DateTimePicker, joinIso } from "@/components/ui/DateTimePicker";
+import { DateTimePicker, busyStartsForDate, joinIso } from "@/components/ui/DateTimePicker";
 import { LocalSelect } from "@/components/ui/LocalSelect";
 import { PersonSelect } from "@/components/ui/PersonSelect";
+import { Pills, PillRow } from "@/components/ui/Pills";
+import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
+import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import {
   BANT_AUTHORITY_LABELS,
   BANT_BUDGET_LABELS,
   BANT_NEED_LABELS,
   BANT_TIMING_LABELS,
+  CANAL_VENDAS_LABELS,
   ESTOQUE_LABELS,
   ESTRUTURA_LABELS,
+  EXPERIENCIA_LABELS,
   HISTORICO_LABELS,
+  SITUACAO_LABELS,
+  STATUS_COLORS,
+  STATUS_LABELS,
   type BantAuthority,
   type BantBudget,
   type BantNeed,
   type BantTiming,
+  type CanalVendas,
   type EstoqueNivel,
   type EstruturaComercial,
+  type Experiencia,
   type HistoricoTrafego,
+  type LeadStatus,
   type LocalReuniao,
   type Owner,
+  type SegmentoConfeccao,
+  type Situacao,
 } from "@/lib/types";
 import type { NewLeadInput } from "@/lib/hooks/useLeads";
+
+type SubmitInput = NewLeadInput & { status?: LeadStatus };
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  onSubmit: (input: NewLeadInput) => Promise<void>;
+  onSubmit: (input: SubmitInput) => Promise<void>;
+  initialStatus?: LeadStatus;
 };
 
-export function NewLeadDialog({ open, onClose, onSubmit }: Props) {
+export function NewLeadDialog({ open, onClose, onSubmit, initialStatus }: Props) {
   if (!open) return null;
-  return <NewLeadDialogBody onClose={onClose} onSubmit={onSubmit} />;
+  return <NewLeadDialogBody onClose={onClose} onSubmit={onSubmit} initialStatus={initialStatus} />;
 }
 
 function NewLeadDialogBody({
   onClose,
   onSubmit,
+  initialStatus,
 }: {
   onClose: () => void;
-  onSubmit: (input: NewLeadInput) => Promise<void>;
+  onSubmit: (input: SubmitInput) => Promise<void>;
+  initialStatus?: LeadStatus;
 }) {
   const { defaultFor } = useTeamContext();
+  const { leads } = useLeadsContext();
 
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [cargo, setCargo] = useState<string | null>(null);
   const [empresa, setEmpresa] = useState("");
   const [instagram, setInstagram] = useState("");
+  const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(null);
   const [dono, setDono] = useState<Owner>("SDR");
   const [valor, setValor] = useState("");
   const [sdrResp, setSdrResp] = useState<string | null>(() => defaultFor("SDR")?.name ?? null);
   const [closerResp, setCloserResp] = useState<string | null>(() => defaultFor("Closer")?.name ?? null);
 
+  const [experiencia, setExperiencia] = useState<Experiencia | null>(null);
+  const [situacao, setSituacao] = useState<Situacao | null>(null);
+  const [canalVendas, setCanalVendas] = useState<CanalVendas | null>(null);
   const [estoque, setEstoque] = useState<EstoqueNivel | null>(null);
   const [historico, setHistorico] = useState<HistoricoTrafego | null>(null);
   const [estrutura, setEstrutura] = useState<EstruturaComercial | null>(null);
@@ -70,19 +93,26 @@ function NewLeadDialogBody({
   const [hora, setHora] = useState("");
   const [local, setLocal] = useState<LocalReuniao | null>(null);
 
+  const busyStarts = useMemo(() => busyStartsForDate(leads, data), [leads, data]);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function reset() {
     setNome(""); setTelefone(""); setCargo(null); setEmpresa(""); setInstagram("");
+    setSegmento(null);
     setDono("SDR"); setValor("");
     setSdrResp(defaultFor("SDR")?.name ?? null);
     setCloserResp(defaultFor("Closer")?.name ?? null);
+    setExperiencia(null); setSituacao(null); setCanalVendas(null);
     setEstoque(null); setHistorico(null); setEstrutura(null);
     setBantBudget(null); setBantAuthority(null); setBantNeed(null); setBantTiming(null);
     setData(""); setHora(""); setLocal(null);
     setError(null);
   }
+
+  // Modo enxuto: criar direto na etapa "Qualificado" só pede contato do decisor + empresa.
+  const quick = initialStatus === "qualificado";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -91,20 +121,22 @@ function NewLeadDialogBody({
       setError("Nome do decisor, telefone e empresa são obrigatórios.");
       return;
     }
-    if (!estoque || !historico || !estrutura) {
-      setError("Preencha a qualificação (estoque, histórico, estrutura).");
-      return;
-    }
-    if (!bantBudget || !bantAuthority || !bantNeed || !bantTiming) {
-      setError("Preencha todos os 4 campos do BANT.");
-      return;
+    if (!quick) {
+      if (!experiencia || !situacao || !canalVendas || !estoque || !historico || !estrutura) {
+        setError("Preencha toda a qualificação (experiência, situação, canal, estoque, histórico, estrutura).");
+        return;
+      }
+      if (!bantBudget || !bantAuthority || !bantNeed || !bantTiming) {
+        setError("Preencha todos os 4 campos do BANT.");
+        return;
+      }
     }
 
     setSaving(true);
     setError(null);
     try {
       const parsedValor = valor.trim() ? Number(valor.replace(/\./g, "").replace(",", ".")) : null;
-      const dataAgendamento = joinIso(data, hora);
+      const dataAgendamento = quick ? null : joinIso(data, hora);
 
       await onSubmit({
         nome: nome.trim(),
@@ -112,19 +144,24 @@ function NewLeadDialogBody({
         cargo: cargo,
         empresa: empresa.trim() || null,
         instagram: instagram.trim().replace(/^@/, "") || null,
+        segmento: quick ? null : segmento,
         dono,
-        valor: parsedValor != null && !Number.isNaN(parsedValor) ? parsedValor : null,
+        valor: quick ? null : (parsedValor != null && !Number.isNaN(parsedValor) ? parsedValor : null),
         sdr_responsavel: sdrResp,
         closer_responsavel: closerResp,
-        estoque,
-        historico,
-        estrutura,
-        bant_budget: bantBudget,
-        bant_authority: bantAuthority,
-        bant_need: bantNeed,
-        bant_timing: bantTiming,
+        experiencia: quick ? null : experiencia,
+        situacao: quick ? null : situacao,
+        canal_vendas: quick ? null : canalVendas,
+        estoque: quick ? null : estoque,
+        historico: quick ? null : historico,
+        estrutura: quick ? null : estrutura,
+        bant_budget: quick ? null : bantBudget,
+        bant_authority: quick ? null : bantAuthority,
+        bant_need: quick ? null : bantNeed,
+        bant_timing: quick ? null : bantTiming,
         data_agendamento: dataAgendamento,
-        local,
+        local: quick ? null : local,
+        ...(initialStatus ? { status: initialStatus } : {}),
       });
       reset();
       onClose();
@@ -146,8 +183,18 @@ function NewLeadDialogBody({
       >
         <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
           <div>
-            <h2 className="text-base font-semibold text-zinc-100">Novo lead</h2>
-            <p className="text-[11px] text-zinc-500">Preencha durante a ligação · ~60s</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold text-zinc-100">Novo lead</h2>
+              {initialStatus && (
+                <span className={`flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[initialStatus].bg} ${STATUS_COLORS[initialStatus].text} ${STATUS_COLORS[initialStatus].border}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${STATUS_COLORS[initialStatus].dot}`} />
+                  {STATUS_LABELS[initialStatus]}
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              {quick ? "Cadastro rápido · só o contato do decisor e a empresa" : "Preencha durante a ligação · ~60s"}
+            </p>
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300" aria-label="Fechar">
             <X size={18} />
@@ -164,33 +211,39 @@ function NewLeadDialogBody({
               <Field label="WhatsApp *">
                 <input value={telefone} onChange={(e) => setTelefone(e.target.value)} className="ds-input" placeholder="(11) 91234-5678" inputMode="tel" />
               </Field>
-              <Field label="Cargo">
-                <CargoSelect value={cargo} onChange={setCargo} />
-              </Field>
-              <Field label="Dono no CRM">
-                <Pills
-                  value={dono}
-                  options={[
-                    { value: "SDR" as Owner, label: "SDR", color: "sky" },
-                    { value: "Closer" as Owner, label: "Closer", color: "fuchsia" },
-                  ]}
-                  onChange={setDono}
-                />
-              </Field>
+              {!quick && (
+                <>
+                  <Field label="Cargo">
+                    <CargoSelect value={cargo} onChange={setCargo} />
+                  </Field>
+                  <Field label="Dono no CRM">
+                    <Pills
+                      value={dono}
+                      options={[
+                        { value: "SDR" as Owner, label: "SDR", color: "sky" },
+                        { value: "Closer" as Owner, label: "Closer", color: "fuchsia" },
+                      ]}
+                      onChange={setDono}
+                    />
+                  </Field>
+                </>
+              )}
             </div>
           </Section>
 
           {/* Responsáveis */}
-          <Section title="Responsáveis" hint="Auto-preenchido com base no usuário logado (pós-login)">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="SDR responsável">
-                <PersonSelect role="SDR" value={sdrResp} onChange={setSdrResp} />
-              </Field>
-              <Field label="Closer responsável">
-                <PersonSelect role="Closer" value={closerResp} onChange={setCloserResp} />
-              </Field>
-            </div>
-          </Section>
+          {!quick && (
+            <Section title="Responsáveis" hint="Auto-preenchido com base no usuário logado (pós-login)">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="SDR responsável">
+                  <PersonSelect role="SDR" value={sdrResp} onChange={setSdrResp} />
+                </Field>
+                <Field label="Closer responsável">
+                  <PersonSelect role="Closer" value={closerResp} onChange={setCloserResp} />
+                </Field>
+              </div>
+            </Section>
+          )}
 
           {/* Empresa */}
           <Section title="Empresa">
@@ -205,11 +258,37 @@ function NewLeadDialogBody({
                 </div>
               </Field>
             </div>
+            {!quick && (
+              <div className="mt-3">
+                <Field label="Segmento da confecção">
+                  <SegmentoSelect value={segmento} onChange={setSegmento} />
+                </Field>
+              </div>
+            )}
           </Section>
 
+          {!quick && (<>
           {/* Qualificação */}
           <Section title="Qualificação *" hint="Toque rápido nas opções">
             <div className="space-y-3">
+              <PillRow
+                label="Experiência (tempo de mercado)"
+                value={experiencia}
+                options={Object.entries(EXPERIENCIA_LABELS).map(([v, l]) => ({ value: v as Experiencia, label: l }))}
+                onChange={setExperiencia}
+              />
+              <PillRow
+                label="Situação atual"
+                value={situacao}
+                options={Object.entries(SITUACAO_LABELS).map(([v, l]) => ({ value: v as Situacao, label: l }))}
+                onChange={setSituacao}
+              />
+              <PillRow
+                label="Canal de vendas"
+                value={canalVendas}
+                options={Object.entries(CANAL_VENDAS_LABELS).map(([v, l]) => ({ value: v as CanalVendas, label: l }))}
+                onChange={setCanalVendas}
+              />
               <PillRow
                 label="Estoque pronta entrega"
                 value={estoque}
@@ -271,6 +350,7 @@ function NewLeadDialogBody({
                   time={hora}
                   onDateChange={setData}
                   onTimeChange={setHora}
+                  busyStarts={busyStarts}
                   showClear
                 />
               </div>
@@ -282,6 +362,7 @@ function NewLeadDialogBody({
               <LocalSelect value={local} onChange={setLocal} />
             </Field>
           </Section>
+          </>)}
 
           {error && (
             <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
@@ -344,44 +425,3 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-type PillOption<T> = { value: T; label: string; color?: "sky" | "fuchsia" };
-
-function Pills<T extends string>({
-  value, options, onChange,
-}: { value: T | null; options: PillOption<T>[]; onChange: (v: T) => void }) {
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {options.map((opt) => {
-        const selected = opt.value === value;
-        const colorClass = selected
-          ? opt.color === "sky"
-            ? "border-sky-500/50 bg-sky-500/15 text-sky-200"
-            : opt.color === "fuchsia"
-            ? "border-fuchsia-500/50 bg-fuchsia-500/15 text-fuchsia-200"
-            : "border-[#f5c518]/50 bg-[#f5c518]/15 text-[#f5c518]"
-          : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700";
-        return (
-          <button
-            key={String(opt.value)}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${colorClass}`}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function PillRow<T extends string>({
-  label, value, options, onChange,
-}: { label: string; value: T | null; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
-  return (
-    <div>
-      <div className="mb-1 text-[11px] font-medium text-zinc-400">{label}</div>
-      <Pills value={value} options={options} onChange={onChange} />
-    </div>
-  );
-}

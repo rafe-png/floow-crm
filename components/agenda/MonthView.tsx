@@ -125,11 +125,12 @@ export function MonthView({ cursor, leads, onClickLead }: Props) {
               <div className="flex flex-col gap-0.5">
                 {visibleMeetings.map((l) => {
                   const c = STATUS_COLORS[l.status];
+                  const isPast = new Date(l.data_agendamento!).getTime() < today.getTime();
                   return (
                     <button
                       key={l.id}
                       onClick={() => onClickLead(l)}
-                      className={`group flex items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[10px] ${c.bg} hover:brightness-125`}
+                      className={`group flex items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[10px] ${c.bg} ${isPast ? "brightness-[0.55] hover:brightness-90" : "hover:brightness-125"}`}
                       title={`${format(new Date(l.data_agendamento!), "HH:mm")} · ${l.empresa || l.nome}`}
                     >
                       <span className={`h-1 w-1 shrink-0 rounded-full ${c.dot}`} />

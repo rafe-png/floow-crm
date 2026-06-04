@@ -19,9 +19,10 @@ type Props = {
   leads: Lead[];
   onMove: (id: string, status: LeadStatus) => Promise<void>;
   onCardClick: (lead: Lead) => void;
+  onCreate: (status: LeadStatus) => void;
 };
 
-export function Board({ leads, onMove, onCardClick }: Props) {
+export function Board({ leads, onMove, onCardClick, onCreate }: Props) {
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
 
   const sensors = useSensors(
@@ -31,6 +32,7 @@ export function Board({ leads, onMove, onCardClick }: Props) {
 
   const byStatus = useMemo(() => {
     const map: Record<LeadStatus, Lead[]> = {
+      qualificado: [],
       reuniao_agendada: [],
       no_show: [],
       follow_up: [],
@@ -70,6 +72,7 @@ export function Board({ leads, onMove, onCardClick }: Props) {
             status={status}
             leads={byStatus[status]}
             onCardClick={onCardClick}
+            onCreate={onCreate}
           />
         ))}
       </div>

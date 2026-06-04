@@ -46,7 +46,25 @@
       "Bash(curl -s -o /dev/null -w \"manifest: HTTP %{http_code} \\(%{content_type}\\)\\\\n\" https://floow-crm.vercel.app/manifest.webmanifest)",
       "Bash(curl -s -o /dev/null -w \"icon-512: HTTP %{http_code}\\\\n\" https://floow-crm.vercel.app/icon-512.png)",
       "Bash(git commit -q -m 'Libera /manifest.webmanifest da proteção de login \\(PWA instalável\\) *)",
-      "Bash(curl -s https://floow-crm.vercel.app/manifest.webmanifest)"
+      "Bash(curl -s https://floow-crm.vercel.app/manifest.webmanifest)",
+      "Bash(lsof -ti:3000)",
+      "Bash(./node_modules/.bin/vercel --version)",
+      "Bash(echo \"vercel local OK: $\\(./node_modules/.bin/vercel --version 2>/dev/null\\)\")",
+      "Bash(git rev-list *)",
+      "Bash(git fetch *)",
+      "Bash(git ls-tree *)",
+      "Bash(git ls-remote *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(npx --yes vercel whoami)",
+      "Bash(npx --yes vercel --prod --yes)",
+      "Bash(xargs kill)",
+      "Bash(npx --yes vercel ls --prod)",
+      "Bash(npx --yes vercel inspect floow-crm.vercel.app)",
+      "Bash(sed -n '7,16p' supabase/migrations/001_init.sql)",
+      "Bash(sed -n '1,8p' lib/types.ts)",
+      "Bash(sed -n '150,230p' lib/types.ts)",
+      "Bash(sed -n '1,60p' supabase/migrations/002_phase2_b2b.sql)",
+      "Bash(sed -n '40,100p' lib/types.ts)"
     ]
   }
 }

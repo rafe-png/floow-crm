@@ -1,6 +1,7 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
+import { Plus } from "lucide-react";
 import { LeadCard } from "./LeadCard";
 import { STATUS_COLORS, STATUS_LABELS, type Lead, type LeadStatus } from "@/lib/types";
 
@@ -8,9 +9,10 @@ type Props = {
   status: LeadStatus;
   leads: Lead[];
   onCardClick: (lead: Lead) => void;
+  onCreate: (status: LeadStatus) => void;
 };
 
-export function Column({ status, leads, onCardClick }: Props) {
+export function Column({ status, leads, onCardClick, onCreate }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const colors = STATUS_COLORS[status];
 
@@ -23,9 +25,20 @@ export function Column({ status, leads, onCardClick }: Props) {
             {STATUS_LABELS[status]}
           </h3>
         </div>
-        <span className="rounded-md bg-zinc-900 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
-          {leads.length}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="rounded-md bg-zinc-900 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
+            {leads.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => onCreate(status)}
+            className={`rounded-md p-1 text-zinc-400 hover:bg-zinc-900 ${colors.text}`}
+            title={`Criar lead em "${STATUS_LABELS[status]}"`}
+            aria-label={`Criar lead em ${STATUS_LABELS[status]}`}
+          >
+            <Plus size={14} />
+          </button>
+        </div>
       </div>
 
       <div
