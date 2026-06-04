@@ -43,7 +43,7 @@ export function Column({ status, leads, onCardClick, onCreate }: Props) {
 
       <div
         ref={setNodeRef}
-        className={`flex flex-1 flex-col gap-2 overflow-y-auto p-2 transition-colors ${
+        className={`no-scrollbar flex flex-1 flex-col gap-2 overflow-y-auto p-2 transition-colors ${
           isOver ? "bg-zinc-800/30" : ""
         }`}
       >

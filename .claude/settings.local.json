@@ -64,7 +64,10 @@
       "Bash(sed -n '1,8p' lib/types.ts)",
       "Bash(sed -n '150,230p' lib/types.ts)",
       "Bash(sed -n '1,60p' supabase/migrations/002_phase2_b2b.sql)",
-      "Bash(sed -n '40,100p' lib/types.ts)"
+      "Bash(sed -n '40,100p' lib/types.ts)",
+      "Bash(git commit -q -m ' *)",
+      "Bash(gh auth *)",
+      "Bash(gh --version)"
     ]
   }
 }

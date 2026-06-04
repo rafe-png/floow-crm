@@ -31,3 +31,7 @@ body {
 .kanban-scroll::-webkit-scrollbar-thumb { background: #2a2f3a; border-radius: 8px; }
 .kanban-scroll::-webkit-scrollbar-thumb:hover { background: #3a4150; }
 .kanban-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Esconde a barra de rolagem mantendo o scroll (colunas/etapas do kanban) */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
