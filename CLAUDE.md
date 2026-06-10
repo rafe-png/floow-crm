@@ -73,6 +73,8 @@ SQL migrations live in `supabase/migrations/`. They are applied manually via Sup
 
 - `001_init.sql` — core schema, triggers, RLS, realtime
 - `002_phase2_b2b.sql` — B2B fields, Closer goals
+- `012` / `014` — funil status enum: adiciona `qualificado` e `em_agendamento` (ordem: qualificado → em_agendamento → reuniao_agendada → …)
+- `015` — vincula `team_members.email` às contas de login (usado pra identificar o usuário logado)
 
 ## Phased delivery — current state
 
@@ -80,8 +82,31 @@ SQL migrations live in `supabase/migrations/`. They are applied manually via Sup
 - Phase 2.1 (done) — Sidebar nav, Dashboard, B2B lead form with BANT obrigatório, WhatsApp button, Closer goals
 - Phase 2.2 (done) — Gamification: pontos, streak, nível, badges, ranking SDR vs Closer (all derived from `lead_events`)
 - Phase 2.3 (done) — Agenda visual com toggle mês/semana, navegação por período, click → painel lateral
-- Phase 2.4 (todo) — Google Calendar OAuth (requires adding auth — login flow)
+- Phase 2.7 (done) — Etapa "Em agendamento"; papéis/permissões (admin, zona do Closer travada pro SDR); filtro por responsável (só admin); gestão de usuários self-service; celebrações (dopamina) ao agendar/ganhar
 - Phase 3 (todo) — WhatsApp lead capture (Evolution API or Z-API)
+
+### Papéis e permissões (Phase 2.7)
+
+Identidade do usuário = cruzamento `team_members.email` × email da sessão Supabase Auth, feito em `TeamContext`:
+- `currentMember` — o membro do time correspondente ao login.
+- `isAdmin` — `email === ADMIN_EMAIL` (`rafe@floowdigital.com`, constante em `lib/types.ts`). Admin é fixo; não há coluna no banco.
+- Helpers em `lib/types.ts`: `isAdminEmail()`, `SDR_STAGES` (qualificado/em_agendamento/reuniao_agendada), `canMoveTo(status, {role, isAdmin})`.
+
+Regras:
+- **Visibilidade do funil** (`app/kanban/page.tsx`, `visibleLeads`): admin vê tudo + filtro por responsável; SDR/Closer veem só leads onde são `sdr_responsavel`/`closer_responsavel`.
+- **Zona do Closer**: da `reuniao_agendada` em diante (no_show, follow_up, carteira, ganho, perdido) o SDR não move cards — colunas ficam mais escuras + cadeado (`Column locked`, droppable `disabled`). Closer e admin movem livremente. A trava é aplicada no Board (DnD), na LeadDetailsPanel ("Mover para") e via `canMoveTo`.
+- **Dono padrão do lead**: `NewLeadDialog` pré-seleciona `dono` = `currentMember.role`.
+
+### Gestão de usuários (Phase 2.7)
+
+Só o admin gerencia (card "Usuários" em `/configuracoes`). Cria contas de login de verdade via API routes server-side com service_role:
+- `POST /api/team/create-user` — cria auth user (senha temporária, `email_confirm: true`) + linha em `team_members`. Rollback do auth se a inserção falhar.
+- `POST /api/team/delete-user` — desativa em `team_members` + apaga o login.
+- Ambas passam por `app/api/team/guard.ts` (`getAdminSupabaseGuard`) que exige sessão e `isAdminEmail`. Expostas no client via `TeamContext.createUser/removeUser`.
+
+### Celebrações (Phase 2.7)
+
+`components/ui/Celebration.tsx` — overlay full-screen, `pointer-events-none`, auto-dismiss ~1.8s. `kind: 'meeting'` (reuniao_agendada) e `'win'` (negocio_ganho, sino + dinheiro). Disparado de `app/kanban/page.tsx` (`triggerCelebration`) após mover/criar/completar pra esses status. Partículas usam pseudo-random **determinístico** (`Math.sin`) — `Math.random` durante render quebra a regra `react-hooks/purity` do React 19. Animações em `globals.css` (`floow-*`).
 
 ### Gamification details (Phase 2.2)
 

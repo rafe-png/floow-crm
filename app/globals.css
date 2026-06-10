@@ -35,3 +35,40 @@ body {
 /* Esconde a barra de rolagem mantendo o scroll (colunas/etapas do kanban) */
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ============================================================
+   Celebrações (dopamina) — reunião agendada / negócio ganho
+   ============================================================ */
+@keyframes floow-pop {
+  0%   { transform: scale(0.3) translateY(8px); opacity: 0; }
+  35%  { transform: scale(1.15) translateY(0);  opacity: 1; }
+  70%  { transform: scale(1);                   opacity: 1; }
+  100% { transform: scale(1.05);                opacity: 0; }
+}
+.floow-pop { animation: floow-pop 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+@keyframes floow-fall {
+  0%   { transform: translateY(-12vh) rotate(0deg);   opacity: 0; }
+  10%  { opacity: 1; }
+  100% { transform: translateY(112vh) rotate(420deg); opacity: 0; }
+}
+.floow-particle { animation: floow-fall linear forwards; will-change: transform; }
+
+@keyframes floow-ring {
+  0%, 100% { transform: rotate(0); }
+  20%      { transform: rotate(-16deg); }
+  40%      { transform: rotate(13deg); }
+  60%      { transform: rotate(-9deg); }
+  80%      { transform: rotate(6deg); }
+}
+.floow-ring { animation: floow-ring 0.9s ease-in-out 2; transform-origin: 50% 12%; }
+
+@keyframes floow-overlay-out {
+  0%, 70% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+.floow-overlay { animation: floow-overlay-out 1.8s ease-out forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .floow-pop, .floow-particle, .floow-ring, .floow-overlay { animation-duration: 0.01ms !important; }
+}

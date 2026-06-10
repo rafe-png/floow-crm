@@ -67,7 +67,20 @@
       "Bash(sed -n '40,100p' lib/types.ts)",
       "Bash(git commit -q -m ' *)",
       "Bash(gh auth *)",
-      "Bash(gh --version)"
+      "Bash(gh --version)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(curl -s https://api.github.com/repos/rafe-png/floow-crm)",
+      "Bash(curl -s https://api.github.com/repos/rafe-png/floow-crm/branches)",
+      "Bash(curl -s -I https://floow-crm.vercel.app/)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} -> redirect: %{redirect_url}\\\\n\" https://floow-crm.vercel.app/tarefas)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" https://floow-crm.vercel.app/login)",
+      "Bash(git config *)",
+      "Bash(git credential-osxkeychain *)",
+      "Bash(echo \"Confirmação: $\\(git config --global credential.helper\\)\")",
+      "Bash(npx --yes vercel@latest --prod --yes)",
+      "Bash(claude update *)",
+      "Bash(npx eslint *)",
+      "Bash(git commit *)"
     ]
   }
 }

@@ -13,16 +13,18 @@ import {
 } from "@dnd-kit/core";
 import { Column } from "./Column";
 import { LeadCard } from "./LeadCard";
-import { STATUS_ORDER, type Lead, type LeadStatus } from "@/lib/types";
+import { canMoveTo, STATUS_ORDER, type Lead, type LeadStatus, type Owner } from "@/lib/types";
 
 type Props = {
   leads: Lead[];
   onMove: (id: string, status: LeadStatus) => Promise<void>;
   onCardClick: (lead: Lead) => void;
   onCreate: (status: LeadStatus) => void;
+  viewerRole: Owner | null;
+  isAdmin: boolean;
 };
 
-export function Board({ leads, onMove, onCardClick, onCreate }: Props) {
+export function Board({ leads, onMove, onCardClick, onCreate, viewerRole, isAdmin }: Props) {
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
 
   const sensors = useSensors(
@@ -33,6 +35,7 @@ export function Board({ leads, onMove, onCardClick, onCreate }: Props) {
   const byStatus = useMemo(() => {
     const map: Record<LeadStatus, Lead[]> = {
       qualificado: [],
+      em_agendamento: [],
       reuniao_agendada: [],
       no_show: [],
       follow_up: [],
@@ -56,6 +59,8 @@ export function Board({ leads, onMove, onCardClick, onCreate }: Props) {
     const lead = active.data.current?.lead as Lead | undefined;
     const newStatus = over.id as LeadStatus;
     if (!lead || lead.status === newStatus) return;
+    // Trava: SDR não solta card nas etapas do Closer (depois de "reunião agendada").
+    if (!canMoveTo(newStatus, { role: viewerRole, isAdmin })) return;
     try {
       await onMove(lead.id, newStatus);
     } catch (err) {
@@ -73,6 +78,7 @@ export function Board({ leads, onMove, onCardClick, onCreate }: Props) {
             leads={byStatus[status]}
             onCardClick={onCardClick}
             onCreate={onCreate}
+            locked={!canMoveTo(status, { role: viewerRole, isAdmin })}
           />
         ))}
       </div>

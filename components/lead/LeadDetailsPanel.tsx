@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, Calendar, Check, Pencil, Trash2, X } from "lucide-react";
+import { ArrowRight, Calendar, Check, Lock, Pencil, Trash2, X } from "lucide-react";
 import { InstagramIcon, WhatsAppIcon } from "@/components/icons/BrandIcons";
 import { CargoSelect } from "@/components/ui/CargoSelect";
 import { DateTimePicker, busyStartsForDate, joinIso, splitIso } from "@/components/ui/DateTimePicker";
@@ -13,7 +13,9 @@ import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
 import { LeadTasks } from "@/components/tasks/LeadTasks";
 import { useLeadEvents } from "@/lib/hooks/useLeads";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
+import { useTeamContext } from "@/lib/contexts/TeamContext";
 import {
+  canMoveTo,
   BANT_AUTHORITY_LABELS,
   BANT_BUDGET_LABELS,
   BANT_NEED_LABELS,
@@ -50,6 +52,8 @@ type Props = {
 
 export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
   const { leads } = useLeadsContext();
+  const { isAdmin, currentMember } = useTeamContext();
+  const viewerRole = isAdmin ? null : currentMember?.role ?? null;
   const initialDateTime = splitIso(lead.data_agendamento);
 
   const [nome, setNome] = useState(lead.nome);
@@ -297,16 +301,26 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
               {STATUS_ORDER.map((s) => {
                 const c = STATUS_COLORS[s];
                 const active = s === lead.status;
+                const locked = !active && !canMoveTo(s, { role: viewerRole, isAdmin });
                 return (
                   <button
                     key={s}
                     onClick={() => handleStatusChange(s)}
-                    disabled={active}
+                    disabled={active || locked}
+                    title={locked ? "Etapa do Closer — só o Closer move pra cá" : undefined}
                     className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs transition-colors ${
-                      active ? `${c.bg} ${c.border} ${c.text} cursor-default` : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                      active
+                        ? `${c.bg} ${c.border} ${c.text} cursor-default`
+                        : locked
+                          ? "cursor-not-allowed border-zinc-900 bg-black/40 text-zinc-600"
+                          : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
                     }`}
                   >
-                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${c.dot}`} />
+                    {locked ? (
+                      <Lock size={11} className="shrink-0 text-zinc-700" />
+                    ) : (
+                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${c.dot}`} />
+                    )}
                     <span className="truncate">{STATUS_LABELS[s]}</span>
                   </button>
                 );

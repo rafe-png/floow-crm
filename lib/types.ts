@@ -1,5 +1,6 @@
 export type LeadStatus =
   | "qualificado"
+  | "em_agendamento"
   | "reuniao_agendada"
   | "no_show"
   | "follow_up"
@@ -8,6 +9,31 @@ export type LeadStatus =
   | "negocio_perdido";
 
 export type Owner = "SDR" | "Closer";
+
+// ============================================================
+// Papéis / permissões
+// ============================================================
+// Único admin do CRM (vê o filtro por responsável, gerencia usuários e
+// pode mover cards em qualquer etapa do funil).
+export const ADMIN_EMAIL = "rafe@floowdigital.com";
+
+export function isAdminEmail(email: string | null | undefined): boolean {
+  return !!email && email.toLowerCase() === ADMIN_EMAIL;
+}
+
+// Etapas que o SDR trabalha (cor normal, SDR pode mover). Da reunião agendada
+// em diante o Closer "pega o bastão": etapas mais escuras e bloqueadas pro SDR.
+export const SDR_STAGES: LeadStatus[] = ["qualificado", "em_agendamento", "reuniao_agendada"];
+
+export function canMoveTo(
+  status: LeadStatus,
+  opts: { role: Owner | null; isAdmin: boolean },
+): boolean {
+  if (opts.isAdmin) return true;
+  if (opts.role === "Closer") return true;
+  if (opts.role === "SDR") return SDR_STAGES.includes(status);
+  return true; // usuário fora do time (fallback): não trava
+}
 
 // ============================================================
 // Qualificação B2B
@@ -167,6 +193,7 @@ export type NewTaskInput = {
 // ============================================================
 export const STATUS_ORDER: LeadStatus[] = [
   "qualificado",
+  "em_agendamento",
   "reuniao_agendada",
   "no_show",
   "follow_up",
@@ -177,6 +204,7 @@ export const STATUS_ORDER: LeadStatus[] = [
 
 export const STATUS_LABELS: Record<LeadStatus, string> = {
   qualificado: "Qualificado",
+  em_agendamento: "Em agendamento",
   reuniao_agendada: "Reunião agendada",
   no_show: "No show",
   follow_up: "Follow-up",
@@ -187,6 +215,7 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
 
 export const STATUS_COLORS: Record<LeadStatus, { bg: string; text: string; border: string; dot: string }> = {
   qualificado:      { bg: "bg-indigo-500/10",  text: "text-indigo-300",  border: "border-indigo-500/30",  dot: "bg-indigo-400" },
+  em_agendamento:   { bg: "bg-teal-500/10",    text: "text-teal-300",    border: "border-teal-500/30",    dot: "bg-teal-400" },
   reuniao_agendada: { bg: "bg-blue-500/10",    text: "text-blue-300",    border: "border-blue-500/30",    dot: "bg-blue-400" },
   no_show:          { bg: "bg-amber-500/10",   text: "text-amber-300",   border: "border-amber-500/30",   dot: "bg-amber-400" },
   follow_up:        { bg: "bg-violet-500/10",  text: "text-violet-300",  border: "border-violet-500/30",  dot: "bg-violet-400" },
@@ -305,10 +334,32 @@ export const CARGO_OPTIONS = [
 ] as const;
 export type Cargo = (typeof CARGO_OPTIONS)[number];
 
+// Normaliza um telefone pra comparar/deduplicar: só dígitos, com código do país.
+// "(11) 91234-5678" e "55 11 91234 5678" viram a mesma string.
+export function normalizePhone(telefone: string | null | undefined): string {
+  const digits = (telefone ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+  return digits.length >= 12 ? digits : `55${digits}`;
+}
+
 // Helper pra montar telefone formatado pra wa.me
 export function whatsappLink(telefone: string): string {
-  const digits = telefone.replace(/\D/g, "");
-  // Se já tem código do país (12+ dígitos), usa direto. Senão, adiciona 55 (Brasil).
-  const withCountry = digits.length >= 12 ? digits : `55${digits}`;
-  return `https://wa.me/${withCountry}`;
+  return `https://wa.me/${normalizePhone(telefone)}`;
+}
+
+// Acha um lead já existente com o mesmo contato (telefone ou @instagram).
+// `ignoreId` exclui o próprio lead (útil ao editar).
+export function findDuplicateLead(
+  leads: Lead[],
+  contact: { telefone?: string | null; instagram?: string | null },
+  ignoreId?: string,
+): Lead | null {
+  const phone = normalizePhone(contact.telefone);
+  const insta = (contact.instagram ?? "").trim().replace(/^@/, "").toLowerCase();
+  for (const l of leads) {
+    if (ignoreId && l.id === ignoreId) continue;
+    if (phone && normalizePhone(l.telefone) === phone) return l;
+    if (insta && (l.instagram ?? "").trim().replace(/^@/, "").toLowerCase() === insta) return l;
+  }
+  return null;
 }

@@ -1,17 +1,23 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Board } from "@/components/kanban/Board";
+import { LeadSearch } from "@/components/kanban/LeadSearch";
 import { TopBar } from "@/components/layout/TopBar";
 import { CompleteQualificationDialog } from "@/components/lead/CompleteQualificationDialog";
 import { LeadDetailsPanel } from "@/components/lead/LeadDetailsPanel";
 import { LostReasonDialog } from "@/components/lead/LostReasonDialog";
 import { NewLeadDialog } from "@/components/lead/NewLeadDialog";
+import { Celebration, type CelebrationKind } from "@/components/ui/Celebration";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
+import { useTeamContext } from "@/lib/contexts/TeamContext";
 import type { Lead, LeadStatus, MotivoPerda } from "@/lib/types";
 
-// Lead "Qualificado" só pode avançar no funil depois de toda a qualificação preenchida.
+// Etapas iniciais (zona do SDR) — qualificar/agendar acontece aqui.
+const EARLY_STAGES: LeadStatus[] = ["qualificado", "em_agendamento"];
+
+// Lead só avança além da zona inicial depois de toda a qualificação preenchida.
 function isQualComplete(l: Lead): boolean {
   return !!(
     l.experiencia && l.situacao && l.canal_vendas && l.estoque && l.historico && l.estrutura &&
@@ -19,14 +25,22 @@ function isQualComplete(l: Lead): boolean {
   );
 }
 
-// Exige completar ao sair de "Qualificado" para qualquer etapa (exceto descartar como perdido).
+// Exige completar ao avançar da zona inicial (Qualificado/Em agendamento) para a
+// reunião em diante. Mover entre as etapas iniciais ou descartar é livre.
 function needsCompletion(lead: Lead, newStatus: LeadStatus): boolean {
   return (
-    lead.status === "qualificado" &&
-    newStatus !== "qualificado" &&
+    EARLY_STAGES.includes(lead.status) &&
+    !EARLY_STAGES.includes(newStatus) &&
     newStatus !== "negocio_perdido" &&
     !isQualComplete(lead)
   );
+}
+
+// Etapas que disparam celebração (dopamina).
+function celebrationFor(status: LeadStatus | undefined): CelebrationKind | null {
+  if (status === "reuniao_agendada") return "meeting";
+  if (status === "negocio_ganho") return "win";
+  return null;
 }
 
 export default function KanbanPage() {
@@ -43,9 +57,33 @@ function KanbanContent() {
   const leadParam = searchParams.get("lead");
 
   const { leads, createLead, updateLead, moveLead, deleteLead } = useLeadsContext();
+  const { isAdmin, currentMember, sdrs, closers } = useTeamContext();
   const [newOpen, setNewOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<LeadStatus | undefined>(undefined);
   const [selected, setSelected] = useState<Lead | null>(null);
+  const [celebration, setCelebration] = useState<CelebrationKind | null>(null);
+  // Filtro por responsável (só admin). null = todos.
+  const [filterName, setFilterName] = useState<string | null>(null);
+
+  function triggerCelebration(status: LeadStatus | undefined) {
+    const kind = celebrationFor(status);
+    if (kind) setCelebration(kind);
+  }
+
+  // O que cada usuário enxerga:
+  // - admin: todos os leads (+ filtro opcional por responsável);
+  // - SDR/Closer: só os leads em que ele é o responsável.
+  const visibleLeads = useMemo(() => {
+    if (isAdmin) {
+      if (!filterName) return leads;
+      return leads.filter(
+        (l) => l.sdr_responsavel === filterName || l.closer_responsavel === filterName,
+      );
+    }
+    if (!currentMember) return leads; // fora do time: não esconde nada
+    const name = currentMember.name;
+    return leads.filter((l) => l.sdr_responsavel === name || l.closer_responsavel === name);
+  }, [leads, isAdmin, filterName, currentMember]);
   const [pendingLost, setPendingLost] = useState<{
     id: string;
     name: string;
@@ -83,6 +121,7 @@ function KanbanContent() {
       return;
     }
     await moveLead(id, newStatus);
+    triggerCelebration(newStatus);
   }
 
   async function handleUpdate(id: string, patch: Partial<Lead>) {
@@ -102,7 +141,9 @@ function KanbanContent() {
       });
       return;
     }
+    const statusChanged = patch.status && patch.status !== lead?.status;
     await updateLead(id, patch);
+    if (statusChanged) triggerCelebration(patch.status);
   }
 
   async function handleConfirmLost(motivo: MotivoPerda) {
@@ -115,21 +156,68 @@ function KanbanContent() {
     <>
       <TopBar title="Funis de vendas" onNewLead={() => { setNewStatus(undefined); setNewOpen(true); }} />
 
+      {/* Toolbar: busca (todos) + filtro por responsável (só admin) */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-zinc-900 bg-[#0a0a0a] px-4 py-2 sm:px-6">
+        <LeadSearch leads={visibleLeads} onSelect={(lead) => setSelected(lead)} />
+
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+              Responsável
+            </span>
+            <select
+              value={filterName ?? ""}
+              onChange={(e) => setFilterName(e.target.value || null)}
+              className="rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-200 outline-none focus:border-[#f5c518]"
+            >
+              <option value="">Todos os leads</option>
+              {sdrs.length > 0 && (
+                <optgroup label="SDR">
+                  {sdrs.map((m) => (
+                    <option key={m.id} value={m.name}>{m.name}</option>
+                  ))}
+                </optgroup>
+              )}
+              {closers.length > 0 && (
+                <optgroup label="Closer">
+                  {closers.map((m) => (
+                    <option key={m.id} value={m.name}>{m.name}</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            {filterName && (
+              <span className="text-[11px] text-zinc-500">
+                {visibleLeads.length} {visibleLeads.length === 1 ? "lead" : "leads"}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
       <main className="flex-1 overflow-hidden">
         <Board
-          leads={leads}
+          leads={visibleLeads}
           onMove={handleMove}
           onCardClick={(lead) => setSelected(lead)}
           onCreate={(status) => { setNewStatus(status); setNewOpen(true); }}
+          viewerRole={isAdmin ? null : currentMember?.role ?? null}
+          isAdmin={isAdmin}
         />
       </main>
+
+      {celebration && (
+        <Celebration kind={celebration} onDone={() => setCelebration(null)} />
+      )}
 
       <NewLeadDialog
         open={newOpen}
         initialStatus={newStatus}
         onClose={() => setNewOpen(false)}
+        onOpenExisting={(lead) => setSelected(lead)}
         onSubmit={async (input) => {
-          await createLead(input);
+          const created = await createLead(input);
+          triggerCelebration(created?.status);
         }}
       />
 
@@ -158,8 +246,10 @@ function KanbanContent() {
           targetStatus={pendingComplete.targetStatus}
           onCancel={() => setPendingComplete(null)}
           onConfirm={async (patch) => {
+            const target = pendingComplete.targetStatus;
             await updateLead(pendingComplete.lead.id, patch);
             setPendingComplete(null);
+            triggerCelebration(target);
           }}
         />
       )}

@@ -20,6 +20,7 @@ function ConfiguracoesContent() {
   const params = useSearchParams();
   const connectedParam = params.get("connected");
   const errorParam = params.get("error");
+  const { isAdmin } = useTeamContext();
 
   const [status, setStatus] = useState<{ connected: boolean; email: string | null } | null>(null);
   const [authUserEmail, setAuthUserEmail] = useState<string | null>(null);
@@ -110,8 +111,16 @@ function ConfiguracoesContent() {
             )}
           </Card>
 
-          {/* Equipe */}
-          <EquipeCard />
+          {/* Usuários — só o admin gerencia */}
+          {isAdmin ? (
+            <UsuariosCard />
+          ) : (
+            <Card title="Usuários" subtitle="Gestão de acessos">
+              <p className="text-xs text-zinc-500">
+                Só o administrador pode cadastrar ou remover usuários.
+              </p>
+            </Card>
+          )}
 
           {/* Conta */}
           <Card title="Conta" subtitle="Sessão atual">
@@ -134,76 +143,139 @@ function ConfiguracoesContent() {
   );
 }
 
-function EquipeCard() {
-  const { sdrs, closers, addMember, deactivateMember } = useTeamContext();
+function UsuariosCard() {
+  const { sdrs, closers, createUser, removeUser } = useTeamContext();
+
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState<Owner>("SDR");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
+    setOk(null);
     const n = name.trim();
-    if (!n || saving) return;
+    const em = email.trim().toLowerCase();
+    if (!n || !em || password.length < 6 || saving) {
+      setError("Preencha nome, email e uma senha de pelo menos 6 caracteres.");
+      return;
+    }
     setSaving(true);
     try {
-      await addMember(n, role);
-      setName("");
+      await createUser({ name: n, email: em, password, role });
+      setOk(`Usuário ${n} criado. Login: ${em}`);
+      setName(""); setEmail(""); setPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao criar usuário.");
     } finally {
       setSaving(false);
     }
   }
 
-  return (
-    <Card title="Equipe" subtitle="Quem aparece como SDR e Closer nos formulários do CRM">
-      <div className="space-y-4">
-        <TeamGroup label="SDR" members={sdrs} onRemove={deactivateMember} color="text-sky-300" />
-        <TeamGroup label="Closer" members={closers} onRemove={deactivateMember} color="text-fuchsia-300" />
+  async function handleRemove(m: TeamMember) {
+    if (!confirm(`Remover ${m.name}? O acesso de login dele será apagado.`)) return;
+    setRemovingId(m.id);
+    setError(null);
+    try {
+      await removeUser(m);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao remover usuário.");
+    } finally {
+      setRemovingId(null);
+    }
+  }
 
-        <form
-          onSubmit={handleAdd}
-          className="flex flex-wrap items-center gap-2 border-t border-zinc-900 pt-4"
-        >
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Nome do membro"
-            className="min-w-[140px] flex-1 rounded-md border border-zinc-800 bg-[#0f1218] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[#f5c518]"
-          />
-          <div className="flex rounded-md border border-zinc-800 bg-zinc-900 p-0.5 text-xs">
-            {(["SDR", "Closer"] as Owner[]).map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setRole(r)}
-                className={`rounded px-3 py-1 transition-colors ${
-                  role === r
-                    ? "bg-[#f5c518] font-semibold text-zinc-950"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                {r}
-              </button>
-            ))}
+  return (
+    <Card title="Usuários" subtitle="Cadastre acessos e defina a função de cada um (SDR ou Closer)">
+      <div className="space-y-4">
+        <UserGroup label="SDR" members={sdrs} onRemove={handleRemove} removingId={removingId} color="text-sky-300" />
+        <UserGroup label="Closer" members={closers} onRemove={handleRemove} removingId={removingId} color="text-fuchsia-300" />
+
+        <form onSubmit={handleAdd} className="space-y-2 border-t border-zinc-900 pt-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            Novo usuário
           </div>
-          <button
-            type="submit"
-            disabled={saving || !name.trim()}
-            className="rounded-md bg-[#f5c518] px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-[#ffd633] disabled:opacity-50"
-          >
-            Adicionar
-          </button>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nome"
+              className="rounded-md border border-zinc-800 bg-[#0f1218] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[#f5c518]"
+            />
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="email@floowdigital.com"
+              type="email"
+              autoComplete="off"
+              className="rounded-md border border-zinc-800 bg-[#0f1218] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[#f5c518]"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Senha temporária (mín. 6)"
+              type="text"
+              autoComplete="new-password"
+              className="min-w-[180px] flex-1 rounded-md border border-zinc-800 bg-[#0f1218] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[#f5c518]"
+            />
+            <div className="flex rounded-md border border-zinc-800 bg-zinc-900 p-0.5 text-xs">
+              {(["SDR", "Closer"] as Owner[]).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRole(r)}
+                  className={`rounded px-3 py-1 transition-colors ${
+                    role === r
+                      ? "bg-[#f5c518] font-semibold text-zinc-950"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+            <button
+              type="submit"
+              disabled={saving || !name.trim() || !email.trim() || password.length < 6}
+              className="rounded-md bg-[#f5c518] px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-[#ffd633] disabled:opacity-50"
+            >
+              {saving ? "Criando…" : "Criar usuário"}
+            </button>
+          </div>
+
+          {error && (
+            <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+              {error}
+            </div>
+          )}
+          {ok && (
+            <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+              {ok}
+            </div>
+          )}
+          <p className="text-[10px] text-zinc-600">
+            A pessoa entra com esse email + senha temporária e pode trocar a senha depois.
+          </p>
         </form>
       </div>
     </Card>
   );
 }
 
-function TeamGroup({
-  label, members, onRemove, color,
+function UserGroup({
+  label, members, onRemove, removingId, color,
 }: {
   label: string;
   members: TeamMember[];
-  onRemove: (id: string) => void | Promise<void>;
+  onRemove: (m: TeamMember) => void | Promise<void>;
+  removingId: string | null;
   color: string;
 }) {
   return (
@@ -214,24 +286,26 @@ function TeamGroup({
       {members.length === 0 ? (
         <p className="text-xs text-zinc-600">Ninguém cadastrado.</p>
       ) : (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="space-y-1.5">
           {members.map((m) => (
-            <span
+            <div
               key={m.id}
-              className={`inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs ${color}`}
+              className="flex items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5"
             >
-              {m.name}
+              <div className="min-w-0">
+                <div className={`text-xs font-medium ${color}`}>{m.name}</div>
+                {m.email && <div className="truncate text-[10px] text-zinc-500">{m.email}</div>}
+              </div>
               <button
                 type="button"
-                onClick={() => {
-                  if (confirm(`Remover ${m.name} da equipe?`)) onRemove(m.id);
-                }}
-                className="text-zinc-600 hover:text-rose-400"
-                title="Remover"
+                onClick={() => onRemove(m)}
+                disabled={removingId === m.id}
+                className="shrink-0 text-zinc-600 hover:text-rose-400 disabled:opacity-40"
+                title="Remover usuário"
               >
-                <X size={12} />
+                <X size={14} />
               </button>
-            </span>
+            </div>
           ))}
         </div>
       )}

@@ -106,9 +106,10 @@ export function useLeads() {
   }, []);
 
   const updateLead = useCallback(async (id: string, patch: UpdateLeadInput) => {
-    // Mover para no-show limpa o agendamento: zera a data (e, via lógica abaixo,
-    // deleta o evento do Google Calendar e limpa google_event_id/meet_link).
-    if (patch.status === "no_show") {
+    // Mover para no-show OU em-agendamento limpa o agendamento: zera a data
+    // (e, via lógica abaixo, deleta o evento do Google Calendar e limpa
+    // google_event_id/meet_link, tirando da agenda).
+    if (patch.status === "no_show" || patch.status === "em_agendamento") {
       patch = { ...patch, data_agendamento: null };
     }
 
