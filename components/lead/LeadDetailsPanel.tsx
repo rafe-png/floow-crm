@@ -355,11 +355,18 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
           {/* Datas-chave + rastreio de criativo */}
           <Section title="Datas e rastreio">
             <dl className="space-y-1.5 text-xs">
-              <DateRow label="Entrou no funil" iso={lead.created_at} />
-              {lead.reuniao_realizada_em && (
-                <DateRow label="Reunião realizada" iso={lead.reuniao_realizada_em} />
-              )}
-              {lead.ganho_em && <DateRow label="Negócio ganho" iso={lead.ganho_em} accent />}
+              <DateRow label="Entrou no funil" iso={lead.created_at} hint="automático" />
+              <EditableDateRow
+                label="Reunião realizada"
+                iso={lead.reuniao_realizada_em}
+                onSave={(v) => onUpdate(lead.id, { reuniao_realizada_em: v })}
+              />
+              <EditableDateRow
+                label="Negócio ganho"
+                iso={lead.ganho_em}
+                accent
+                onSave={(v) => onUpdate(lead.id, { ganho_em: v })}
+              />
 
               <div className="flex items-start justify-between gap-2 pt-1">
                 <dt className="pt-1 text-zinc-500">Código do criativo</dt>
@@ -647,13 +654,99 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function DateRow({ label, iso, accent }: { label: string; iso: string; accent?: boolean }) {
+function DateRow({ label, iso, accent, hint }: { label: string; iso: string; accent?: boolean; hint?: string }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <dt className="text-zinc-500">{label}</dt>
+      <dt className="text-zinc-500">
+        {label}
+        {hint && <span className="ml-1 text-[10px] text-zinc-600">· {hint}</span>}
+      </dt>
       <dd className={`flex items-center gap-1.5 font-medium ${accent ? "text-emerald-300" : "text-zinc-300"}`}>
         <Calendar size={11} className="text-zinc-500" />
         {format(new Date(iso), "d 'de' MMM yyyy 'às' HH:mm", { locale: ptBR })}
+      </dd>
+    </div>
+  );
+}
+
+// Data de rastreio editável manualmente (reunião realizada / negócio ganho).
+function EditableDateRow({
+  label, iso, accent, onSave,
+}: {
+  label: string;
+  iso: string | null;
+  accent?: boolean;
+  onSave: (iso: string | null) => Promise<void>;
+}) {
+  const init = (() => {
+    if (!iso) return "";
+    const s = splitIso(iso);
+    return s.date && s.time ? `${s.date}T${s.time}` : "";
+  })();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(init);
+  const [saving, setSaving] = useState(false);
+
+  async function save(value: string | null) {
+    setSaving(true);
+    try {
+      await onSave(value);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="flex flex-col gap-1.5 rounded-md border border-zinc-800/70 bg-zinc-900/40 p-2">
+        <span className="text-zinc-500">{label}</span>
+        <input
+          type="datetime-local"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          className="rounded border border-zinc-800 bg-[#0f1218] px-2 py-1 text-xs text-zinc-100 outline-none focus:border-[#f5c518] [color-scheme:dark]"
+        />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => save(draft ? new Date(draft).toISOString() : null)}
+            disabled={saving}
+            className="rounded bg-[#f5c518] px-2.5 py-1 text-[11px] font-semibold text-zinc-950 hover:bg-[#ffd633] disabled:opacity-50"
+          >
+            {saving ? "…" : "Salvar"}
+          </button>
+          {iso && (
+            <button onClick={() => save(null)} disabled={saving} className="text-[11px] text-zinc-500 hover:text-rose-400">
+              Limpar
+            </button>
+          )}
+          <button onClick={() => { setDraft(init); setEditing(false); }} className="text-[11px] text-zinc-500 hover:text-zinc-300">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <dt className="text-zinc-500">{label}</dt>
+      <dd className="flex items-center gap-1.5">
+        {iso ? (
+          <span className={`flex items-center gap-1.5 font-medium ${accent ? "text-emerald-300" : "text-zinc-300"}`}>
+            <Calendar size={11} className="text-zinc-500" />
+            {format(new Date(iso), "d 'de' MMM yyyy 'às' HH:mm", { locale: ptBR })}
+          </span>
+        ) : (
+          <span className="text-zinc-600">—</span>
+        )}
+        <button
+          onClick={() => { setDraft(init); setEditing(true); }}
+          className="text-zinc-600 hover:text-zinc-300"
+          aria-label={`Editar ${label}`}
+        >
+          <Pencil size={10} />
+        </button>
       </dd>
     </div>
   );
