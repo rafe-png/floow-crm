@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { endOfMonth, format, parseISO, startOfMonth } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DollarSign, Pencil, Plus, Target, Trash2, TrendingUp, Users } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
@@ -11,7 +11,10 @@ import { useAdInvestmentsContext } from "@/lib/contexts/AdInvestmentsContext";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { adLeadsInWindow, cac, coveredDays, custoPorLead, periodDays, spendInWindow, totalAdLeads, totalSpend } from "@/lib/finance";
+import { PERIOD_LABELS, startOfPeriod, type Period } from "@/lib/reports";
 import type { AdInvestment } from "@/lib/types";
+
+const PERIODS: Period[] = ["hoje", "semana", "mes", "trimestre", "ano", "tudo"];
 
 const fmtBRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(n);
@@ -25,6 +28,7 @@ export default function FinanceiroPage() {
   const { investments, createInvestment, updateInvestment, deleteInvestment } = useAdInvestmentsContext();
   // null = fechado · "new" = lançar · AdInvestment = editar
   const [dialog, setDialog] = useState<AdInvestment | "new" | null>(null);
+  const [period, setPeriod] = useState<Period>("mes");
 
   const canManage = isAdmin || isTraffic;
 
@@ -34,16 +38,14 @@ export default function FinanceiroPage() {
     [investments, dialog],
   );
 
-  const month = useMemo(() => {
-    const start = startOfMonth(new Date());
-    const end = endOfMonth(new Date());
-    const spend = spendInWindow(investments, start, end);
-    const adLeads = adLeadsInWindow(investments, start, end);
-    const ganhos = leads.filter(
-      (l) => l.ganho_em && new Date(l.ganho_em).getTime() >= start.getTime() && new Date(l.ganho_em).getTime() <= end.getTime(),
-    ).length;
+  const view = useMemo(() => {
+    const start = startOfPeriod(period); // null = tudo
+    const now = new Date();
+    const spend = start ? spendInWindow(investments, start, now) : totalSpend(investments);
+    const adLeads = start ? adLeadsInWindow(investments, start, now) : totalAdLeads(investments);
+    const ganhos = leads.filter((l) => l.ganho_em && (!start || new Date(l.ganho_em) >= start)).length;
     return { spend, adLeads, ganhos, cpl: custoPorLead(spend, adLeads), cacVal: cac(spend, ganhos) };
-  }, [investments, leads]);
+  }, [investments, leads, period]);
 
   if (!canManage) {
     return (
@@ -79,26 +81,38 @@ export default function FinanceiroPage() {
             </button>
           </div>
 
-          {/* Visão do mês */}
+          {/* Visão por período */}
           <div>
-            <div className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-              Este mês · {format(new Date(), "MMMM yyyy", { locale: ptBR })}
+            <div className="mb-2 flex flex-wrap gap-1">
+              {PERIODS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                    period === p
+                      ? "border-[#f5c518]/40 bg-[#f5c518]/10 text-[#f5c518]"
+                      : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                  }`}
+                >
+                  {PERIOD_LABELS[p]}
+                </button>
+              ))}
             </div>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <KpiCard icon={DollarSign} label="Investido" value={fmtBRL2(month.spend)} accent="yellow" />
-              <KpiCard icon={Users} label="Leads dos anúncios" value={month.adLeads} accent="sky" />
+              <KpiCard icon={DollarSign} label="Investido" value={fmtBRL2(view.spend)} accent="yellow" />
+              <KpiCard icon={Users} label="Leads dos anúncios" value={view.adLeads} accent="sky" />
               <KpiCard
                 icon={TrendingUp}
                 label="Custo por lead"
-                value={month.cpl != null ? fmtBRL(month.cpl) : "—"}
+                value={view.cpl != null ? fmtBRL(view.cpl) : "—"}
                 sub="investido ÷ leads dos anúncios"
                 accent="neutral"
               />
               <KpiCard
                 icon={Target}
                 label="CAC"
-                value={month.cacVal != null ? fmtBRL(month.cacVal) : "—"}
-                sub={`${month.ganhos} ganho${month.ganhos === 1 ? "" : "s"} no mês`}
+                value={view.cacVal != null ? fmtBRL(view.cacVal) : "—"}
+                sub={`${view.ganhos} ganho${view.ganhos === 1 ? "" : "s"} no período`}
                 accent="emerald"
               />
             </div>
