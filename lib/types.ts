@@ -7,7 +7,8 @@ export type LeadStatus =
   | "carteira"
   | "negocio_ganho"
   | "negocio_perdido"
-  | "desqualificado";
+  | "desqualificado"
+  | "sem_resposta";
 
 export type Owner = "SDR" | "Closer";
 
@@ -36,7 +37,7 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 // Etapas que o SDR trabalha (cor normal, SDR pode mover). Da reunião agendada
 // em diante o Closer "pega o bastão": etapas mais escuras e bloqueadas pro SDR.
 // Inclui "desqualificado": desqualificar o lead é trabalho do SDR (na qualificação).
-export const SDR_STAGES: LeadStatus[] = ["qualificado", "em_agendamento", "reuniao_agendada", "desqualificado"];
+export const SDR_STAGES: LeadStatus[] = ["qualificado", "em_agendamento", "reuniao_agendada", "desqualificado", "sem_resposta"];
 
 export function canMoveTo(
   status: LeadStatus,
@@ -257,6 +258,7 @@ export const STATUS_ORDER: LeadStatus[] = [
   "carteira",
   "negocio_ganho",
   "negocio_perdido",
+  "sem_resposta",
   "desqualificado",
 ];
 
@@ -272,6 +274,7 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
   carteira: "Carteira",
   negocio_ganho: "Negócio ganho",
   negocio_perdido: "Negócio perdido",
+  sem_resposta: "Sem resposta",
   desqualificado: "Desqualificado",
 };
 
@@ -284,6 +287,7 @@ export const STATUS_COLORS: Record<LeadStatus, { bg: string; text: string; borde
   carteira:         { bg: "bg-cyan-500/10",    text: "text-cyan-300",    border: "border-cyan-500/30",    dot: "bg-cyan-400" },
   negocio_ganho:    { bg: "bg-emerald-500/10", text: "text-emerald-300", border: "border-emerald-500/30", dot: "bg-emerald-400" },
   negocio_perdido:  { bg: "bg-rose-500/10",    text: "text-rose-300",    border: "border-rose-500/30",    dot: "bg-rose-400" },
+  sem_resposta:     { bg: "bg-zinc-500/10",    text: "text-zinc-300",    border: "border-zinc-500/30",    dot: "bg-zinc-400" },
   desqualificado:   { bg: "bg-slate-500/10",   text: "text-slate-300",   border: "border-slate-500/30",   dot: "bg-slate-400" },
 };
 

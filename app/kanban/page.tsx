@@ -35,6 +35,7 @@ function needsCompletion(lead: Lead, newStatus: LeadStatus): boolean {
     !EARLY_STAGES.includes(newStatus) &&
     newStatus !== "negocio_perdido" &&
     newStatus !== "desqualificado" &&
+    newStatus !== "sem_resposta" &&
     !isQualComplete(lead)
   );
 }
