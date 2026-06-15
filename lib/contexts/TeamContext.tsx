@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useMemo } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useTeamMembers } from "@/lib/hooks/useTeam";
-import { isAdminEmail, type Owner, type TeamMember } from "@/lib/types";
+import { isAdminEmail, type Owner, type TeamMember, type TeamRole } from "@/lib/types";
 
 type TeamContextValue = {
   members: TeamMember[];
@@ -14,6 +14,8 @@ type TeamContextValue = {
   currentEmail: string | null;
   /** True só pro admin do CRM (rafe@floowdigital.com) */
   isAdmin: boolean;
+  /** True se o usuário logado é gestor de tráfego (acesso ao Financeiro) */
+  isTraffic: boolean;
   /** Membro correspondente ao usuário logado (lookup por email) */
   currentMember: TeamMember | null;
   /**
@@ -27,7 +29,7 @@ type TeamContextValue = {
   /** Desativa um membro (some das listas, sem apagar histórico) */
   deactivateMember: (id: string) => Promise<void>;
   /** [admin] Cria usuário com conta de login (email + senha temporária) */
-  createUser: (input: { name: string; email: string; password: string; role: Owner }) => Promise<void>;
+  createUser: (input: { name: string; email: string; password: string; role: TeamRole }) => Promise<void>;
   /** [admin] Remove o usuário: desativa no time e apaga o login */
   removeUser: (member: TeamMember) => Promise<void>;
 };
@@ -39,7 +41,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
 
   const createUser = useCallback(
-    async (input: { name: string; email: string; password: string; role: Owner }) => {
+    async (input: { name: string; email: string; password: string; role: TeamRole }) => {
       const res = await fetch("/api/team/create-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -78,7 +80,9 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
       sdrs,
       closers,
       currentEmail,
-      isAdmin: isAdminEmail(currentEmail),
+      // Admin via coluna is_admin (migração 016), com fallback no email fixo.
+      isAdmin: !!currentMember?.is_admin || isAdminEmail(currentEmail),
+      isTraffic: currentMember?.role === "Trafego",
       currentMember,
       defaultFor: (role) => {
         if (currentMember && currentMember.role === role) return currentMember;

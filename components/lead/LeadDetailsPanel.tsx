@@ -11,6 +11,7 @@ import { LocalSelect } from "@/components/ui/LocalSelect";
 import { PersonSelect } from "@/components/ui/PersonSelect";
 import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
 import { LeadTasks } from "@/components/tasks/LeadTasks";
+import { CreativeCodePicker, formatCreativeCode } from "@/components/lead/CreativeCodeDialog";
 import { useLeadEvents } from "@/lib/hooks/useLeads";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
@@ -53,7 +54,8 @@ type Props = {
 export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
   const { leads } = useLeadsContext();
   const { isAdmin, currentMember } = useTeamContext();
-  const viewerRole = isAdmin ? null : currentMember?.role ?? null;
+  const viewerRole: Owner | null =
+    isAdmin || currentMember?.role === "Trafego" ? null : currentMember?.role ?? null;
   const initialDateTime = splitIso(lead.data_agendamento);
 
   const [nome, setNome] = useState(lead.nome);
@@ -67,6 +69,7 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
   const [observacoes, setObservacoes] = useState(lead.observacoes ?? "");
   const [sdrResp, setSdrResp] = useState<string | null>(lead.sdr_responsavel);
   const [closerResp, setCloserResp] = useState<string | null>(lead.closer_responsavel);
+  const [editCreative, setEditCreative] = useState(false);
   const [dateStr, setDateStr] = useState(initialDateTime.date);
   const [timeStr, setTimeStr] = useState(initialDateTime.time);
   const [local, setLocal] = useState<LocalReuniao | null>(lead.local);
@@ -349,6 +352,50 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
             </button>
           )}
 
+          {/* Datas-chave + rastreio de criativo */}
+          <Section title="Datas e rastreio">
+            <dl className="space-y-1.5 text-xs">
+              <DateRow label="Entrou no funil" iso={lead.created_at} />
+              {lead.reuniao_realizada_em && (
+                <DateRow label="Reunião realizada" iso={lead.reuniao_realizada_em} />
+              )}
+              {lead.ganho_em && <DateRow label="Negócio ganho" iso={lead.ganho_em} accent />}
+
+              <div className="flex items-start justify-between gap-2 pt-1">
+                <dt className="pt-1 text-zinc-500">Código do criativo</dt>
+                <dd className="flex-1 text-right">
+                  {editCreative ? (
+                    <div className="text-left">
+                      <CreativeCodePicker
+                        value={lead.criativo_codigo}
+                        onChange={async (n) => {
+                          await onUpdate(lead.id, { criativo_codigo: n });
+                          setEditCreative(false);
+                        }}
+                      />
+                      <button
+                        onClick={() => setEditCreative(false)}
+                        className="mt-2 text-[11px] text-zinc-500 hover:text-zinc-300"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditCreative(true)}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-zinc-300 hover:border-zinc-700"
+                    >
+                      <span className="font-semibold tabular-nums">
+                        {formatCreativeCode(lead.criativo_codigo)}
+                      </span>
+                      <Pencil size={10} className="text-zinc-500" />
+                    </button>
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </Section>
+
           {/* Timeline */}
           <Section title="Histórico">
             <ul className="space-y-2">
@@ -597,5 +644,17 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1 block text-xs font-medium text-zinc-400">{label}</span>
       {children}
     </label>
+  );
+}
+
+function DateRow({ label, iso, accent }: { label: string; iso: string; accent?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <dt className="text-zinc-500">{label}</dt>
+      <dd className={`flex items-center gap-1.5 font-medium ${accent ? "text-emerald-300" : "text-zinc-300"}`}>
+        <Calendar size={11} className="text-zinc-500" />
+        {format(new Date(iso), "d 'de' MMM yyyy 'às' HH:mm", { locale: ptBR })}
+      </dd>
+    </div>
   );
 }

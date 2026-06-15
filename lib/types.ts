@@ -10,6 +10,17 @@ export type LeadStatus =
 
 export type Owner = "SDR" | "Closer";
 
+// Papel no time. Owner = papéis de venda (SDR/Closer, têm metas e podem ser
+// responsáveis por leads). "Trafego" = gestor de tráfego: não vende, só usa o
+// Financeiro. Mantemos Owner separado pra metas/leads continuarem só de venda.
+export type TeamRole = Owner | "Trafego";
+
+export const TEAM_ROLE_LABELS: Record<TeamRole, string> = {
+  SDR: "SDR",
+  Closer: "Closer",
+  Trafego: "Gestor de tráfego",
+};
+
 // ============================================================
 // Papéis / permissões
 // ============================================================
@@ -131,8 +142,12 @@ export type Lead = {
   motivo_perda: MotivoPerda | null;
 
   // Timestamps "fotográficos" (one-shot) usados pras contagens estáveis de meta
-  agendado_em: string | null;   // momento que o lead entrou em reuniao_agendada
-  ganho_em: string | null;      // momento que o lead virou negocio_ganho
+  agendado_em: string | null;          // momento que o lead entrou em reuniao_agendada
+  reuniao_realizada_em: string | null; // momento que saiu de reuniao_agendada p/ ganho/perdido/follow_up
+  ganho_em: string | null;             // momento que o lead virou negocio_ganho
+
+  // Rastreio de criativo (qual anúncio trouxe o cliente) — preenchido ao ganhar.
+  criativo_codigo: number | null;
 };
 
 export type LeadEventType = "created" | "status_change" | "note";
@@ -158,10 +173,12 @@ export type UserGoals = {
 export type TeamMember = {
   id: string;
   name: string;
-  role: Owner;
+  role: TeamRole;
   email: string | null;
   active: boolean;
   created_at: string;
+  /** Admin do CRM. Vem da coluna is_admin (migração 016); undefined antes dela. */
+  is_admin?: boolean;
 };
 
 export type Task = {
@@ -188,6 +205,25 @@ export type NewTaskInput = {
   notify?: boolean;
 };
 
+// Investimento em ads lançado pelo gestor de tráfego (por período).
+// periodo_inicio/periodo_fim são datas (YYYY-MM-DD), inclusivas.
+export type AdInvestment = {
+  id: string;
+  created_at: string;
+  periodo_inicio: string;
+  periodo_fim: string;
+  valor: number;
+  canal: string | null;
+  created_by: string | null;
+};
+
+export type NewAdInvestmentInput = {
+  periodo_inicio: string;
+  periodo_fim: string;
+  valor: number;
+  canal?: string | null;
+};
+
 // ============================================================
 // Constantes de UI
 // ============================================================
@@ -202,9 +238,12 @@ export const STATUS_ORDER: LeadStatus[] = [
   "negocio_perdido",
 ];
 
+// Nota: os VALORES do enum no banco continuam "qualificado"/"em_agendamento";
+// só os rótulos exibidos mudaram (entrada/qualificado). A ordem é preservada,
+// então funil, kanban e relatórios seguem corretos.
 export const STATUS_LABELS: Record<LeadStatus, string> = {
-  qualificado: "Qualificado",
-  em_agendamento: "Em agendamento",
+  qualificado: "Entrada",
+  em_agendamento: "Qualificado",
   reuniao_agendada: "Reunião agendada",
   no_show: "No show",
   follow_up: "Follow-up",

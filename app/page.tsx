@@ -7,6 +7,8 @@ import { Funnel } from "@/components/dashboard/Funnel";
 import { UpcomingMeetings } from "@/components/dashboard/UpcomingMeetings";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useGoalsContext } from "@/lib/contexts/GoalsContext";
+import { useAdInvestmentsContext } from "@/lib/contexts/AdInvestmentsContext";
+import { cac, custoPorLead, spendInWindow } from "@/lib/finance";
 import type { Lead, Owner } from "@/lib/types";
 
 function startOfIsoWeek(d: Date) {
@@ -65,11 +67,22 @@ function wonValueMonth(leads: Lead[]) {
 export default function DashboardPage() {
   const { leads } = useLeadsContext();
   const { goals } = useGoalsContext();
+  const { investments } = useAdInvestmentsContext();
 
   const sdr = useMemo(() => countWeekMonth(leads, "SDR"), [leads]);
   const closer = useMemo(() => countWeekMonth(leads, "Closer"), [leads]);
   const pipeline = useMemo(() => pipelineValue(leads), [leads]);
   const wonMonth = useMemo(() => wonValueMonth(leads), [leads]);
+
+  // Custo de aquisição no mês corrente (investimento de ads ÷ resultados).
+  const aquisicao = useMemo(() => {
+    const monthStart = startOfMonth(new Date());
+    const now = new Date();
+    const spend = spendInWindow(investments, monthStart, now);
+    const leadsMes = leads.filter((l) => new Date(l.created_at) >= monthStart).length;
+    const ganhosMes = leads.filter((l) => l.ganho_em && new Date(l.ganho_em) >= monthStart).length;
+    return { spend, cpl: custoPorLead(spend, leadsMes), cacVal: cac(spend, ganhosMes) };
+  }, [investments, leads]);
 
   const sdrWeekly = goals.SDR?.weekly_goal ?? 0;
   const sdrMonthly = sdrWeekly * 4;
@@ -117,6 +130,23 @@ export default function DashboardPage() {
             label="Fechado este mês"
             value={fmtBRL(wonMonth)}
             hint="negócios ganhos no mês corrente"
+            accent="#34d399"
+          />
+        </section>
+
+        {/* Custo de aquisição (mês) */}
+        <section className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <BigStat label="Investido em ads" value={fmtBRL(aquisicao.spend)} hint="ads no mês corrente" accent="#f5c518" />
+          <BigStat
+            label="Custo por lead"
+            value={aquisicao.cpl != null ? fmtBRL(aquisicao.cpl) : "—"}
+            hint="investido ÷ leads do mês"
+            accent="#38bdf8"
+          />
+          <BigStat
+            label="CAC"
+            value={aquisicao.cacVal != null ? fmtBRL(aquisicao.cacVal) : "—"}
+            hint="investido ÷ clientes ganhos"
             accent="#34d399"
           />
         </section>

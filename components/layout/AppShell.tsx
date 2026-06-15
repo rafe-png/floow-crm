@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { AdInvestmentsProvider } from "@/lib/contexts/AdInvestmentsContext";
 import { GoalsProvider } from "@/lib/contexts/GoalsContext";
 import { LeadsProvider } from "@/lib/contexts/LeadsContext";
 import { TasksProvider } from "@/lib/contexts/TasksContext";
@@ -23,12 +24,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <GoalsProvider>
         <TeamProvider>
           <TasksProvider>
-            <Sidebar />
-            <div className="flex h-screen flex-col md:pl-16 pb-16 md:pb-0">
-              {children}
-            </div>
-            <MobileBottomNav />
-            <TaskNotifier />
+            <AdInvestmentsProvider>
+              <Sidebar />
+              <div className="flex h-screen flex-col md:pl-16 pb-16 md:pb-0">
+                {children}
+              </div>
+              <MobileBottomNav />
+              <TaskNotifier />
+            </AdInvestmentsProvider>
           </TasksProvider>
         </TeamProvider>
       </GoalsProvider>

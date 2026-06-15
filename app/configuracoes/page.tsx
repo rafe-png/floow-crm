@@ -6,7 +6,7 @@ import { AlertCircle, Check, ExternalLink, LogOut, X } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { getSupabase } from "@/lib/supabase/client";
-import type { Owner, TeamMember } from "@/lib/types";
+import { TEAM_ROLE_LABELS, type TeamMember, type TeamRole } from "@/lib/types";
 
 export default function ConfiguracoesPage() {
   return (
@@ -144,12 +144,13 @@ function ConfiguracoesContent() {
 }
 
 function UsuariosCard() {
-  const { sdrs, closers, createUser, removeUser } = useTeamContext();
+  const { sdrs, closers, members, createUser, removeUser } = useTeamContext();
+  const traffic = members.filter((m) => m.role === "Trafego");
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<Owner>("SDR");
+  const [role, setRole] = useState<TeamRole>("SDR");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -191,10 +192,13 @@ function UsuariosCard() {
   }
 
   return (
-    <Card title="Usuários" subtitle="Cadastre acessos e defina a função de cada um (SDR ou Closer)">
+    <Card title="Usuários" subtitle="Cadastre acessos e defina a função (SDR, Closer ou Gestor de tráfego)">
       <div className="space-y-4">
         <UserGroup label="SDR" members={sdrs} onRemove={handleRemove} removingId={removingId} color="text-sky-300" />
         <UserGroup label="Closer" members={closers} onRemove={handleRemove} removingId={removingId} color="text-fuchsia-300" />
+        {traffic.length > 0 && (
+          <UserGroup label="Gestor de tráfego" members={traffic} onRemove={handleRemove} removingId={removingId} color="text-amber-300" />
+        )}
 
         <form onSubmit={handleAdd} className="space-y-2 border-t border-zinc-900 pt-4">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
@@ -226,7 +230,7 @@ function UsuariosCard() {
               className="min-w-[180px] flex-1 rounded-md border border-zinc-800 bg-[#0f1218] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[#f5c518]"
             />
             <div className="flex rounded-md border border-zinc-800 bg-zinc-900 p-0.5 text-xs">
-              {(["SDR", "Closer"] as Owner[]).map((r) => (
+              {(["SDR", "Closer", "Trafego"] as TeamRole[]).map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -237,7 +241,7 @@ function UsuariosCard() {
                       : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
-                  {r}
+                  {TEAM_ROLE_LABELS[r]}
                 </button>
               ))}
             </div>

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Calendar, CheckSquare, LayoutDashboard, Kanban, Settings } from "lucide-react";
+import { BarChart3, Calendar, CheckSquare, DollarSign, LayoutDashboard, Kanban, Settings } from "lucide-react";
 import { FloowLogo } from "@/components/icons/FloowLogo";
+import { useTeamContext } from "@/lib/contexts/TeamContext";
 
 type NavItem = {
   href: string;
@@ -11,13 +12,21 @@ type NavItem = {
   icon: typeof LayoutDashboard;
 };
 
-const items: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/kanban", label: "Funis de vendas", icon: Kanban },
-  { href: "/agenda", label: "Agenda", icon: Calendar },
-  { href: "/tarefas", label: "Tarefas", icon: CheckSquare },
-  { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
-];
+// Financeiro só aparece pra admin + gestor de tráfego.
+function useNavItems(): NavItem[] {
+  const { isAdmin, isTraffic } = useTeamContext();
+  const items: NavItem[] = [
+    { href: "/", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/kanban", label: "Funis de vendas", icon: Kanban },
+    { href: "/agenda", label: "Agenda", icon: Calendar },
+    { href: "/tarefas", label: "Tarefas", icon: CheckSquare },
+    { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
+  ];
+  if (isAdmin || isTraffic) {
+    items.push({ href: "/financeiro", label: "Financeiro", icon: DollarSign });
+  }
+  return items;
+}
 
 const bottomItems: NavItem[] = [
   { href: "/configuracoes", label: "Configurações", icon: Settings },
@@ -25,6 +34,7 @@ const bottomItems: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const items = useNavItems();
 
   return (
     <aside className="group hidden md:flex fixed left-0 top-0 bottom-0 z-30 w-16 hover:w-56 transition-[width] duration-200 bg-black border-r border-zinc-900 flex-col">
@@ -75,6 +85,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const items = useNavItems();
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 flex border-t border-zinc-900 bg-black">

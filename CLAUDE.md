@@ -75,6 +75,9 @@ SQL migrations live in `supabase/migrations/`. They are applied manually via Sup
 - `002_phase2_b2b.sql` — B2B fields, Closer goals
 - `012` / `014` — funil status enum: adiciona `qualificado` e `em_agendamento` (ordem: qualificado → em_agendamento → reuniao_agendada → …)
 - `015` — vincula `team_members.email` às contas de login (usado pra identificar o usuário logado)
+- `017` — `leads.reuniao_realizada_em` (gatilho: sai de reuniao_agendada p/ ganho/perdido/follow_up) + `leads.criativo_codigo` (int, rastreio de anúncio). Estende `set_status_timestamps` e faz backfill via `lead_events`.
+- `018` — papel "Gestor de tráfego" (`team_members.role` aceita 'Trafego'; helper `app_is_traffic()`), insere Eduardo (eduardo@floowdigital.com), e cria `ad_investments` (investimento de ads por período, trava de sobreposição via EXCLUDE gist, RLS leitura=autenticado/escrita=admin+trafego). Rodar DEPOIS da 016.
+- `016` — RLS com papéis no banco (antes era só `auth.role() = 'authenticated'`). Adiciona coluna `team_members.is_admin` (admin vira dado, não email fixo) e helpers SECURITY DEFINER (`app_is_admin`, `app_is_closer`, `app_owns_lead`, `app_owns_goal`) que cruzam `auth.email()` × `team_members`. Regras: leads UPDATE trava a zona do Closer pro SDR (status resultante só pode ser etapa SDR); leads DELETE só admin/dono; team_members escrita só admin (API routes com service_role ignoram RLS); user_goals cada um edita a meta do próprio papel. SELECT continua aberto a autenticados (de propósito). `app_is_admin()` lê `is_admin` com fallback no email `rafe@floowdigital.com` (rede de segurança, espelha `ADMIN_EMAIL` em `lib/types.ts`). Client: `TeamContext.isAdmin` = `currentMember.is_admin || isAdminEmail(email)`; TopBar só mostra o lápis de meta pro dono do papel/admin. Rollback: `016_rls_permissions_rollback.sql`.
 
 ## Phased delivery — current state
 

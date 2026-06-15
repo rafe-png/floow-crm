@@ -80,7 +80,8 @@ function NewLeadDialogBody({
   const { leads } = useLeadsContext();
 
   // Dono padrão = função do usuário logado (ex: SDR logado → lead já vem como SDR dele).
-  const defaultDono: Owner = currentMember?.role ?? "SDR";
+  // Gestor de tráfego não vende, então cai no padrão SDR.
+  const defaultDono: Owner = currentMember?.role === "Closer" ? "Closer" : "SDR";
 
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");

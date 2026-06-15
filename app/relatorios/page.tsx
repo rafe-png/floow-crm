@@ -3,16 +3,23 @@
 import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
+import { CreativeBars, MonthlyBars, WeekdayBars } from "@/components/relatorios/ReportCharts";
+import { useAdInvestmentsContext } from "@/lib/contexts/AdInvestmentsContext";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
+import { cac, custoPorLead, spendInWindow, totalSpend } from "@/lib/finance";
 import {
   PERIOD_LABELS,
   buildCoreKpis,
+  buildCreativeStats,
   buildFunnel,
   buildLeadsCsv,
   buildLossReasons,
+  buildMonthlyStats,
   buildPersonStats,
+  buildWeekdayStats,
   downloadCsv,
   filterLeadsByPeriod,
+  startOfPeriod,
   type Period,
 } from "@/lib/reports";
 import { STATUS_COLORS } from "@/lib/types";
@@ -21,6 +28,7 @@ const PERIODS: Period[] = ["hoje", "semana", "mes", "trimestre", "ano", "tudo"];
 
 export default function RelatoriosPage() {
   const { leads } = useLeadsContext();
+  const { investments } = useAdInvestmentsContext();
   const [period, setPeriod] = useState<Period>("mes");
 
   const filtered = useMemo(() => filterLeadsByPeriod(leads, period), [leads, period]);
@@ -29,6 +37,20 @@ export default function RelatoriosPage() {
   const lossReasons = useMemo(() => buildLossReasons(filtered), [filtered]);
   const sdrStats = useMemo(() => buildPersonStats(filtered, "SDR"), [filtered]);
   const closerStats = useMemo(() => buildPersonStats(filtered, "Closer"), [filtered]);
+  const monthly = useMemo(() => buildMonthlyStats(leads, 6), [leads]);
+  const weekday = useMemo(() => buildWeekdayStats(filtered), [filtered]);
+  const creatives = useMemo(() => buildCreativeStats(filtered), [filtered]);
+
+  // Investimento + custo de aquisição no período selecionado.
+  const finance = useMemo(() => {
+    const start = startOfPeriod(period);
+    const spend = start ? spendInWindow(investments, start, new Date()) : totalSpend(investments);
+    return {
+      spend,
+      cpl: custoPorLead(spend, kpis.totalLeads),
+      cacVal: cac(spend, kpis.ganhos),
+    };
+  }, [investments, period, kpis.totalLeads, kpis.ganhos]);
 
   function exportCsv() {
     const csv = buildLeadsCsv(filtered);
@@ -92,6 +114,20 @@ export default function RelatoriosPage() {
             <Kpi label="Pipeline ativo"        value={fmtBRL(kpis.pipelineValor)} accent="yellow" />
             <Kpi label="Faturamento ganho"     value={fmtBRL(kpis.faturamentoGanho)} accent="emerald" />
             <Kpi label="Ticket médio"          value={fmtBRL(kpis.ticketMedio)} hint="entre ganhos" />
+          </section>
+
+          {/* Custo de aquisição (vem do Financeiro) */}
+          <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Kpi label="Investido em ads"  value={fmtBRL(finance.spend)} hint="no período" accent="yellow" />
+            <Kpi label="Custo por lead"    value={finance.cpl != null ? fmtBRL(finance.cpl) : "—"} hint="investido ÷ leads" />
+            <Kpi label="CAC"               value={finance.cacVal != null ? fmtBRL(finance.cacVal) : "—"} hint="investido ÷ clientes ganhos" accent="emerald" />
+          </section>
+
+          {/* Gráficos inteligentes */}
+          <MonthlyBars data={monthly} />
+          <section className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <WeekdayBars data={weekday} />
+            <CreativeBars data={creatives} />
           </section>
 
           {/* Funil */}

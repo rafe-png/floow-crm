@@ -6,6 +6,7 @@ import { Board } from "@/components/kanban/Board";
 import { LeadSearch } from "@/components/kanban/LeadSearch";
 import { TopBar } from "@/components/layout/TopBar";
 import { CompleteQualificationDialog } from "@/components/lead/CompleteQualificationDialog";
+import { CreativeCodeDialog } from "@/components/lead/CreativeCodeDialog";
 import { LeadDetailsPanel } from "@/components/lead/LeadDetailsPanel";
 import { LostReasonDialog } from "@/components/lead/LostReasonDialog";
 import { NewLeadDialog } from "@/components/lead/NewLeadDialog";
@@ -93,6 +94,25 @@ function KanbanContent() {
     lead: Lead;
     targetStatus: LeadStatus;
   } | null>(null);
+  // Antes de comemorar o ganho, pede o código do criativo que trouxe o cliente.
+  const [pendingWin, setPendingWin] = useState<{
+    id: string;
+    name: string;
+    patch: Partial<Lead>;
+  } | null>(null);
+
+  function askCreative(id: string, name: string, patch: Partial<Lead>) {
+    setPendingWin({ id, name, patch });
+  }
+
+  async function handleConfirmWin(criativo: number | null) {
+    if (!pendingWin) return;
+    const patch =
+      criativo != null ? { ...pendingWin.patch, criativo_codigo: criativo } : pendingWin.patch;
+    await updateLead(pendingWin.id, patch);
+    setPendingWin(null);
+    triggerCelebration("negocio_ganho");
+  }
 
   // Lead selecionado: ou foi clicado no board, ou veio via ?lead=<id> (link de uma tarefa).
   const selectedLead = selected
@@ -120,6 +140,10 @@ function KanbanContent() {
       });
       return;
     }
+    if (newStatus === "negocio_ganho" && lead?.status !== "negocio_ganho") {
+      askCreative(id, lead?.empresa || lead?.nome || "este lead", { status: "negocio_ganho" });
+      return;
+    }
     await moveLead(id, newStatus);
     triggerCelebration(newStatus);
   }
@@ -139,6 +163,10 @@ function KanbanContent() {
         name: lead?.empresa || lead?.nome || "este lead",
         extraPatch: patch,
       });
+      return;
+    }
+    if (patch.status === "negocio_ganho" && lead?.status !== "negocio_ganho") {
+      askCreative(id, lead?.empresa || lead?.nome || "este lead", patch);
       return;
     }
     const statusChanged = patch.status && patch.status !== lead?.status;
@@ -201,7 +229,7 @@ function KanbanContent() {
           onMove={handleMove}
           onCardClick={(lead) => setSelected(lead)}
           onCreate={(status) => { setNewStatus(status); setNewOpen(true); }}
-          viewerRole={isAdmin ? null : currentMember?.role ?? null}
+          viewerRole={isAdmin || currentMember?.role === "Trafego" ? null : currentMember?.role ?? null}
           isAdmin={isAdmin}
         />
       </main>
@@ -246,13 +274,25 @@ function KanbanContent() {
           targetStatus={pendingComplete.targetStatus}
           onCancel={() => setPendingComplete(null)}
           onConfirm={async (patch) => {
-            const target = pendingComplete.targetStatus;
-            await updateLead(pendingComplete.lead.id, patch);
+            const { lead, targetStatus } = pendingComplete;
             setPendingComplete(null);
-            triggerCelebration(target);
+            // Qualificou e já foi direto pra ganho: ainda pede o criativo.
+            if (targetStatus === "negocio_ganho") {
+              askCreative(lead.id, lead.empresa || lead.nome || "este lead", patch);
+              return;
+            }
+            await updateLead(lead.id, patch);
+            triggerCelebration(targetStatus);
           }}
         />
       )}
+
+      <CreativeCodeDialog
+        open={pendingWin != null}
+        leadName={pendingWin?.name ?? ""}
+        onCancel={() => setPendingWin(null)}
+        onConfirm={handleConfirmWin}
+      />
     </>
   );
 }

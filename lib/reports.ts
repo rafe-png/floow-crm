@@ -1,3 +1,5 @@
+import { format, subMonths } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   MOTIVO_PERDA_LABELS,
   STATUS_LABELS,
@@ -197,6 +199,82 @@ export function buildPersonStats(leads: Lead[], role: "SDR" | "Closer"): PersonS
       if (l.valor) cur.faturamento += Number(l.valor);
     }
     map.set(name, cur);
+  }
+  return Array.from(map.values()).sort((a, b) => b.ganhos - a.ganhos);
+}
+
+// ============================================================
+// Análises inteligentes (dia da semana, mensal, criativos)
+// ============================================================
+
+/** Lead chegou a ser qualificado? (agendou reunião ou está na etapa Qualificado+) */
+function wasQualified(l: Lead): boolean {
+  if (l.agendado_em) return true;
+  return ["em_agendamento", "reuniao_agendada", "no_show", "follow_up", "carteira", "negocio_ganho"].includes(l.status);
+}
+
+const WD_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const WD_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Seg → Dom
+
+export type WeekdayStat = { label: string; ganhos: number; leadsGanhos: number };
+
+/**
+ * Por dia da semana:
+ * - ganhos: negócios cujo GANHO caiu nesse dia (qual dia mais sai venda).
+ * - leadsGanhos: leads que viraram ganho, contados pelo dia em que CHEGARAM
+ *   (qual dia chegam os leads que mais convertem).
+ */
+export function buildWeekdayStats(leads: Lead[]): WeekdayStat[] {
+  const ganhos = Array(7).fill(0);
+  const leadsGanhos = Array(7).fill(0);
+  for (const l of leads) {
+    if (l.status !== "negocio_ganho") continue;
+    if (l.ganho_em) ganhos[new Date(l.ganho_em).getDay()]++;
+    leadsGanhos[new Date(l.created_at).getDay()]++;
+  }
+  return WD_ORDER.map((wd) => ({ label: WD_LABELS[wd], ganhos: ganhos[wd], leadsGanhos: leadsGanhos[wd] }));
+}
+
+export type MonthStat = { label: string; chegaram: number; qualificados: number; ganhos: number };
+
+/** Coorte por mês de ENTRADA do lead: quantos chegaram, qualificaram e ganharam. */
+export function buildMonthlyStats(leads: Lead[], months = 6): MonthStat[] {
+  const now = new Date();
+  const buckets: { key: string; stat: MonthStat }[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const d = subMonths(now, i);
+    buckets.push({
+      key: format(d, "yyyy-MM"),
+      stat: { label: format(d, "MMM/yy", { locale: ptBR }), chegaram: 0, qualificados: 0, ganhos: 0 },
+    });
+  }
+  const idx = new Map(buckets.map((b, i) => [b.key, i]));
+  for (const l of leads) {
+    const i = idx.get(format(new Date(l.created_at), "yyyy-MM"));
+    if (i == null) continue;
+    buckets[i].stat.chegaram++;
+    if (wasQualified(l)) buckets[i].stat.qualificados++;
+    if (l.status === "negocio_ganho") buckets[i].stat.ganhos++;
+  }
+  return buckets.map((b) => b.stat);
+}
+
+export type CreativeStat = { codigo: number; label: string; ganhos: number; faturamento: number };
+
+/** Performance por criativo: quais anúncios (códigos) mais vendem. */
+export function buildCreativeStats(leads: Lead[]): CreativeStat[] {
+  const map = new Map<number, CreativeStat>();
+  for (const l of leads) {
+    if (l.status !== "negocio_ganho" || l.criativo_codigo == null) continue;
+    const cur = map.get(l.criativo_codigo) ?? {
+      codigo: l.criativo_codigo,
+      label: `[${String(l.criativo_codigo).padStart(2, "0")}]`,
+      ganhos: 0,
+      faturamento: 0,
+    };
+    cur.ganhos++;
+    if (l.valor) cur.faturamento += Number(l.valor);
+    map.set(l.criativo_codigo, cur);
   }
   return Array.from(map.values()).sort((a, b) => b.ganhos - a.ganhos);
 }

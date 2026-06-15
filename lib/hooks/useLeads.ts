@@ -18,7 +18,9 @@ export type NewLeadInput = Omit<
   | "meet_link"
   | "motivo_perda"
   | "agendado_em"
+  | "reuniao_realizada_em"
   | "ganho_em"
+  | "criativo_codigo"
 >;
 
 type UpdateLeadInput = Partial<Omit<Lead, "id" | "created_at" | "updated_at">>;

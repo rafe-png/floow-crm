@@ -99,7 +99,7 @@ export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onCo
           <div>
             <h2 className="text-base font-semibold text-zinc-100">Complete a qualificação</h2>
             <p className="text-[11px] text-zinc-500">
-              Obrigatório para mover de <span className="text-zinc-300">Qualificado</span> para{" "}
+              Obrigatório para avançar para{" "}
               <span className="text-zinc-300">{STATUS_LABELS[targetStatus]}</span>
             </p>
           </div>

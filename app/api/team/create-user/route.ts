@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { getAdminSupabaseGuard } from "../guard";
-import type { Owner } from "@/lib/types";
+import type { TeamRole } from "@/lib/types";
 
 export async function POST(request: Request) {
   const guard = await getAdminSupabaseGuard();
   if (!guard.ok) return guard.response;
   const admin = guard.admin;
 
-  let body: { name?: string; email?: string; password?: string; role?: Owner };
+  let body: { name?: string; email?: string; password?: string; role?: TeamRole };
   try {
     body = await request.json();
   } catch {
@@ -19,9 +19,9 @@ export async function POST(request: Request) {
   const password = body.password ?? "";
   const role = body.role;
 
-  if (!name || !email || !password || (role !== "SDR" && role !== "Closer")) {
+  if (!name || !email || !password || (role !== "SDR" && role !== "Closer" && role !== "Trafego")) {
     return NextResponse.json(
-      { error: "Preencha nome, email, senha e função (SDR ou Closer)." },
+      { error: "Preencha nome, email, senha e função (SDR, Closer ou Gestor de tráfego)." },
       { status: 400 },
     );
   }

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Check, Pencil, Plus, X } from "lucide-react";
 import { useGoalsContext } from "@/lib/contexts/GoalsContext";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
+import { useTeamContext } from "@/lib/contexts/TeamContext";
 import type { Lead, Owner } from "@/lib/types";
 
 type Props = {
@@ -60,6 +61,11 @@ function countForCloser(leads: Lead[]) {
 export function TopBar({ title, onNewLead }: Props) {
   const { leads } = useLeadsContext();
   const { goals, updateGoals } = useGoalsContext();
+  const { isAdmin, currentMember } = useTeamContext();
+
+  // Cada um edita a meta do próprio papel; admin edita as duas. Espelha o RLS
+  // de user_goals (migração 016) — sem isso o lápis abriria e falharia no banco.
+  const canEditGoal = (owner: Owner) => isAdmin || currentMember?.role === owner;
 
   const [editing, setEditing] = useState<Owner | null>(null);
   const [draftDaily, setDraftDaily] = useState("");
@@ -112,6 +118,7 @@ export function TopBar({ title, onNewLead }: Props) {
           daily={goals.SDR?.daily_goal ?? 0}
           weekly={goals.SDR?.weekly_goal ?? 0}
           editing={editing === "SDR"}
+          canEdit={canEditGoal("SDR")}
           onEdit={() => startEdit("SDR")}
           onCancel={() => setEditing(null)}
           onSave={saveEdit}
@@ -128,6 +135,7 @@ export function TopBar({ title, onNewLead }: Props) {
           daily={goals.Closer?.daily_goal ?? 0}
           weekly={goals.Closer?.weekly_goal ?? 0}
           editing={editing === "Closer"}
+          canEdit={canEditGoal("Closer")}
           onEdit={() => startEdit("Closer")}
           onCancel={() => setEditing(null)}
           onSave={saveEdit}
@@ -149,6 +157,7 @@ type BlockProps = {
   daily: number;
   weekly: number;
   editing: boolean;
+  canEdit: boolean;
   onEdit: () => void;
   onCancel: () => void;
   onSave: () => void;
@@ -160,7 +169,7 @@ type BlockProps = {
 };
 
 function MetaBlock({
-  label, counts, daily, weekly, editing, onEdit, onCancel, onSave,
+  label, counts, daily, weekly, editing, canEdit, onEdit, onCancel, onSave,
   draftDaily, draftWeekly, setDraftDaily, setDraftWeekly, color,
 }: BlockProps) {
   const dot = color === "sky" ? "bg-sky-400" : "bg-fuchsia-400";
@@ -172,9 +181,11 @@ function MetaBlock({
         <div className="mb-1 flex items-center justify-between text-[10px] font-medium uppercase tracking-wide text-zinc-500">
           <span>{label}</span>
           {!editing ? (
-            <button onClick={onEdit} className="text-zinc-500 hover:text-zinc-300">
-              <Pencil size={10} />
-            </button>
+            canEdit && (
+              <button onClick={onEdit} className="text-zinc-500 hover:text-zinc-300">
+                <Pencil size={10} />
+              </button>
+            )
           ) : (
             <div className="flex items-center gap-1">
               <NumberInput value={draftDaily} onChange={setDraftDaily} placeholder="Dia" />
