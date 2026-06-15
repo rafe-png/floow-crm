@@ -40,7 +40,7 @@ export function useLeads() {
     const supabase = getSupabase();
     let cancelled = false;
 
-    (async () => {
+    async function fetchLeads() {
       const { data, error } = await supabase
         .from("leads")
         .select("*")
@@ -50,7 +50,8 @@ export function useLeads() {
       if (error) setError(error.message);
       else setLeads((data ?? []) as Lead[]);
       setLoading(false);
-    })();
+    }
+    fetchLeads();
 
     const channel = supabase
       .channel("leads-changes")
@@ -78,8 +79,16 @@ export function useLeads() {
       )
       .subscribe();
 
+    // Reforço: ao voltar pra aba, refaz a busca (o websocket pode perder
+    // eventos enquanto a aba fica em segundo plano).
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchLeads();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
       supabase.removeChannel(channel);
     };
   }, [userId]);
