@@ -66,28 +66,24 @@ function KanbanContent() {
   const [newStatus, setNewStatus] = useState<LeadStatus | undefined>(undefined);
   const [selected, setSelected] = useState<Lead | null>(null);
   const [celebration, setCelebration] = useState<CelebrationKind | null>(null);
-  // Filtro por responsável (só admin). null = todos.
-  const [filterName, setFilterName] = useState<string | null>(null);
+  // Filtros por responsável (SDR e Closer, independentes). null = todos.
+  const [filterSdr, setFilterSdr] = useState<string | null>(null);
+  const [filterCloser, setFilterCloser] = useState<string | null>(null);
 
   function triggerCelebration(status: LeadStatus | undefined) {
     const kind = celebrationFor(status);
     if (kind) setCelebration(kind);
   }
 
-  // O que cada usuário enxerga:
-  // - admin: todos os leads (+ filtro opcional por responsável);
-  // - SDR/Closer: só os leads em que ele é o responsável.
+  // Todos veem o funil completo e filtram por responsável (SDR e/ou Closer,
+  // independentes). Sem filtro = todos os leads.
   const visibleLeads = useMemo(() => {
-    if (isAdmin) {
-      if (!filterName) return leads;
-      return leads.filter(
-        (l) => l.sdr_responsavel === filterName || l.closer_responsavel === filterName,
-      );
-    }
-    if (!currentMember) return leads; // fora do time: não esconde nada
-    const name = currentMember.name;
-    return leads.filter((l) => l.sdr_responsavel === name || l.closer_responsavel === name);
-  }, [leads, isAdmin, filterName, currentMember]);
+    return leads.filter(
+      (l) =>
+        (!filterSdr || l.sdr_responsavel === filterSdr) &&
+        (!filterCloser || l.closer_responsavel === filterCloser),
+    );
+  }, [leads, filterSdr, filterCloser]);
   const [pendingLost, setPendingLost] = useState<{
     id: string;
     name: string;
@@ -214,43 +210,49 @@ function KanbanContent() {
     <>
       <TopBar title="Funis de vendas" onNewLead={() => { setNewStatus(undefined); setNewOpen(true); }} />
 
-      {/* Toolbar: busca (todos) + filtro por responsável (só admin) */}
+      {/* Toolbar: busca + filtros por responsável (SDR e Closer), pra todos */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-zinc-900 bg-[#0a0a0a] px-4 py-2 sm:px-6">
         <LeadSearch leads={visibleLeads} onSelect={(lead) => setSelected(lead)} />
 
-        {isAdmin && (
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
-              Responsável
-            </span>
-            <select
-              value={filterName ?? ""}
-              onChange={(e) => setFilterName(e.target.value || null)}
-              className="rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-200 outline-none focus:border-[#f5c518]"
-            >
-              <option value="">Todos os leads</option>
-              {sdrs.length > 0 && (
-                <optgroup label="SDR">
-                  {sdrs.map((m) => (
-                    <option key={m.id} value={m.name}>{m.name}</option>
-                  ))}
-                </optgroup>
-              )}
-              {closers.length > 0 && (
-                <optgroup label="Closer">
-                  {closers.map((m) => (
-                    <option key={m.id} value={m.name}>{m.name}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-            {filterName && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">SDR</span>
+          <select
+            value={filterSdr ?? ""}
+            onChange={(e) => setFilterSdr(e.target.value || null)}
+            className="rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-200 outline-none focus:border-[#f5c518]"
+          >
+            <option value="">Todos</option>
+            {sdrs.map((m) => (
+              <option key={m.id} value={m.name}>{m.name}</option>
+            ))}
+          </select>
+
+          <span className="ml-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500">Closer</span>
+          <select
+            value={filterCloser ?? ""}
+            onChange={(e) => setFilterCloser(e.target.value || null)}
+            className="rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-200 outline-none focus:border-[#f5c518]"
+          >
+            <option value="">Todos</option>
+            {closers.map((m) => (
+              <option key={m.id} value={m.name}>{m.name}</option>
+            ))}
+          </select>
+
+          {(filterSdr || filterCloser) && (
+            <>
               <span className="text-[11px] text-zinc-500">
                 {visibleLeads.length} {visibleLeads.length === 1 ? "lead" : "leads"}
               </span>
-            )}
-          </div>
-        )}
+              <button
+                onClick={() => { setFilterSdr(null); setFilterCloser(null); }}
+                className="text-[11px] text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline"
+              >
+                limpar
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <main className="flex-1 overflow-hidden">
