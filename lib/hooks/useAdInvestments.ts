@@ -36,9 +36,10 @@ export function useAdInvestments() {
         (payload) => {
           setInvestments((prev) => {
             if (payload.eventType === "INSERT") {
-              return [payload.new as AdInvestment, ...prev].sort((a, b) =>
-                b.periodo_inicio.localeCompare(a.periodo_inicio),
-              );
+              const row = payload.new as AdInvestment;
+              // dedupe: o lançamento já pode ter entrado pela atualização otimista
+              if (prev.some((i) => i.id === row.id)) return prev;
+              return [row, ...prev].sort((a, b) => b.periodo_inicio.localeCompare(a.periodo_inicio));
             }
             if (payload.eventType === "UPDATE") {
               return prev.map((i) => (i.id === (payload.new as AdInvestment).id ? (payload.new as AdInvestment) : i));
@@ -61,15 +62,28 @@ export function useAdInvestments() {
   const createInvestment = useCallback(
     async (input: NewAdInvestmentInput) => {
       const supabase = getSupabase();
-      const { error } = await supabase.from("ad_investments").insert({
-        periodo_inicio: input.periodo_inicio,
-        periodo_fim: input.periodo_fim,
-        valor: input.valor,
-        leads_ads: input.leads_ads,
-        canal: input.canal ?? null,
-        created_by: userEmail,
-      });
+      const { data, error } = await supabase
+        .from("ad_investments")
+        .insert({
+          periodo_inicio: input.periodo_inicio,
+          periodo_fim: input.periodo_fim,
+          valor: input.valor,
+          leads_ads: input.leads_ads,
+          canal: input.canal ?? null,
+          created_by: userEmail,
+        })
+        .select()
+        .single();
       if (error) throw error;
+      // Atualização otimista: aparece na hora, sem depender do tempo real.
+      const row = data as AdInvestment | null;
+      if (row) {
+        setInvestments((prev) =>
+          prev.some((i) => i.id === row.id)
+            ? prev
+            : [row, ...prev].sort((a, b) => b.periodo_inicio.localeCompare(a.periodo_inicio)),
+        );
+      }
     },
     [userEmail],
   );
@@ -78,6 +92,7 @@ export function useAdInvestments() {
     const supabase = getSupabase();
     const { error } = await supabase.from("ad_investments").delete().eq("id", id);
     if (error) throw error;
+    setInvestments((prev) => prev.filter((i) => i.id !== id)); // some na hora
   }, []);
 
   return { investments, loading, createInvestment, deleteInvestment };

@@ -154,12 +154,14 @@ export default function FinanceiroPage() {
         </div>
       </main>
 
-      <InvestmentDialog
-        open={dialog}
-        covered={covered}
-        onClose={() => setDialog(false)}
-        onSubmit={createInvestment}
-      />
+      {dialog && (
+        <InvestmentDialog
+          open
+          covered={covered}
+          onClose={() => setDialog(false)}
+          onSubmit={createInvestment}
+        />
+      )}
     </>
   );
 }
