@@ -148,6 +148,9 @@ export type Lead = {
 
   // Rastreio de criativo (qual anúncio trouxe o cliente) — preenchido ao ganhar.
   criativo_codigo: number | null;
+
+  // Origem do lead: 'manual' (cadastrado à mão) | 'whatsapp' (entrou pelo anúncio).
+  origem: string | null;
 };
 
 export type LeadEventType = "created" | "status_change" | "note";
