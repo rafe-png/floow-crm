@@ -65,6 +65,7 @@ export function useAdInvestments() {
         periodo_inicio: input.periodo_inicio,
         periodo_fim: input.periodo_fim,
         valor: input.valor,
+        leads_ads: input.leads_ads,
         canal: input.canal ?? null,
         created_by: userEmail,
       });

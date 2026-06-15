@@ -30,6 +30,7 @@ export function InvestmentDialog({ open, covered, onClose, onSubmit }: Props) {
   const [start, setStart] = useState<Date | null>(null);
   const [end, setEnd] = useState<Date | null>(null);
   const [valor, setValor] = useState("");
+  const [leadsAds, setLeadsAds] = useState("");
   const [canal, setCanal] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -82,8 +83,10 @@ export function InvestmentDialog({ open, covered, onClose, onSubmit }: Props) {
 
   async function handleSave() {
     const v = parseFloat(valor.replace(/\./g, "").replace(",", "."));
+    const leads = parseInt(leadsAds, 10);
     if (!start || !end) { setError("Selecione o período no calendário."); return; }
     if (Number.isNaN(v) || v <= 0) { setError("Informe o valor investido."); return; }
+    if (Number.isNaN(leads) || leads < 0) { setError("Informe quantos leads os anúncios trouxeram."); return; }
     setSaving(true);
     setError(null);
     try {
@@ -91,6 +94,7 @@ export function InvestmentDialog({ open, covered, onClose, onSubmit }: Props) {
         periodo_inicio: dayKey(start),
         periodo_fim: dayKey(end),
         valor: v,
+        leads_ads: leads,
         canal: canal.trim() || null,
       });
       onClose();
@@ -175,6 +179,16 @@ export function InvestmentDialog({ open, covered, onClose, onSubmit }: Props) {
                 placeholder="Valor investido"
                 className="flex-1 rounded-md border border-zinc-800 bg-[#0f1218] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[#f5c518]"
               />
+            </div>
+            <div>
+              <input
+                value={leadsAds}
+                onChange={(e) => setLeadsAds(e.target.value.replace(/\D/g, ""))}
+                inputMode="numeric"
+                placeholder="Leads que chegaram (mensagens dos anúncios)"
+                className="w-full rounded-md border border-zinc-800 bg-[#0f1218] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[#f5c518]"
+              />
+              <p className="mt-1 text-[10px] text-zinc-600">Quantas mensagens/leads os anúncios trouxeram nesse período.</p>
             </div>
             <input
               value={canal}

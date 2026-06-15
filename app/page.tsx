@@ -8,7 +8,7 @@ import { UpcomingMeetings } from "@/components/dashboard/UpcomingMeetings";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useGoalsContext } from "@/lib/contexts/GoalsContext";
 import { useAdInvestmentsContext } from "@/lib/contexts/AdInvestmentsContext";
-import { cac, custoPorLead, spendInWindow } from "@/lib/finance";
+import { adLeadsInWindow, cac, custoPorLead, spendInWindow } from "@/lib/finance";
 import type { Lead, Owner } from "@/lib/types";
 
 function startOfIsoWeek(d: Date) {
@@ -79,9 +79,9 @@ export default function DashboardPage() {
     const monthStart = startOfMonth(new Date());
     const now = new Date();
     const spend = spendInWindow(investments, monthStart, now);
-    const leadsMes = leads.filter((l) => new Date(l.created_at) >= monthStart).length;
+    const adLeads = adLeadsInWindow(investments, monthStart, now);
     const ganhosMes = leads.filter((l) => l.ganho_em && new Date(l.ganho_em) >= monthStart).length;
-    return { spend, cpl: custoPorLead(spend, leadsMes), cacVal: cac(spend, ganhosMes) };
+    return { spend, cpl: custoPorLead(spend, adLeads), cacVal: cac(spend, ganhosMes) };
   }, [investments, leads]);
 
   const sdrWeekly = goals.SDR?.weekly_goal ?? 0;
@@ -140,7 +140,7 @@ export default function DashboardPage() {
           <BigStat
             label="Custo por lead"
             value={aquisicao.cpl != null ? fmtBRL(aquisicao.cpl) : "—"}
-            hint="investido ÷ leads do mês"
+            hint="investido ÷ leads dos anúncios"
             accent="#38bdf8"
           />
           <BigStat

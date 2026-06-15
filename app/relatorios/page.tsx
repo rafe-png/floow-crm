@@ -6,7 +6,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { CreativeBars, MonthlyBars, WeekdayBars } from "@/components/relatorios/ReportCharts";
 import { useAdInvestmentsContext } from "@/lib/contexts/AdInvestmentsContext";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
-import { cac, custoPorLead, spendInWindow, totalSpend } from "@/lib/finance";
+import { adLeadsInWindow, cac, custoPorLead, spendInWindow, totalAdLeads, totalSpend } from "@/lib/finance";
 import {
   PERIOD_LABELS,
   buildCoreKpis,
@@ -45,12 +45,14 @@ export default function RelatoriosPage() {
   const finance = useMemo(() => {
     const start = startOfPeriod(period);
     const spend = start ? spendInWindow(investments, start, new Date()) : totalSpend(investments);
+    const adLeads = start ? adLeadsInWindow(investments, start, new Date()) : totalAdLeads(investments);
     return {
       spend,
-      cpl: custoPorLead(spend, kpis.totalLeads),
+      adLeads,
+      cpl: custoPorLead(spend, adLeads),
       cacVal: cac(spend, kpis.ganhos),
     };
-  }, [investments, period, kpis.totalLeads, kpis.ganhos]);
+  }, [investments, period, kpis.ganhos]);
 
   function exportCsv() {
     const csv = buildLeadsCsv(filtered);
@@ -118,8 +120,8 @@ export default function RelatoriosPage() {
 
           {/* Custo de aquisição (vem do Financeiro) */}
           <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Kpi label="Investido em ads"  value={fmtBRL(finance.spend)} hint="no período" accent="yellow" />
-            <Kpi label="Custo por lead"    value={finance.cpl != null ? fmtBRL(finance.cpl) : "—"} hint="investido ÷ leads" />
+            <Kpi label="Investido em ads"  value={fmtBRL(finance.spend)} hint={`${finance.adLeads} leads dos anúncios`} accent="yellow" />
+            <Kpi label="Custo por lead"    value={finance.cpl != null ? fmtBRL(finance.cpl) : "—"} hint="investido ÷ leads dos anúncios" />
             <Kpi label="CAC"               value={finance.cacVal != null ? fmtBRL(finance.cacVal) : "—"} hint="investido ÷ clientes ganhos" accent="emerald" />
           </section>
 

@@ -10,7 +10,7 @@ import { InvestmentDialog } from "@/components/financeiro/InvestmentDialog";
 import { useAdInvestmentsContext } from "@/lib/contexts/AdInvestmentsContext";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
-import { cac, coveredDays, custoPorLead, periodDays, spendInWindow, totalSpend } from "@/lib/finance";
+import { adLeadsInWindow, cac, coveredDays, custoPorLead, periodDays, spendInWindow, totalAdLeads, totalSpend } from "@/lib/finance";
 
 const fmtBRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(n);
@@ -29,14 +29,11 @@ export default function FinanceiroPage() {
     const start = startOfMonth(new Date());
     const end = endOfMonth(new Date());
     const spend = spendInWindow(investments, start, end);
-    const monthLeads = leads.filter((l) => {
-      const t = new Date(l.created_at).getTime();
-      return t >= start.getTime() && t <= end.getTime();
-    }).length;
+    const adLeads = adLeadsInWindow(investments, start, end);
     const ganhos = leads.filter(
       (l) => l.ganho_em && new Date(l.ganho_em).getTime() >= start.getTime() && new Date(l.ganho_em).getTime() <= end.getTime(),
     ).length;
-    return { spend, monthLeads, ganhos, cpl: custoPorLead(spend, monthLeads), cacVal: cac(spend, ganhos) };
+    return { spend, adLeads, ganhos, cpl: custoPorLead(spend, adLeads), cacVal: cac(spend, ganhos) };
   }, [investments, leads]);
 
   if (!canManage) {
@@ -80,11 +77,12 @@ export default function FinanceiroPage() {
             </div>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <KpiCard icon={DollarSign} label="Investido" value={fmtBRL(month.spend)} accent="yellow" />
-              <KpiCard icon={Users} label="Leads no mês" value={month.monthLeads} accent="sky" />
+              <KpiCard icon={Users} label="Leads dos anúncios" value={month.adLeads} accent="sky" />
               <KpiCard
                 icon={TrendingUp}
                 label="Custo por lead"
                 value={month.cpl != null ? fmtBRL(month.cpl) : "—"}
+                sub="investido ÷ leads dos anúncios"
                 accent="neutral"
               />
               <KpiCard
@@ -103,7 +101,9 @@ export default function FinanceiroPage() {
               <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
                 Lançamentos
               </div>
-              <div className="text-[11px] text-zinc-500">Total: {fmtBRL(totalSpend(investments))}</div>
+              <div className="text-[11px] text-zinc-500">
+                {totalAdLeads(investments)} leads · {fmtBRL(totalSpend(investments))}
+              </div>
             </div>
             <div className="overflow-hidden rounded-xl border border-zinc-900">
               {investments.length === 0 ? (
@@ -116,6 +116,7 @@ export default function FinanceiroPage() {
                     <tr className="border-b border-zinc-900 text-left text-[11px] uppercase tracking-wider text-zinc-500">
                       <th className="px-4 py-2 font-medium">Período</th>
                       <th className="px-4 py-2 font-medium">Dias</th>
+                      <th className="px-4 py-2 text-right font-medium">Leads</th>
                       <th className="px-4 py-2 font-medium">Canal</th>
                       <th className="px-4 py-2 text-right font-medium">Valor</th>
                       <th className="px-4 py-2"></th>
@@ -129,6 +130,7 @@ export default function FinanceiroPage() {
                           {format(parseISO(inv.periodo_fim), "d MMM yyyy", { locale: ptBR })}
                         </td>
                         <td className="px-4 py-2.5 text-zinc-400">{periodDays(inv.periodo_inicio, inv.periodo_fim)}</td>
+                        <td className="px-4 py-2.5 text-right text-zinc-300">{inv.leads_ads}</td>
                         <td className="px-4 py-2.5 text-zinc-400">{inv.canal ?? "—"}</td>
                         <td className="px-4 py-2.5 text-right font-medium text-zinc-100">{fmtBRL(inv.valor)}</td>
                         <td className="px-4 py-2.5 text-right">

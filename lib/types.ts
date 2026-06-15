@@ -213,6 +213,7 @@ export type AdInvestment = {
   periodo_inicio: string;
   periodo_fim: string;
   valor: number;
+  leads_ads: number; // leads/mensagens que os anúncios trouxeram no período (entrada manual)
   canal: string | null;
   created_by: string | null;
 };
@@ -221,6 +222,7 @@ export type NewAdInvestmentInput = {
   periodo_inicio: string;
   periodo_fim: string;
   valor: number;
+  leads_ads: number;
   canal?: string | null;
 };
 
