@@ -9,7 +9,7 @@ import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useGoalsContext } from "@/lib/contexts/GoalsContext";
 import { useAdInvestmentsContext } from "@/lib/contexts/AdInvestmentsContext";
 import { adLeadsInWindow, cac, custoPorLead, spendInWindow } from "@/lib/finance";
-import type { Lead, Owner } from "@/lib/types";
+import { CLOSED_STATUSES, type Lead, type Owner } from "@/lib/types";
 
 function startOfIsoWeek(d: Date) {
   const x = new Date(d);
@@ -47,7 +47,7 @@ function countWeekMonth(leads: Lead[], owner: Owner) {
 function pipelineValue(leads: Lead[]) {
   let total = 0;
   for (const l of leads) {
-    if (l.status === "negocio_perdido") continue;
+    if (CLOSED_STATUSES.includes(l.status)) continue; // só pipeline em aberto
     if (l.valor) total += Number(l.valor);
   }
   return total;

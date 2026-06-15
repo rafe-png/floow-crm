@@ -1,6 +1,7 @@
 import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
+  CLOSED_STATUSES,
   MOTIVO_DESQUALIFICACAO_LABELS,
   MOTIVO_PERDA_LABELS,
   STATUS_LABELS,
@@ -114,17 +115,15 @@ export function buildCoreKpis(leads: Lead[]): CoreKpis {
   const ganhos = leads.filter((l) => l.status === "negocio_ganho").length;
   const perdidos = leads.filter((l) => l.status === "negocio_perdido").length;
   const noShow = leads.filter((l) => l.status === "no_show").length;
-  // "reunião realizada" = saiu de reunião agendada pra qualquer coisa exceto no_show
-  const reunioesRealizadas = leads.filter(
-    (l) => l.agendado_em && !["reuniao_agendada", "no_show"].includes(l.status),
-  ).length;
+  // "reunião realizada" = timestamp gravado quando saiu de reunião agendada
+  const reunioesRealizadas = leads.filter((l) => l.reuniao_realizada_em).length;
 
   const winRate = ganhos + perdidos > 0 ? (ganhos / (ganhos + perdidos)) * 100 : 0;
   const conversionRate = agendamentos > 0 ? (ganhos / agendamentos) * 100 : 0;
   const noShowRate = agendamentos > 0 ? (noShow / agendamentos) * 100 : 0;
 
   const pipelineValor = leads
-    .filter((l) => l.status !== "negocio_perdido" && l.valor)
+    .filter((l) => !CLOSED_STATUSES.includes(l.status) && l.valor)
     .reduce((acc, l) => acc + Number(l.valor), 0);
   const faturamentoGanho = leads
     .filter((l) => l.status === "negocio_ganho" && l.valor)
@@ -134,7 +133,7 @@ export function buildCoreKpis(leads: Lead[]): CoreKpis {
   const ticketMedio = ganhosComValor.length > 0
     ? faturamentoGanho / ganhosComValor.length
     : 0;
-  const ativosComValor = leads.filter((l) => l.status !== "negocio_perdido" && l.valor);
+  const ativosComValor = leads.filter((l) => !CLOSED_STATUSES.includes(l.status) && l.valor);
   const ticketMedioPipeline = ativosComValor.length > 0
     ? pipelineValor / ativosComValor.length
     : 0;

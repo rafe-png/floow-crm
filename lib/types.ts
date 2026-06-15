@@ -262,6 +262,15 @@ export const STATUS_ORDER: LeadStatus[] = [
   "desqualificado",
 ];
 
+// Etapas "fechadas" — saíram do pipeline ativo (ganho, perdido, sem resposta,
+// desqualificado). Não contam como pipeline em aberto.
+export const CLOSED_STATUSES: LeadStatus[] = [
+  "negocio_ganho",
+  "negocio_perdido",
+  "sem_resposta",
+  "desqualificado",
+];
+
 // Nota: os VALORES do enum no banco continuam "qualificado"/"em_agendamento";
 // só os rótulos exibidos mudaram (entrada/qualificado). A ordem é preservada,
 // então funil, kanban e relatórios seguem corretos.

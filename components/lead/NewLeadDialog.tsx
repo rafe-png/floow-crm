@@ -140,8 +140,12 @@ function NewLeadDialogBody({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!nome.trim() || !telefone.trim() || !empresa.trim()) {
-      setError("Nome do decisor, telefone e empresa são obrigatórios.");
+    if (!nome.trim() || !telefone.trim()) {
+      setError("Nome do decisor e contato (WhatsApp) são obrigatórios.");
+      return;
+    }
+    if (!quick && !empresa.trim()) {
+      setError("Nome da empresa é obrigatório.");
       return;
     }
     if (duplicate) {
@@ -222,7 +226,7 @@ function NewLeadDialogBody({
               )}
             </div>
             <p className="text-[11px] text-zinc-500">
-              {quick ? "Cadastro rápido · só o contato do decisor e a empresa" : "Preencha durante a ligação · ~60s"}
+              {quick ? "Cadastro rápido · só o nome e o contato do decisor" : "Preencha durante a ligação · ~60s"}
             </p>
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300" aria-label="Fechar">
@@ -296,27 +300,27 @@ function NewLeadDialogBody({
             </Section>
           )}
 
-          {/* Empresa */}
-          <Section title="Empresa">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="Nome da empresa *">
-                <input value={empresa} onChange={(e) => setEmpresa(e.target.value)} className="ds-input" placeholder="Confecção XYZ" />
-              </Field>
-              <Field label="Instagram">
-                <div className="flex items-center rounded-md border border-zinc-800 bg-[#0f1218] focus-within:border-[#f5c518]">
-                  <span className="pl-3 text-sm text-zinc-500">@</span>
-                  <input value={instagram} onChange={(e) => setInstagram(e.target.value.replace(/^@/, ""))} className="flex-1 bg-transparent px-2 py-2 text-sm text-zinc-100 outline-none" placeholder="empresa" />
-                </div>
-              </Field>
-            </div>
-            {!quick && (
+          {/* Empresa — só de "Qualificado" em diante (na Entrada basta nome + contato) */}
+          {!quick && (
+            <Section title="Empresa">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Nome da empresa *">
+                  <input value={empresa} onChange={(e) => setEmpresa(e.target.value)} className="ds-input" placeholder="Confecção XYZ" />
+                </Field>
+                <Field label="Instagram">
+                  <div className="flex items-center rounded-md border border-zinc-800 bg-[#0f1218] focus-within:border-[#f5c518]">
+                    <span className="pl-3 text-sm text-zinc-500">@</span>
+                    <input value={instagram} onChange={(e) => setInstagram(e.target.value.replace(/^@/, ""))} className="flex-1 bg-transparent px-2 py-2 text-sm text-zinc-100 outline-none" placeholder="empresa" />
+                  </div>
+                </Field>
+              </div>
               <div className="mt-3">
                 <Field label="Segmento da confecção">
                   <SegmentoSelect value={segmento} onChange={setSegmento} />
                 </Field>
               </div>
-            )}
-          </Section>
+            </Section>
+          )}
 
           {!quick && (<>
           {/* Qualificação */}
