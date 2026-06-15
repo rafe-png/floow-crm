@@ -262,13 +262,15 @@ export const STATUS_ORDER: LeadStatus[] = [
   "desqualificado",
 ];
 
-// Etapas "fechadas" — saíram do pipeline ativo (ganho, perdido, sem resposta,
-// desqualificado). Não contam como pipeline em aberto.
-export const CLOSED_STATUSES: LeadStatus[] = [
-  "negocio_ganho",
-  "negocio_perdido",
-  "sem_resposta",
-  "desqualificado",
+// Pipeline ativo = oportunidades em aberto, de "Qualificado" (em_agendamento)
+// até "Carteira". Exclui a Entrada (lead só chegou, sem valor/qualificação) e
+// as etapas fechadas (ganho, perdido, sem resposta, desqualificado).
+export const PIPELINE_STATUSES: LeadStatus[] = [
+  "em_agendamento",
+  "reuniao_agendada",
+  "no_show",
+  "follow_up",
+  "carteira",
 ];
 
 // Nota: os VALORES do enum no banco continuam "qualificado"/"em_agendamento";

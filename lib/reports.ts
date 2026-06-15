@@ -1,7 +1,7 @@
 import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  CLOSED_STATUSES,
+  PIPELINE_STATUSES,
   MOTIVO_DESQUALIFICACAO_LABELS,
   MOTIVO_PERDA_LABELS,
   STATUS_LABELS,
@@ -123,7 +123,7 @@ export function buildCoreKpis(leads: Lead[]): CoreKpis {
   const noShowRate = agendamentos > 0 ? (noShow / agendamentos) * 100 : 0;
 
   const pipelineValor = leads
-    .filter((l) => !CLOSED_STATUSES.includes(l.status) && l.valor)
+    .filter((l) => PIPELINE_STATUSES.includes(l.status) && l.valor)
     .reduce((acc, l) => acc + Number(l.valor), 0);
   const faturamentoGanho = leads
     .filter((l) => l.status === "negocio_ganho" && l.valor)
@@ -133,7 +133,7 @@ export function buildCoreKpis(leads: Lead[]): CoreKpis {
   const ticketMedio = ganhosComValor.length > 0
     ? faturamentoGanho / ganhosComValor.length
     : 0;
-  const ativosComValor = leads.filter((l) => !CLOSED_STATUSES.includes(l.status) && l.valor);
+  const ativosComValor = leads.filter((l) => PIPELINE_STATUSES.includes(l.status) && l.valor);
   const ticketMedioPipeline = ativosComValor.length > 0
     ? pipelineValor / ativosComValor.length
     : 0;
