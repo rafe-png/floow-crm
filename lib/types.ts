@@ -6,7 +6,8 @@ export type LeadStatus =
   | "follow_up"
   | "carteira"
   | "negocio_ganho"
-  | "negocio_perdido";
+  | "negocio_perdido"
+  | "desqualificado";
 
 export type Owner = "SDR" | "Closer";
 
@@ -34,7 +35,8 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 
 // Etapas que o SDR trabalha (cor normal, SDR pode mover). Da reunião agendada
 // em diante o Closer "pega o bastão": etapas mais escuras e bloqueadas pro SDR.
-export const SDR_STAGES: LeadStatus[] = ["qualificado", "em_agendamento", "reuniao_agendada"];
+// Inclui "desqualificado": desqualificar o lead é trabalho do SDR (na qualificação).
+export const SDR_STAGES: LeadStatus[] = ["qualificado", "em_agendamento", "reuniao_agendada", "desqualificado"];
 
 export function canMoveTo(
   status: LeadStatus,
@@ -93,6 +95,19 @@ export type MotivoPerda =
   | "preco_alto"
   | "outro";
 
+// Por que o lead foi DESqualificado (não vira oportunidade — sai cedo do funil).
+export type MotivoDesqualificacao =
+  | "nao_e_confeccao"
+  | "muito_pequeno"
+  | "sem_verba"
+  | "fora_perfil"
+  | "nao_decisor"
+  | "ja_tem_solucao"
+  | "sem_interesse"
+  | "nao_respondeu"
+  | "regiao_fora"
+  | "outro";
+
 // ============================================================
 // Lead
 // ============================================================
@@ -140,6 +155,7 @@ export type Lead = {
 
   // Perda
   motivo_perda: MotivoPerda | null;
+  motivo_desqualificacao: MotivoDesqualificacao | null;
 
   // Timestamps "fotográficos" (one-shot) usados pras contagens estáveis de meta
   agendado_em: string | null;          // momento que o lead entrou em reuniao_agendada
@@ -241,6 +257,7 @@ export const STATUS_ORDER: LeadStatus[] = [
   "carteira",
   "negocio_ganho",
   "negocio_perdido",
+  "desqualificado",
 ];
 
 // Nota: os VALORES do enum no banco continuam "qualificado"/"em_agendamento";
@@ -255,6 +272,7 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
   carteira: "Carteira",
   negocio_ganho: "Negócio ganho",
   negocio_perdido: "Negócio perdido",
+  desqualificado: "Desqualificado",
 };
 
 export const STATUS_COLORS: Record<LeadStatus, { bg: string; text: string; border: string; dot: string }> = {
@@ -266,6 +284,7 @@ export const STATUS_COLORS: Record<LeadStatus, { bg: string; text: string; borde
   carteira:         { bg: "bg-cyan-500/10",    text: "text-cyan-300",    border: "border-cyan-500/30",    dot: "bg-cyan-400" },
   negocio_ganho:    { bg: "bg-emerald-500/10", text: "text-emerald-300", border: "border-emerald-500/30", dot: "bg-emerald-400" },
   negocio_perdido:  { bg: "bg-rose-500/10",    text: "text-rose-300",    border: "border-rose-500/30",    dot: "bg-rose-400" },
+  desqualificado:   { bg: "bg-slate-500/10",   text: "text-slate-300",   border: "border-slate-500/30",   dot: "bg-slate-400" },
 };
 
 export const EXPERIENCIA_LABELS: Record<Experiencia, string> = {
@@ -365,6 +384,19 @@ export const MOTIVO_PERDA_LABELS: Record<MotivoPerda, string> = {
   nao_decisor: "Não era decisor",
   sem_retorno: "Sumiu / sem retorno",
   preco_alto: "Preço alto",
+  outro: "Outro",
+};
+
+export const MOTIVO_DESQUALIFICACAO_LABELS: Record<MotivoDesqualificacao, string> = {
+  nao_e_confeccao: "Não é confecção",
+  muito_pequeno: "Muito pequeno / sem estrutura",
+  sem_verba: "Sem verba pra investir",
+  fora_perfil: "Fora do perfil (ICP)",
+  nao_decisor: "Não é o decisor",
+  ja_tem_solucao: "Já tem agência/solução",
+  sem_interesse: "Sem interesse real",
+  nao_respondeu: "Não respondeu / sumiu",
+  regiao_fora: "Região/segmento fora do foco",
   outro: "Outro",
 };
 

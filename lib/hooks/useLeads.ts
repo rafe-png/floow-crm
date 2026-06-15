@@ -13,6 +13,7 @@ export type NewLeadInput = Omit<
   | "updated_at"
   | "status"
   | "observacoes"
+  | "motivo_desqualificacao"
   | "google_event_id"
   | "google_calendar_id"
   | "meet_link"

@@ -7,13 +7,14 @@ import { LeadSearch } from "@/components/kanban/LeadSearch";
 import { TopBar } from "@/components/layout/TopBar";
 import { CompleteQualificationDialog } from "@/components/lead/CompleteQualificationDialog";
 import { CreativeCodeDialog } from "@/components/lead/CreativeCodeDialog";
+import { DisqualifyDialog } from "@/components/lead/DisqualifyDialog";
 import { LeadDetailsPanel } from "@/components/lead/LeadDetailsPanel";
 import { LostReasonDialog } from "@/components/lead/LostReasonDialog";
 import { NewLeadDialog } from "@/components/lead/NewLeadDialog";
 import { Celebration, type CelebrationKind } from "@/components/ui/Celebration";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
-import type { Lead, LeadStatus, MotivoPerda } from "@/lib/types";
+import type { Lead, LeadStatus, MotivoDesqualificacao, MotivoPerda } from "@/lib/types";
 
 // Etapas iniciais (zona do SDR) — qualificar/agendar acontece aqui.
 const EARLY_STAGES: LeadStatus[] = ["qualificado", "em_agendamento"];
@@ -33,6 +34,7 @@ function needsCompletion(lead: Lead, newStatus: LeadStatus): boolean {
     EARLY_STAGES.includes(lead.status) &&
     !EARLY_STAGES.includes(newStatus) &&
     newStatus !== "negocio_perdido" &&
+    newStatus !== "desqualificado" &&
     !isQualComplete(lead)
   );
 }
@@ -86,6 +88,11 @@ function KanbanContent() {
     return leads.filter((l) => l.sdr_responsavel === name || l.closer_responsavel === name);
   }, [leads, isAdmin, filterName, currentMember]);
   const [pendingLost, setPendingLost] = useState<{
+    id: string;
+    name: string;
+    extraPatch: Partial<Lead>;
+  } | null>(null);
+  const [pendingDisqualify, setPendingDisqualify] = useState<{
     id: string;
     name: string;
     extraPatch: Partial<Lead>;
@@ -144,6 +151,14 @@ function KanbanContent() {
       askCreative(id, lead?.empresa || lead?.nome || "este lead", { status: "negocio_ganho" });
       return;
     }
+    if (newStatus === "desqualificado" && lead?.status !== "desqualificado") {
+      setPendingDisqualify({
+        id,
+        name: lead?.empresa || lead?.nome || "este lead",
+        extraPatch: { status: "desqualificado" },
+      });
+      return;
+    }
     await moveLead(id, newStatus);
     triggerCelebration(newStatus);
   }
@@ -169,6 +184,14 @@ function KanbanContent() {
       askCreative(id, lead?.empresa || lead?.nome || "este lead", patch);
       return;
     }
+    if (patch.status === "desqualificado" && lead?.status !== "desqualificado") {
+      setPendingDisqualify({
+        id,
+        name: lead?.empresa || lead?.nome || "este lead",
+        extraPatch: patch,
+      });
+      return;
+    }
     const statusChanged = patch.status && patch.status !== lead?.status;
     await updateLead(id, patch);
     if (statusChanged) triggerCelebration(patch.status);
@@ -178,6 +201,12 @@ function KanbanContent() {
     if (!pendingLost) return;
     await updateLead(pendingLost.id, { ...pendingLost.extraPatch, motivo_perda: motivo });
     setPendingLost(null);
+  }
+
+  async function handleConfirmDisqualify(motivo: MotivoDesqualificacao) {
+    if (!pendingDisqualify) return;
+    await updateLead(pendingDisqualify.id, { ...pendingDisqualify.extraPatch, motivo_desqualificacao: motivo });
+    setPendingDisqualify(null);
   }
 
   return (
@@ -266,6 +295,13 @@ function KanbanContent() {
         leadName={pendingLost?.name ?? ""}
         onCancel={() => setPendingLost(null)}
         onConfirm={handleConfirmLost}
+      />
+
+      <DisqualifyDialog
+        open={pendingDisqualify != null}
+        leadName={pendingDisqualify?.name ?? ""}
+        onCancel={() => setPendingDisqualify(null)}
+        onConfirm={handleConfirmDisqualify}
       />
 
       {pendingComplete && (

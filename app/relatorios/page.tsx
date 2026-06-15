@@ -11,6 +11,7 @@ import {
   PERIOD_LABELS,
   buildCoreKpis,
   buildCreativeStats,
+  buildDisqualReasons,
   buildFunnel,
   buildLeadsCsv,
   buildLossReasons,
@@ -35,6 +36,7 @@ export default function RelatoriosPage() {
   const kpis = useMemo(() => buildCoreKpis(filtered), [filtered]);
   const funnel = useMemo(() => buildFunnel(filtered), [filtered]);
   const lossReasons = useMemo(() => buildLossReasons(filtered), [filtered]);
+  const disqualReasons = useMemo(() => buildDisqualReasons(filtered), [filtered]);
   const sdrStats = useMemo(() => buildPersonStats(filtered, "SDR"), [filtered]);
   const closerStats = useMemo(() => buildPersonStats(filtered, "Closer"), [filtered]);
   const monthly = useMemo(() => buildMonthlyStats(leads, 6), [leads]);
@@ -172,6 +174,30 @@ export default function RelatoriosPage() {
                       <div className="h-4 w-full overflow-hidden rounded bg-zinc-900">
                         <div
                           className="h-full bg-rose-500/40 flex items-center justify-end pr-2 text-[10px] font-medium text-rose-200"
+                          style={{ width: `${Math.max(m.pct, m.count > 0 ? 6 : 0)}%` }}
+                        >
+                          {m.count > 0 && `${m.count} · ${m.pct.toFixed(0)}%`}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Motivos de desqualificação */}
+          {disqualReasons.length > 0 && (
+            <section className="rounded-xl border border-zinc-900 bg-zinc-950/60 p-4">
+              <h3 className="mb-3 text-sm font-semibold text-zinc-200">Motivos de desqualificação</h3>
+              <div className="space-y-2">
+                {disqualReasons.map((m) => (
+                  <div key={m.motivo} className="flex items-center gap-3">
+                    <div className="w-40 shrink-0 text-xs text-zinc-300">{m.label}</div>
+                    <div className="flex-1">
+                      <div className="h-4 w-full overflow-hidden rounded bg-zinc-900">
+                        <div
+                          className="h-full bg-slate-400/40 flex items-center justify-end pr-2 text-[10px] font-medium text-slate-200"
                           style={{ width: `${Math.max(m.pct, m.count > 0 ? 6 : 0)}%` }}
                         >
                           {m.count > 0 && `${m.count} · ${m.pct.toFixed(0)}%`}

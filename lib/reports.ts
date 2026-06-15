@@ -1,10 +1,12 @@
 import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
+  MOTIVO_DESQUALIFICACAO_LABELS,
   MOTIVO_PERDA_LABELS,
   STATUS_LABELS,
   type Lead,
   type LeadStatus,
+  type MotivoDesqualificacao,
   type MotivoPerda,
 } from "@/lib/types";
 
@@ -73,9 +75,10 @@ export function buildFunnel(leads: Lead[]): FunnelStat[] {
     "carteira",
     "negocio_ganho",
     "negocio_perdido",
+    "desqualificado",
   ];
   const counts: Record<LeadStatus, number> = {
-    qualificado: 0, em_agendamento: 0, reuniao_agendada: 0, no_show: 0, follow_up: 0, carteira: 0, negocio_ganho: 0, negocio_perdido: 0,
+    qualificado: 0, em_agendamento: 0, reuniao_agendada: 0, no_show: 0, follow_up: 0, carteira: 0, negocio_ganho: 0, negocio_perdido: 0, desqualificado: 0,
   };
   for (const l of leads) counts[l.status]++;
   const total = leads.length || 1;
@@ -179,6 +182,26 @@ export function buildLossReasons(leads: Lead[]): LossReasonStat[] {
     .map(([motivo, count]) => ({
       motivo: motivo as MotivoPerda,
       label: MOTIVO_PERDA_LABELS[motivo as MotivoPerda] ?? "Sem motivo",
+      count,
+      pct: (count / total) * 100,
+    }))
+    .sort((a, b) => b.count - a.count);
+}
+
+export type DisqualReasonStat = { motivo: MotivoDesqualificacao; label: string; count: number; pct: number };
+
+export function buildDisqualReasons(leads: Lead[]): DisqualReasonStat[] {
+  const desq = leads.filter((l) => l.status === "desqualificado");
+  const counts = new Map<MotivoDesqualificacao | "sem_motivo", number>();
+  for (const l of desq) {
+    const k = (l.motivo_desqualificacao ?? "sem_motivo") as MotivoDesqualificacao;
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  const total = desq.length || 1;
+  return Array.from(counts.entries())
+    .map(([motivo, count]) => ({
+      motivo: motivo as MotivoDesqualificacao,
+      label: MOTIVO_DESQUALIFICACAO_LABELS[motivo as MotivoDesqualificacao] ?? "Sem motivo",
       count,
       pct: (count / total) * 100,
     }))
@@ -315,6 +338,7 @@ export function buildLeadsCsv(leads: Lead[]): string {
     "BANT Need",
     "BANT Timing",
     "Motivo perda",
+    "Motivo desqualificação",
     "Observações",
     "Meet link",
   ];
@@ -340,6 +364,7 @@ export function buildLeadsCsv(leads: Lead[]): string {
     l.bant_need ?? "",
     l.bant_timing ?? "",
     l.motivo_perda ?? "",
+    l.motivo_desqualificacao ?? "",
     l.observacoes ?? "",
     l.meet_link ?? "",
   ]);

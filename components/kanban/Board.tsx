@@ -42,6 +42,7 @@ export function Board({ leads, onMove, onCardClick, onCreate, viewerRole, isAdmi
       carteira: [],
       negocio_ganho: [],
       negocio_perdido: [],
+      desqualificado: [],
     };
     for (const l of leads) map[l.status].push(l);
     return map;
