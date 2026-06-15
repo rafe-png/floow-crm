@@ -8,30 +8,37 @@ import {
   endOfWeek,
   format,
   isSameMonth,
+  parseISO,
   startOfMonth,
   startOfWeek,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { dayKey } from "@/lib/finance";
-import type { NewAdInvestmentInput } from "@/lib/types";
+import type { AdInvestment, NewAdInvestmentInput } from "@/lib/types";
 
 type Props = {
   open: boolean;
   covered: Set<string>; // dias "yyyy-MM-dd" já lançados (travados)
+  initial?: AdInvestment | null; // preenchido = modo edição
   onClose: () => void;
   onSubmit: (input: NewAdInvestmentInput) => Promise<void>;
 };
 
 const WEEKDAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
 
-export function InvestmentDialog({ open, covered, onClose, onSubmit }: Props) {
-  const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
-  const [start, setStart] = useState<Date | null>(null);
-  const [end, setEnd] = useState<Date | null>(null);
-  const [valor, setValor] = useState("");
-  const [leadsAds, setLeadsAds] = useState("");
-  const [canal, setCanal] = useState("");
+export function InvestmentDialog({ open, covered, initial, onClose, onSubmit }: Props) {
+  const editing = !!initial;
+  const [cursor, setCursor] = useState(() =>
+    startOfMonth(initial ? parseISO(initial.periodo_inicio) : new Date()),
+  );
+  const [start, setStart] = useState<Date | null>(initial ? parseISO(initial.periodo_inicio) : null);
+  const [end, setEnd] = useState<Date | null>(initial ? parseISO(initial.periodo_fim) : null);
+  const [valor, setValor] = useState(
+    initial ? initial.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "",
+  );
+  const [leadsAds, setLeadsAds] = useState(initial ? String(initial.leads_ads) : "");
+  const [canal, setCanal] = useState(initial?.canal ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -116,7 +123,9 @@ export function InvestmentDialog({ open, covered, onClose, onSubmit }: Props) {
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-950 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
-          <h2 className="text-base font-semibold text-zinc-100">Lançar investimento</h2>
+          <h2 className="text-base font-semibold text-zinc-100">
+            {editing ? "Editar investimento" : "Lançar investimento"}
+          </h2>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300" aria-label="Fechar">
             <X size={18} />
           </button>
@@ -215,7 +224,7 @@ export function InvestmentDialog({ open, covered, onClose, onSubmit }: Props) {
             disabled={saving || !start || !end}
             className="rounded-md bg-[#f5c518] px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-[#ffd633] disabled:opacity-50"
           >
-            {saving ? "Salvando…" : "Lançar"}
+            {saving ? "Salvando…" : editing ? "Salvar" : "Lançar"}
           </button>
         </footer>
       </div>

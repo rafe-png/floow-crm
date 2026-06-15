@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { endOfMonth, format, parseISO, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { DollarSign, Plus, Target, Trash2, TrendingUp, Users } from "lucide-react";
+import { DollarSign, Pencil, Plus, Target, Trash2, TrendingUp, Users } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { InvestmentDialog } from "@/components/financeiro/InvestmentDialog";
@@ -11,19 +11,28 @@ import { useAdInvestmentsContext } from "@/lib/contexts/AdInvestmentsContext";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { adLeadsInWindow, cac, coveredDays, custoPorLead, periodDays, spendInWindow, totalAdLeads, totalSpend } from "@/lib/finance";
+import type { AdInvestment } from "@/lib/types";
 
 const fmtBRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(n);
+// Com centavos — usado nos valores que o usuário soma (tabela e totais), pra bater exato.
+const fmtBRL2 = (n: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 }).format(n);
 
 export default function FinanceiroPage() {
   const { isAdmin, isTraffic } = useTeamContext();
   const { leads } = useLeadsContext();
-  const { investments, createInvestment, deleteInvestment } = useAdInvestmentsContext();
-  const [dialog, setDialog] = useState(false);
+  const { investments, createInvestment, updateInvestment, deleteInvestment } = useAdInvestmentsContext();
+  // null = fechado · "new" = lançar · AdInvestment = editar
+  const [dialog, setDialog] = useState<AdInvestment | "new" | null>(null);
 
   const canManage = isAdmin || isTraffic;
 
-  const covered = useMemo(() => coveredDays(investments), [investments]);
+  // No modo edição, os dias do próprio lançamento não travam ele mesmo.
+  const covered = useMemo(
+    () => coveredDays(dialog && dialog !== "new" ? investments.filter((i) => i.id !== dialog.id) : investments),
+    [investments, dialog],
+  );
 
   const month = useMemo(() => {
     const start = startOfMonth(new Date());
@@ -62,7 +71,7 @@ export default function FinanceiroPage() {
               <p className="text-xs text-zinc-500">Lance o gasto por período. Os dias já lançados ficam travados.</p>
             </div>
             <button
-              onClick={() => setDialog(true)}
+              onClick={() => setDialog("new")}
               className="flex items-center gap-1.5 rounded-md bg-[#f5c518] px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-[#ffd633]"
             >
               <Plus size={14} strokeWidth={2.5} />
@@ -76,7 +85,7 @@ export default function FinanceiroPage() {
               Este mês · {format(new Date(), "MMMM yyyy", { locale: ptBR })}
             </div>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <KpiCard icon={DollarSign} label="Investido" value={fmtBRL(month.spend)} accent="yellow" />
+              <KpiCard icon={DollarSign} label="Investido" value={fmtBRL2(month.spend)} accent="yellow" />
               <KpiCard icon={Users} label="Leads dos anúncios" value={month.adLeads} accent="sky" />
               <KpiCard
                 icon={TrendingUp}
@@ -102,7 +111,7 @@ export default function FinanceiroPage() {
                 Lançamentos
               </div>
               <div className="text-[11px] text-zinc-500">
-                {totalAdLeads(investments)} leads · {fmtBRL(totalSpend(investments))}
+                {totalAdLeads(investments)} leads · {fmtBRL2(totalSpend(investments))}
               </div>
             </div>
             <div className="overflow-hidden rounded-xl border border-zinc-900">
@@ -132,17 +141,26 @@ export default function FinanceiroPage() {
                         <td className="px-4 py-2.5 text-zinc-400">{periodDays(inv.periodo_inicio, inv.periodo_fim)}</td>
                         <td className="px-4 py-2.5 text-right text-zinc-300">{inv.leads_ads}</td>
                         <td className="px-4 py-2.5 text-zinc-400">{inv.canal ?? "—"}</td>
-                        <td className="px-4 py-2.5 text-right font-medium text-zinc-100">{fmtBRL(inv.valor)}</td>
+                        <td className="px-4 py-2.5 text-right font-medium text-zinc-100">{fmtBRL2(inv.valor)}</td>
                         <td className="px-4 py-2.5 text-right">
-                          <button
-                            onClick={async () => {
-                              if (confirm("Remover este lançamento?")) await deleteInvestment(inv.id);
-                            }}
-                            className="text-zinc-600 hover:text-rose-400"
-                            aria-label="Remover"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setDialog(inv)}
+                              className="text-zinc-600 hover:text-zinc-200"
+                              aria-label="Editar"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (confirm("Remover este lançamento?")) await deleteInvestment(inv.id);
+                              }}
+                              className="text-zinc-600 hover:text-rose-400"
+                              aria-label="Remover"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -158,8 +176,9 @@ export default function FinanceiroPage() {
         <InvestmentDialog
           open
           covered={covered}
-          onClose={() => setDialog(false)}
-          onSubmit={createInvestment}
+          initial={dialog === "new" ? null : dialog}
+          onClose={() => setDialog(null)}
+          onSubmit={(input) => (dialog === "new" ? createInvestment(input) : updateInvestment(dialog.id, input))}
         />
       )}
     </>

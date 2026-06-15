@@ -88,6 +88,31 @@ export function useAdInvestments() {
     [userEmail],
   );
 
+  const updateInvestment = useCallback(async (id: string, input: NewAdInvestmentInput) => {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from("ad_investments")
+      .update({
+        periodo_inicio: input.periodo_inicio,
+        periodo_fim: input.periodo_fim,
+        valor: input.valor,
+        leads_ads: input.leads_ads,
+        canal: input.canal ?? null,
+      })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    const row = data as AdInvestment | null;
+    if (row) {
+      setInvestments((prev) =>
+        prev
+          .map((i) => (i.id === row.id ? row : i))
+          .sort((a, b) => b.periodo_inicio.localeCompare(a.periodo_inicio)),
+      );
+    }
+  }, []);
+
   const deleteInvestment = useCallback(async (id: string) => {
     const supabase = getSupabase();
     const { error } = await supabase.from("ad_investments").delete().eq("id", id);
@@ -95,5 +120,5 @@ export function useAdInvestments() {
     setInvestments((prev) => prev.filter((i) => i.id !== id)); // some na hora
   }, []);
 
-  return { investments, loading, createInvestment, deleteInvestment };
+  return { investments, loading, createInvestment, updateInvestment, deleteInvestment };
 }
