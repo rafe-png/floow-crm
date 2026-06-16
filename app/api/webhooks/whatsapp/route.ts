@@ -16,9 +16,13 @@ type ZApiBody = {
   text?: { message?: string };
 };
 
-// Só dígitos, sem o 55 do país — pra comparar telefones em formatos diferentes.
+// Normaliza telefone pra comparar formatos diferentes: só dígitos, sem o 55 do
+// país, e sem o "9" extra de celular (DDD + 9XXXXXXXX → DDD + XXXXXXXX) — porque
+// o Z-API às vezes reporta o número com e às vezes sem o 9.
 function normPhone(p: string): string {
-  return p.replace(/\D/g, "").replace(/^55/, "");
+  let d = p.replace(/\D/g, "").replace(/^55/, "");
+  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
+  return d;
 }
 
 // Responsável do lead conforme o número que recebeu a mensagem.
