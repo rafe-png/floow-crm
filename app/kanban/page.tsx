@@ -14,7 +14,8 @@ import { NewLeadDialog } from "@/components/lead/NewLeadDialog";
 import { Celebration, type CelebrationKind } from "@/components/ui/Celebration";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
-import type { Lead, LeadStatus, MotivoDesqualificacao, MotivoPerda } from "@/lib/types";
+import { SEGMENTO_LABELS, type Lead, type LeadStatus, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
+import { computeLeadScore, PRIORITY_SHORT, type LeadPriority } from "@/lib/lead-score";
 
 // Etapas iniciais (zona do SDR) — qualificar/agendar acontece aqui.
 const EARLY_STAGES: LeadStatus[] = ["qualificado", "em_agendamento"];
@@ -66,24 +67,36 @@ function KanbanContent() {
   const [newStatus, setNewStatus] = useState<LeadStatus | undefined>(undefined);
   const [selected, setSelected] = useState<Lead | null>(null);
   const [celebration, setCelebration] = useState<CelebrationKind | null>(null);
-  // Filtros por responsável (SDR e Closer, independentes). null = todos.
+  // Filtros do funil. null = todos.
   const [filterSdr, setFilterSdr] = useState<string | null>(null);
   const [filterCloser, setFilterCloser] = useState<string | null>(null);
+  const [filterPriority, setFilterPriority] = useState<LeadPriority | null>(null);
+  const [filterOrigem, setFilterOrigem] = useState<"whatsapp" | "manual" | null>(null);
+  const [filterSegmento, setFilterSegmento] = useState<SegmentoConfeccao | null>(null);
 
   function triggerCelebration(status: LeadStatus | undefined) {
     const kind = celebrationFor(status);
     if (kind) setCelebration(kind);
   }
 
-  // Todos veem o funil completo e filtram por responsável (SDR e/ou Closer,
-  // independentes). Sem filtro = todos os leads.
+  // Todos veem o funil completo e filtram (responsável, prioridade, origem,
+  // segmento). Sem filtro = todos os leads.
   const visibleLeads = useMemo(() => {
-    return leads.filter(
-      (l) =>
-        (!filterSdr || l.sdr_responsavel === filterSdr) &&
-        (!filterCloser || l.closer_responsavel === filterCloser),
-    );
-  }, [leads, filterSdr, filterCloser]);
+    return leads.filter((l) => {
+      if (filterSdr && l.sdr_responsavel !== filterSdr) return false;
+      if (filterCloser && l.closer_responsavel !== filterCloser) return false;
+      if (filterOrigem === "whatsapp" && l.origem !== "whatsapp") return false;
+      if (filterOrigem === "manual" && l.origem === "whatsapp") return false;
+      if (filterSegmento && l.segmento !== filterSegmento) return false;
+      if (filterPriority) {
+        // Prioridade só vale da etapa "Qualificado" em diante (não na Entrada).
+        if (l.status === "qualificado") return false;
+        const s = computeLeadScore(l);
+        if (s.answered === 0 || s.priority !== filterPriority) return false;
+      }
+      return true;
+    });
+  }, [leads, filterSdr, filterCloser, filterOrigem, filterSegmento, filterPriority]);
   const [pendingLost, setPendingLost] = useState<{
     id: string;
     name: string;
@@ -210,42 +223,51 @@ function KanbanContent() {
     <>
       <TopBar title="Funis de vendas" onNewLead={() => { setNewStatus(undefined); setNewOpen(true); }} />
 
-      {/* Toolbar: busca + filtros por responsável (SDR e Closer), pra todos */}
+      {/* Toolbar: busca + filtros (responsável, prioridade, origem, segmento) */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-zinc-900 bg-[#0a0a0a] px-4 py-2 sm:px-6">
         <LeadSearch leads={visibleLeads} onSelect={(lead) => setSelected(lead)} />
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">SDR</span>
-          <select
-            value={filterSdr ?? ""}
-            onChange={(e) => setFilterSdr(e.target.value || null)}
-            className="rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-200 outline-none focus:border-[#f5c518]"
-          >
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <FilterSelect label="SDR" value={filterSdr ?? ""} onChange={(v) => setFilterSdr(v || null)}>
             <option value="">Todos</option>
-            {sdrs.map((m) => (
-              <option key={m.id} value={m.name}>{m.name}</option>
-            ))}
-          </select>
+            {sdrs.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
+          </FilterSelect>
 
-          <span className="ml-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500">Closer</span>
-          <select
-            value={filterCloser ?? ""}
-            onChange={(e) => setFilterCloser(e.target.value || null)}
-            className="rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-200 outline-none focus:border-[#f5c518]"
-          >
+          <FilterSelect label="Closer" value={filterCloser ?? ""} onChange={(v) => setFilterCloser(v || null)}>
             <option value="">Todos</option>
-            {closers.map((m) => (
-              <option key={m.id} value={m.name}>{m.name}</option>
-            ))}
-          </select>
+            {closers.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
+          </FilterSelect>
 
-          {(filterSdr || filterCloser) && (
+          <FilterSelect label="Prioridade" value={filterPriority ?? ""} onChange={(v) => setFilterPriority((v || null) as LeadPriority | null)}>
+            <option value="">Todas</option>
+            <option value="alta">🔥 {PRIORITY_SHORT.alta}</option>
+            <option value="media">⏳ {PRIORITY_SHORT.media}</option>
+            <option value="baixa">🧊 {PRIORITY_SHORT.baixa}</option>
+          </FilterSelect>
+
+          <FilterSelect label="Origem" value={filterOrigem ?? ""} onChange={(v) => setFilterOrigem((v || null) as "whatsapp" | "manual" | null)}>
+            <option value="">Todas</option>
+            <option value="whatsapp">Anúncio (WhatsApp)</option>
+            <option value="manual">Manual</option>
+          </FilterSelect>
+
+          <FilterSelect label="Segmento" value={filterSegmento ?? ""} onChange={(v) => setFilterSegmento((v || null) as SegmentoConfeccao | null)}>
+            <option value="">Todos</option>
+            {(Object.keys(SEGMENTO_LABELS) as SegmentoConfeccao[]).map((s) => (
+              <option key={s} value={s}>{SEGMENTO_LABELS[s]}</option>
+            ))}
+          </FilterSelect>
+
+          {(filterSdr || filterCloser || filterPriority || filterOrigem || filterSegmento) && (
             <>
-              <span className="text-[11px] text-zinc-500">
+              <span className="text-[11px] text-zinc-400">
                 {visibleLeads.length} {visibleLeads.length === 1 ? "lead" : "leads"}
               </span>
               <button
-                onClick={() => { setFilterSdr(null); setFilterCloser(null); }}
+                onClick={() => {
+                  setFilterSdr(null); setFilterCloser(null); setFilterPriority(null);
+                  setFilterOrigem(null); setFilterSegmento(null);
+                }}
                 className="text-[11px] text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline"
               >
                 limpar
@@ -333,5 +355,27 @@ function KanbanContent() {
         onConfirm={handleConfirmWin}
       />
     </>
+  );
+}
+
+function FilterSelect({
+  label, value, onChange, children,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="flex items-center gap-1.5">
+      <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 outline-none focus:border-[#f5c518]"
+      >
+        {children}
+      </select>
+    </label>
   );
 }

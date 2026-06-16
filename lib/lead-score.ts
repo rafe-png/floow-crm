@@ -58,6 +58,13 @@ export const PRIORITY_LABELS: Record<LeadPriority, string> = {
   baixa: "Prioridade baixa",
 };
 
+// Rótulo curto (pro card e pros filtros).
+export const PRIORITY_SHORT: Record<LeadPriority, string> = {
+  alta: "Alta",
+  media: "Média",
+  baixa: "Baixa",
+};
+
 export const PRIORITY_META: Record<LeadPriority, { emoji: string; text: string; bg: string; border: string }> = {
   alta: { emoji: "🔥", text: "text-rose-300", bg: "bg-rose-500/10", border: "border-rose-500/30" },
   media: { emoji: "⏳", text: "text-amber-300", bg: "bg-amber-500/10", border: "border-amber-500/30" },

@@ -6,6 +6,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar, User } from "lucide-react";
 import { InstagramIcon, WhatsAppIcon } from "@/components/icons/BrandIcons";
+import { computeLeadScore, PRIORITY_LABELS, PRIORITY_META, PRIORITY_SHORT } from "@/lib/lead-score";
 import {
   BANT_NEED_LABELS,
   BANT_TIMING_LABELS,
@@ -33,6 +34,10 @@ export function LeadCard({ lead, onClick }: Props) {
 
   const primary = lead.empresa || lead.nome;
   const secondary = lead.empresa ? lead.nome : null;
+
+  // Prioridade (estrelas + alta/média/baixa) — só mostra se já tem qualificação.
+  const score = computeLeadScore(lead);
+  const prio = PRIORITY_META[score.priority];
 
   return (
     <div
@@ -63,6 +68,19 @@ export function LeadCard({ lead, onClick }: Props) {
           {lead.dono}
         </span>
       </div>
+
+      {/* Prioridade — só da etapa "Qualificado" (em_agendamento) em diante,
+          quando o lead já passou pela qualificação. Não aparece na Entrada. */}
+      {lead.status !== "qualificado" && score.answered > 0 && (
+        <div className="mt-2">
+          <span
+            title={`${PRIORITY_LABELS[score.priority]} · score ${score.score}/100 · ${score.answered}/${score.total} respostas`}
+            className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-semibold ${prio.bg} ${prio.text} ${prio.border}`}
+          >
+            {prio.emoji} {PRIORITY_SHORT[score.priority]} · {score.stars}★
+          </span>
+        </div>
+      )}
 
       {/* Badges de qualificação */}
       {(lead.segmento || lead.estoque || lead.bant_need || lead.bant_timing) && (
