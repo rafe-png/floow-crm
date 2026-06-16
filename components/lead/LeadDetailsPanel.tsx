@@ -64,7 +64,6 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
   const [empresa, setEmpresa] = useState(lead.empresa ?? "");
   const [instagram, setInstagram] = useState(lead.instagram ?? "");
   const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(lead.segmento);
-  const [dono, setDono] = useState<Owner>(lead.dono);
   const [valor, setValor] = useState(lead.valor != null ? String(lead.valor) : "");
   const [observacoes, setObservacoes] = useState(lead.observacoes ?? "");
   const [sdrResp, setSdrResp] = useState<string | null>(lead.sdr_responsavel);
@@ -109,7 +108,6 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
         empresa: empresa.trim() || null,
         instagram: instagram.trim().replace(/^@/, "") || null,
         segmento,
-        dono,
         valor: parsedValor != null && !Number.isNaN(parsedValor) ? parsedValor : null,
         observacoes: observacoes.trim() || null,
         sdr_responsavel: sdrResp,
@@ -233,31 +231,9 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
             <Field label="Segmento da confecção">
               <SegmentoSelect value={segmento} onChange={(v) => { setSegmento(v); setDirty(true); }} />
             </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Dono">
-                <div className="flex gap-1.5">
-                  {(["SDR", "Closer"] as Owner[]).map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => { setDono(opt); setDirty(true); }}
-                      className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${
-                        dono === opt
-                          ? opt === "SDR"
-                            ? "border-sky-500/50 bg-sky-500/15 text-sky-200"
-                            : "border-fuchsia-500/50 bg-fuchsia-500/15 text-fuchsia-200"
-                          : "border-zinc-800 bg-zinc-900 text-zinc-400"
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              </Field>
-              <Field label="Valor">
-                <input value={valor} onChange={(e) => { setValor(e.target.value); setDirty(true); }} className="ds-input" placeholder="R$ 0,00" inputMode="decimal" />
-              </Field>
-            </div>
+            <Field label="Valor">
+              <input value={valor} onChange={(e) => { setValor(e.target.value); setDirty(true); }} className="ds-input" placeholder="R$ 0,00" inputMode="decimal" />
+            </Field>
           </Section>
 
           {/* Responsáveis */}

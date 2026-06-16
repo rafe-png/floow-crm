@@ -10,6 +10,7 @@ type ZApiBody = {
   isNewsletter?: boolean;
   phone?: string;          // telefone de quem mandou
   connectedPhone?: string; // o NOSSO número que recebeu (define o responsável)
+  instanceId?: string;     // id da instância Z-API (alternativa de roteamento)
   senderName?: string;
   chatName?: string;
   text?: { message?: string };
@@ -65,16 +66,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, skipped: "json inválido" });
   }
 
-  // DIAGNÓSTICO: loga o que chega (campos-chave + estrutura) pra debug.
-  console.log("[wh-in]", JSON.stringify({
-    keys: Object.keys(body || {}),
-    connectedPhone: body.connectedPhone ?? null,
-    phone: body.phone ?? null,
-    fromMe: body.fromMe ?? null,
-    isGroup: body.isGroup ?? null,
-    isNewsletter: body.isNewsletter ?? null,
-    textMessage: body.text?.message ?? null,
-  }));
+  // DIAGNÓSTICO (compacto, valores de roteamento primeiro pra não truncar).
+  console.log(
+    "[wh]",
+    "cp=" + (body.connectedPhone ?? "null"),
+    "inst=" + (body.instanceId ?? "null"),
+    "ph=" + (body.phone ?? "null"),
+    "fromMe=" + (body.fromMe ?? "null"),
+    "txt=" + (body.text?.message?.slice(0, 22) ?? "null"),
+  );
 
   // Ignora: mensagens enviadas por nós, grupos, newsletters, e sem telefone.
   const phoneRaw = body.phone?.trim();
@@ -127,7 +127,6 @@ export async function POST(request: Request) {
   const { error } = await admin.from("leads").insert({
     nome: name,
     telefone: phoneRaw,
-    dono: "SDR",
     status: "qualificado", // etapa "Entrada"
     sdr_responsavel: sdr,
     criativo_codigo: criativo,

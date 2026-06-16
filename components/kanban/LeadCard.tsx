@@ -53,20 +53,11 @@ export function LeadCard({ lead, onClick }: Props) {
       }}
       className="group cursor-grab active:cursor-grabbing select-none rounded-lg border border-zinc-800 bg-zinc-900/70 p-3 hover:border-zinc-700 hover:bg-zinc-900 transition-colors"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <h4 className="text-sm font-medium text-zinc-100 line-clamp-1">{primary}</h4>
-          {secondary && (
-            <div className="truncate text-[11px] text-zinc-500">{secondary}</div>
-          )}
-        </div>
-        <span
-          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${
-            lead.dono === "SDR" ? "bg-sky-500/15 text-sky-300" : "bg-fuchsia-500/15 text-fuchsia-300"
-          }`}
-        >
-          {lead.dono}
-        </span>
+      <div className="min-w-0">
+        <h4 className="text-sm font-medium text-zinc-100 line-clamp-1">{primary}</h4>
+        {secondary && (
+          <div className="truncate text-[11px] text-zinc-500">{secondary}</div>
+        )}
       </div>
 
       {/* Prioridade — só da etapa "Qualificado" (em_agendamento) em diante,

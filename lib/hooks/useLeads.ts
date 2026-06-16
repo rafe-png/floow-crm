@@ -11,6 +11,7 @@ export type NewLeadInput = Omit<
   | "id"
   | "created_at"
   | "updated_at"
+  | "dono"
   | "status"
   | "observacoes"
   | "motivo_desqualificacao"

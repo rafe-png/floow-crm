@@ -34,7 +34,6 @@ function countWeekMonth(leads: Lead[], owner: Owner) {
   const month = startOfMonth(new Date());
   let w = 0, m = 0;
   for (const l of leads) {
-    if (l.dono !== owner) continue;
     const tsField = owner === "SDR" ? l.agendado_em : l.ganho_em;
     if (!tsField) continue;
     const ref = new Date(tsField);

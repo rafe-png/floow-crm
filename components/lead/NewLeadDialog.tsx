@@ -6,7 +6,7 @@ import { CargoSelect } from "@/components/ui/CargoSelect";
 import { DateTimePicker, busyStartsForDate, joinIso } from "@/components/ui/DateTimePicker";
 import { LocalSelect } from "@/components/ui/LocalSelect";
 import { PersonSelect } from "@/components/ui/PersonSelect";
-import { Pills, PillRow } from "@/components/ui/Pills";
+import { PillRow } from "@/components/ui/Pills";
 import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
@@ -36,7 +36,6 @@ import {
   type HistoricoTrafego,
   type LeadStatus,
   type LocalReuniao,
-  type Owner,
   type SegmentoConfeccao,
   type Situacao,
 } from "@/lib/types";
@@ -76,12 +75,8 @@ function NewLeadDialogBody({
   initialStatus?: LeadStatus;
   onOpenExisting?: (lead: Lead) => void;
 }) {
-  const { defaultFor, currentMember } = useTeamContext();
+  const { defaultFor } = useTeamContext();
   const { leads } = useLeadsContext();
-
-  // Dono padrão = função do usuário logado (ex: SDR logado → lead já vem como SDR dele).
-  // Gestor de tráfego não vende, então cai no padrão SDR.
-  const defaultDono: Owner = currentMember?.role === "Closer" ? "Closer" : "SDR";
 
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -89,7 +84,6 @@ function NewLeadDialogBody({
   const [empresa, setEmpresa] = useState("");
   const [instagram, setInstagram] = useState("");
   const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(null);
-  const [dono, setDono] = useState<Owner>(defaultDono);
   const [valor, setValor] = useState("");
   const [sdrResp, setSdrResp] = useState<string | null>(() => defaultFor("SDR")?.name ?? null);
   const [closerResp, setCloserResp] = useState<string | null>(() => defaultFor("Closer")?.name ?? null);
@@ -124,7 +118,7 @@ function NewLeadDialogBody({
   function reset() {
     setNome(""); setTelefone(""); setCargo(null); setEmpresa(""); setInstagram("");
     setSegmento(null);
-    setDono(defaultDono); setValor("");
+    setValor("");
     setSdrResp(defaultFor("SDR")?.name ?? null);
     setCloserResp(defaultFor("Closer")?.name ?? null);
     setExperiencia(null); setSituacao(null); setCanalVendas(null);
@@ -178,7 +172,6 @@ function NewLeadDialogBody({
         empresa: empresa.trim() || null,
         instagram: instagram.trim().replace(/^@/, "") || null,
         segmento: quick ? null : segmento,
-        dono,
         valor: quick ? null : (parsedValor != null && !Number.isNaN(parsedValor) ? parsedValor : null),
         sdr_responsavel: sdrResp,
         closer_responsavel: closerResp,
@@ -267,21 +260,9 @@ function NewLeadDialogBody({
                 <input value={telefone} onChange={(e) => setTelefone(e.target.value)} className="ds-input" placeholder="(11) 91234-5678" inputMode="tel" />
               </Field>
               {!quick && (
-                <>
-                  <Field label="Cargo">
-                    <CargoSelect value={cargo} onChange={setCargo} />
-                  </Field>
-                  <Field label="Dono no CRM">
-                    <Pills
-                      value={dono}
-                      options={[
-                        { value: "SDR" as Owner, label: "SDR", color: "sky" },
-                        { value: "Closer" as Owner, label: "Closer", color: "fuchsia" },
-                      ]}
-                      onChange={setDono}
-                    />
-                  </Field>
-                </>
+                <Field label="Cargo">
+                  <CargoSelect value={cargo} onChange={setCargo} />
+                </Field>
               )}
             </div>
           </Section>

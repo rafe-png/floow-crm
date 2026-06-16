@@ -35,7 +35,6 @@ function countForSdr(leads: Lead[]) {
   const weekStart = startOfIsoWeek(new Date());
   let day = 0, week = 0;
   for (const l of leads) {
-    if (l.dono !== "SDR") continue;
     if (!l.agendado_em) continue;
     const ts = new Date(l.agendado_em);
     if (ts >= today) day++;
@@ -49,7 +48,6 @@ function countForCloser(leads: Lead[]) {
   const weekStart = startOfIsoWeek(new Date());
   let day = 0, week = 0;
   for (const l of leads) {
-    if (l.dono !== "Closer") continue;
     if (!l.ganho_em) continue;
     const ts = new Date(l.ganho_em);
     if (ts >= today) day++;
