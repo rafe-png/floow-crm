@@ -122,21 +122,33 @@ function KanbanContent() {
     setPendingWin({ id, name, patch });
   }
 
-  // Ao agendar reunião: pede o Closer responsável (obrigatório). O SDR continua.
+  // Ao agendar reunião: pede o Closer responsável + data/hora (obrigatórios).
+  // O SDR (pré-vendas) continua o mesmo.
   const [pendingCloser, setPendingCloser] = useState<{
     id: string;
     name: string;
     patch: Partial<Lead>;
-    initial: string | null;
+    initialCloser: string | null;
+    initialDate: string | null;
   } | null>(null);
 
-  function askCloser(id: string, name: string, patch: Partial<Lead>, initial: string | null) {
-    setPendingCloser({ id, name, patch, initial });
+  function askCloser(
+    id: string,
+    name: string,
+    patch: Partial<Lead>,
+    initialCloser: string | null,
+    initialDate: string | null,
+  ) {
+    setPendingCloser({ id, name, patch, initialCloser, initialDate });
   }
 
-  async function handleConfirmCloser(closerName: string) {
+  async function handleConfirmCloser(closerName: string, dataIso: string) {
     if (!pendingCloser) return;
-    await updateLead(pendingCloser.id, { ...pendingCloser.patch, closer_responsavel: closerName });
+    await updateLead(pendingCloser.id, {
+      ...pendingCloser.patch,
+      closer_responsavel: closerName,
+      data_agendamento: dataIso,
+    });
     setPendingCloser(null);
     triggerCelebration("reuniao_agendada");
   }
@@ -189,7 +201,7 @@ function KanbanContent() {
       return;
     }
     if (newStatus === "reuniao_agendada" && lead?.status !== "reuniao_agendada") {
-      askCloser(id, lead?.empresa || lead?.nome || "este lead", { status: "reuniao_agendada" }, lead?.closer_responsavel ?? null);
+      askCloser(id, lead?.empresa || lead?.nome || "este lead", { status: "reuniao_agendada" }, lead?.closer_responsavel ?? null, lead?.data_agendamento ?? null);
       return;
     }
     await moveLead(id, newStatus);
@@ -226,7 +238,7 @@ function KanbanContent() {
       return;
     }
     if (patch.status === "reuniao_agendada" && lead?.status !== "reuniao_agendada") {
-      askCloser(id, lead?.empresa || lead?.nome || "este lead", patch, lead?.closer_responsavel ?? null);
+      askCloser(id, lead?.empresa || lead?.nome || "este lead", patch, lead?.closer_responsavel ?? null, lead?.data_agendamento ?? null);
       return;
     }
     const statusChanged = patch.status && patch.status !== lead?.status;
@@ -369,9 +381,9 @@ function KanbanContent() {
               askCreative(lead.id, lead.empresa || lead.nome || "este lead", patch);
               return;
             }
-            // Qualificou e agendou: pede o Closer responsável.
+            // Qualificou e agendou: pede o Closer responsável + data.
             if (targetStatus === "reuniao_agendada") {
-              askCloser(lead.id, lead.empresa || lead.nome || "este lead", patch, lead.closer_responsavel ?? null);
+              askCloser(lead.id, lead.empresa || lead.nome || "este lead", patch, lead.closer_responsavel ?? null, lead.data_agendamento ?? null);
               return;
             }
             await updateLead(lead.id, patch);
@@ -391,7 +403,8 @@ function KanbanContent() {
         open={pendingCloser != null}
         leadName={pendingCloser?.name ?? ""}
         closers={closers}
-        initial={pendingCloser?.initial}
+        initialCloser={pendingCloser?.initialCloser}
+        initialDate={pendingCloser?.initialDate}
         onCancel={() => setPendingCloser(null)}
         onConfirm={handleConfirmCloser}
       />
