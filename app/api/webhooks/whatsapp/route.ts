@@ -56,17 +56,33 @@ export async function POST(request: Request) {
 
   const admin = getAdminSupabase();
 
-  // Dedupe por telefone: se já existe lead com esse número, não cria de novo.
-  const target = normPhone(phoneRaw);
-  const { data: existing } = await admin.from("leads").select("id, telefone");
-  const dup = (existing ?? []).some((l) => l.telefone && normPhone(l.telefone as string) === target);
-  if (dup) return NextResponse.json({ ok: true, duplicate: true });
-
-  // Lê o código do criativo [NN] da 1ª mensagem (ex: "[01] Olá...").
+  // Lê o código do criativo [NN] de QUALQUER mensagem (ex: "[7]", "[07]", "[100]").
   let criativo: number | null = null;
   if (text) {
     const m = text.match(/\[\s*(\d{1,3})\s*\]/);
     if (m) criativo = parseInt(m[1], 10);
+  }
+
+  // Procura lead já existente por telefone.
+  const target = normPhone(phoneRaw);
+  const { data: existing } = await admin.from("leads").select("id, telefone, criativo_codigo");
+  const match = (existing ?? []).find((l) => l.telefone && normPhone(l.telefone as string) === target);
+
+  if (match) {
+    // Lead já existe: se veio código e ele ainda não tem, vincula o criativo
+    // (o código pode chegar numa mensagem posterior, não só na primeira).
+    if (criativo != null && (match.criativo_codigo as number | null) == null) {
+      const { error: upErr } = await admin
+        .from("leads")
+        .update({ criativo_codigo: criativo })
+        .eq("id", match.id);
+      if (upErr) {
+        console.error("[whatsapp webhook] erro ao vincular criativo:", upErr.message);
+        return NextResponse.json({ ok: false, error: upErr.message });
+      }
+      return NextResponse.json({ ok: true, linkedCreative: criativo });
+    }
+    return NextResponse.json({ ok: true, duplicate: true });
   }
 
   const sdr = process.env.WHATSAPP_DEFAULT_SDR || "Mariana";
