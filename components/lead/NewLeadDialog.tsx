@@ -75,7 +75,7 @@ function NewLeadDialogBody({
   initialStatus?: LeadStatus;
   onOpenExisting?: (lead: Lead) => void;
 }) {
-  const { defaultFor } = useTeamContext();
+  const { currentMember } = useTeamContext();
   const { leads } = useLeadsContext();
 
   const [nome, setNome] = useState("");
@@ -85,8 +85,10 @@ function NewLeadDialogBody({
   const [instagram, setInstagram] = useState("");
   const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(null);
   const [valor, setValor] = useState("");
-  const [sdrResp, setSdrResp] = useState<string | null>(() => defaultFor("SDR")?.name ?? null);
-  const [closerResp, setCloserResp] = useState<string | null>(() => defaultFor("Closer")?.name ?? null);
+  // SDR responsável = usuário logado (quem está cadastrando). Closer só é
+  // definido depois, ao agendar a reunião (não pré-atribui aqui).
+  const [sdrResp, setSdrResp] = useState<string | null>(() => currentMember?.name ?? null);
+  const [closerResp, setCloserResp] = useState<string | null>(null);
 
   const [experiencia, setExperiencia] = useState<Experiencia | null>(null);
   const [situacao, setSituacao] = useState<Situacao | null>(null);
@@ -119,8 +121,8 @@ function NewLeadDialogBody({
     setNome(""); setTelefone(""); setCargo(null); setEmpresa(""); setInstagram("");
     setSegmento(null);
     setValor("");
-    setSdrResp(defaultFor("SDR")?.name ?? null);
-    setCloserResp(defaultFor("Closer")?.name ?? null);
+    setSdrResp(currentMember?.name ?? null);
+    setCloserResp(null);
     setExperiencia(null); setSituacao(null); setCanalVendas(null);
     setEstoque(null); setHistorico(null); setEstrutura(null);
     setBantBudget(null); setBantAuthority(null); setBantNeed(null); setBantTiming(null);
