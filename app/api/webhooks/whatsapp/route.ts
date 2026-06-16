@@ -8,7 +8,8 @@ type ZApiBody = {
   fromMe?: boolean;
   isGroup?: boolean;
   isNewsletter?: boolean;
-  phone?: string;
+  phone?: string;          // telefone de quem mandou
+  connectedPhone?: string; // o NOSSO número que recebeu (define o responsável)
   senderName?: string;
   chatName?: string;
   text?: { message?: string };
@@ -17,6 +18,25 @@ type ZApiBody = {
 // Só dígitos, sem o 55 do país — pra comparar telefones em formatos diferentes.
 function normPhone(p: string): string {
   return p.replace(/\D/g, "").replace(/^55/, "");
+}
+
+// Responsável do lead conforme o número que recebeu a mensagem.
+// WHATSAPP_NUMBER_MAP = JSON {"<numero>":"<Nome>"} (ex: {"5511988887777":"Rafe"}).
+// Sem match → WHATSAPP_DEFAULT_SDR (padrão "Mariana").
+function responsavelForNumber(connectedPhone: string | undefined): string {
+  const def = process.env.WHATSAPP_DEFAULT_SDR || "Mariana";
+  const raw = process.env.WHATSAPP_NUMBER_MAP;
+  if (!raw || !connectedPhone) return def;
+  try {
+    const map = JSON.parse(raw) as Record<string, string>;
+    const key = normPhone(connectedPhone);
+    for (const [num, nome] of Object.entries(map)) {
+      if (normPhone(num) === key) return nome;
+    }
+  } catch {
+    // JSON inválido → cai no padrão
+  }
+  return def;
 }
 
 // Confere se o segredo bate (vem na URL: ?token=...).
@@ -85,7 +105,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, duplicate: true });
   }
 
-  const sdr = process.env.WHATSAPP_DEFAULT_SDR || "Mariana";
+  // Número novo: só vira lead se a mensagem trouxe o código do anúncio [NN].
+  // (Assim contato comum / fornecedor que manda mensagem não vira lead.)
+  if (criativo == null) {
+    return NextResponse.json({ ok: true, skipped: "sem código do anúncio" });
+  }
+
+  const sdr = responsavelForNumber(body.connectedPhone);
 
   const { error } = await admin.from("leads").insert({
     nome: name,
