@@ -65,6 +65,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, skipped: "json inválido" });
   }
 
+  // DIAGNÓSTICO: loga o que chega (campos-chave + estrutura) pra debug.
+  console.log("[wh-in]", JSON.stringify({
+    keys: Object.keys(body || {}),
+    connectedPhone: body.connectedPhone ?? null,
+    phone: body.phone ?? null,
+    fromMe: body.fromMe ?? null,
+    isGroup: body.isGroup ?? null,
+    isNewsletter: body.isNewsletter ?? null,
+    textMessage: body.text?.message ?? null,
+  }));
+
   // Ignora: mensagens enviadas por nós, grupos, newsletters, e sem telefone.
   const phoneRaw = body.phone?.trim();
   if (body.fromMe || body.isGroup || body.isNewsletter || !phoneRaw) {
