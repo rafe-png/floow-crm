@@ -73,6 +73,7 @@ export type SegmentoConfeccao =
   | "moda_jeans"
   | "moda_intima"
   | "moda_plus_size"
+  | "moda_evangelica"
   | "moda_modestia"
   | "pijamas"
   | "outro";
@@ -380,6 +381,7 @@ export const SEGMENTO_LABELS: Record<SegmentoConfeccao, string> = {
   moda_jeans: "Moda jeans",
   moda_intima: "Moda íntima",
   moda_plus_size: "Moda plus size",
+  moda_evangelica: "Moda evangélica",
   moda_modestia: "Moda modéstia",
   pijamas: "Pijamas",
   outro: "Outro",
