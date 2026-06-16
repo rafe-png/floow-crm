@@ -18,8 +18,9 @@ import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { SEGMENTO_LABELS, type Lead, type LeadStatus, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
 import { computeLeadScore, PRIORITY_SHORT, type LeadPriority } from "@/lib/lead-score";
 
-// Etapas iniciais (zona do SDR) — qualificar/agendar acontece aqui.
-const EARLY_STAGES: LeadStatus[] = ["qualificado", "em_agendamento"];
+// Etapas que NÃO exigem qualificação: Entrada (lead só chegou) e as saídas
+// (perdido, sem resposta, desqualificado). Qualquer outra exige a qualificação.
+const NO_QUAL_STAGES: LeadStatus[] = ["qualificado", "negocio_perdido", "sem_resposta", "desqualificado"];
 
 // Lead só avança além da zona inicial depois de toda a qualificação preenchida.
 function isQualComplete(l: Lead): boolean {
@@ -29,15 +30,13 @@ function isQualComplete(l: Lead): boolean {
   );
 }
 
-// Exige completar ao avançar da zona inicial (Qualificado/Em agendamento) para a
-// reunião em diante. Mover entre as etapas iniciais ou descartar é livre.
+// Exige qualificação completa ao entrar em "Qualificado" (em_agendamento) e nas
+// etapas seguintes até o ganho. Entrada e as saídas (perdido/sem resposta/
+// desqualificado) não exigem.
 function needsCompletion(lead: Lead, newStatus: LeadStatus): boolean {
   return (
-    EARLY_STAGES.includes(lead.status) &&
-    !EARLY_STAGES.includes(newStatus) &&
-    newStatus !== "negocio_perdido" &&
-    newStatus !== "desqualificado" &&
-    newStatus !== "sem_resposta" &&
+    lead.status !== newStatus &&
+    !NO_QUAL_STAGES.includes(newStatus) &&
     !isQualComplete(lead)
   );
 }
