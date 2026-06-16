@@ -36,8 +36,9 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 
 // Etapas que o SDR trabalha (cor normal, SDR pode mover). Da reunião agendada
 // em diante o Closer "pega o bastão": etapas mais escuras e bloqueadas pro SDR.
-// Inclui "desqualificado": desqualificar o lead é trabalho do SDR (na qualificação).
-export const SDR_STAGES: LeadStatus[] = ["qualificado", "em_agendamento", "reuniao_agendada", "desqualificado", "sem_resposta"];
+// Etapas que o SDR pode mover. Inclui "desqualificado"/"sem_resposta" (saída de
+// qualificação) e "carteira" (o SDR pode levar leads pra carteira).
+export const SDR_STAGES: LeadStatus[] = ["qualificado", "em_agendamento", "reuniao_agendada", "carteira", "desqualificado", "sem_resposta"];
 
 export function canMoveTo(
   status: LeadStatus,
