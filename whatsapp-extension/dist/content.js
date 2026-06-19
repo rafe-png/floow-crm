@@ -21249,11 +21249,18 @@ ${suffix}`;
   function readActiveChatPhone() {
     const main = document.querySelector("#main");
     if (!main) return null;
-    const nodes = main.querySelectorAll("[data-id]");
-    for (const n of Array.from(nodes)) {
-      const id = n.getAttribute("data-id") || "";
-      const m = id.match(/(\d{8,})@c\.us/);
+    for (const n of Array.from(main.querySelectorAll("[data-id]"))) {
+      const m = (n.getAttribute("data-id") || "").match(/(\d{8,})@c\.us/);
       if (m) return m[1];
+    }
+    const header = main.querySelector("header");
+    if (header) {
+      for (const el of Array.from(header.querySelectorAll("*"))) {
+        for (const attr of Array.from(el.attributes)) {
+          const m = attr.value.match(/(\d{8,})@c\.us/);
+          if (m) return m[1];
+        }
+      }
     }
     return null;
   }
@@ -21262,9 +21269,15 @@ ${suffix}`;
     if (!main) return null;
     const header = main.querySelector("header");
     if (!header) return null;
-    const span = header.querySelector("span[title]");
-    const title = span?.getAttribute("title")?.trim();
-    return title && title.length > 0 ? title : null;
+    const withTitle = header.querySelector("span[title]");
+    const t = withTitle?.getAttribute("title")?.trim();
+    if (t) return t;
+    const span = header.querySelector('span[dir="auto"]');
+    const txt = span?.textContent?.trim();
+    return txt && txt.length > 0 ? txt : null;
+  }
+  function readChatDebug() {
+    return { mainFound: !!document.querySelector("#main"), phone: readActiveChatPhone(), title: readActiveChatTitle() };
   }
 
   // src/content.ts
@@ -21275,6 +21288,7 @@ ${suffix}`;
   var closers = [];
   var currentLeadId = null;
   var matchInfo = "";
+  var lastPhone = null;
   var collapsed = true;
   var searchMode = false;
   var lastTitle = null;
@@ -21397,7 +21411,10 @@ ${suffix}`;
     body.append(
       h("div", { class: "floow-section" }, [
         h("div", { class: "floow-row" }, [
-          h("div", { class: "floow-chat" }, [lastTitle ? `Conversa: ${lastTitle}` : "Abra uma conversa"]),
+          h("div", { class: "floow-chat" }, [
+            lastTitle ? `Conversa: ${lastTitle}` : "Abra uma conversa",
+            lastPhone ? ` \xB7 ${lastPhone}` : ""
+          ]),
           h("button", { class: "floow-link", onclick: () => {
             searchMode = true;
             render();
@@ -21406,13 +21423,17 @@ ${suffix}`;
       ])
     );
     if (!lead) {
+      const dbg = readChatDebug();
       body.append(
         h("div", { class: "floow-section floow-empty" }, [
-          h("div", { class: "floow-hint" }, [matchInfo || "Nenhum lead vinculado a esta conversa."]),
+          h("div", { class: "floow-hint" }, ["Nenhum lead vinculado a esta conversa."]),
           h("button", { class: "floow-btn", onclick: () => {
             searchMode = true;
             render();
-          } }, ["Buscar lead manualmente"])
+          } }, ["Buscar lead manualmente"]),
+          h("div", { class: "floow-debug" }, [
+            `detectado \u2192 tel: ${dbg.phone ?? "\u2014"} \xB7 nome: ${dbg.title ?? "\u2014"}${dbg.mainFound ? "" : " \xB7 (conversa n\xE3o detectada)"}`
+          ])
         ])
       );
       renderFooter();
@@ -21743,6 +21764,7 @@ ${suffix}`;
   function matchFromChat() {
     const phone = readActiveChatPhone();
     const title = readActiveChatTitle();
+    lastPhone = phone;
     lastTitle = title || (phone ? `+${phone}` : null);
     let l;
     if (phone) {

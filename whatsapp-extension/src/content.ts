@@ -17,7 +17,7 @@ import {
   normalizePhone,
   looksLikePhone,
 } from "./crm";
-import { readActiveChatPhone, readActiveChatTitle } from "./whatsapp";
+import { readActiveChatPhone, readActiveChatTitle, readChatDebug } from "./whatsapp";
 
 // ============================================================
 // Estado
@@ -29,6 +29,7 @@ let leads: Lead[] = [];
 let closers: { id: string; name: string }[] = [];
 let currentLeadId: string | null = null;
 let matchInfo = "";
+let lastPhone: string | null = null;
 let collapsed = true;
 let searchMode = false;
 let lastTitle: string | null = null;
@@ -162,17 +163,24 @@ function renderLead() {
   body.append(
     h("div", { class: "floow-section" }, [
       h("div", { class: "floow-row" }, [
-        h("div", { class: "floow-chat" }, [lastTitle ? `Conversa: ${lastTitle}` : "Abra uma conversa"]),
+        h("div", { class: "floow-chat" }, [
+          lastTitle ? `Conversa: ${lastTitle}` : "Abra uma conversa",
+          lastPhone ? ` · ${lastPhone}` : "",
+        ]),
         h("button", { class: "floow-link", onclick: () => { searchMode = true; render(); } }, ["buscar"]),
       ]),
     ]),
   );
 
   if (!lead) {
+    const dbg = readChatDebug();
     body.append(
       h("div", { class: "floow-section floow-empty" }, [
-        h("div", { class: "floow-hint" }, [matchInfo || "Nenhum lead vinculado a esta conversa."]),
+        h("div", { class: "floow-hint" }, ["Nenhum lead vinculado a esta conversa."]),
         h("button", { class: "floow-btn", onclick: () => { searchMode = true; render(); } }, ["Buscar lead manualmente"]),
+        h("div", { class: "floow-debug" }, [
+          `detectado → tel: ${dbg.phone ?? "—"} · nome: ${dbg.title ?? "—"}${dbg.mainFound ? "" : " · (conversa não detectada)"}`,
+        ]),
       ]),
     );
     renderFooter();
@@ -497,6 +505,7 @@ function subscribeRealtime() {
 function matchFromChat() {
   const phone = readActiveChatPhone();
   const title = readActiveChatTitle();
+  lastPhone = phone;
   lastTitle = title || (phone ? `+${phone}` : null);
 
   let l: Lead | undefined;
