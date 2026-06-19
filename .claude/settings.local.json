@@ -80,7 +80,26 @@
       "Bash(npx --yes vercel@latest --prod --yes)",
       "Bash(claude update *)",
       "Bash(npx eslint *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(ssh -T git@github.com)",
+      "Read(//Users/rafesilva2025/**)",
+      "Bash(git credential *)",
+      "mcp__plugin_vercel_vercel__list_teams",
+      "mcp__plugin_vercel_vercel__list_projects",
+      "mcp__plugin_vercel_vercel__list_deployments",
+      "mcp__plugin_vercel_vercel__get_project",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); from collections import Counter; print\\(dict\\(Counter\\(x['status'] for x in d\\)\\)\\)\")",
+      "Bash(git restore *)",
+      "mcp__plugin_vercel_vercel__deploy_to_vercel",
+      "Bash(npx --yes vercel@latest deploy --prod --yes)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"https://floow-crm.vercel.app/api/webhooks/whatsapp\")",
+      "Bash(curl -s https://floow-crm.vercel.app/api/webhooks/whatsapp?token=07c9be17c4a3355feee5fbb1f0a2413c624ebfd4b3089dcd)",
+      "Bash(curl -s -X POST https://floow-crm.vercel.app/api/webhooks/whatsapp?token=07c9be17c4a3355feee5fbb1f0a2413c624ebfd4b3089dcd -H 'Content-Type: application/json' -d '{\"fromMe\":false,\"isGroup\":false,\"phone\":\"5511999990001\",\"senderName\":\"Teste Webhook\",\"text\":{\"message\":\"[07] Olá, vim do anúncio\"}}')",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); c=d.get\\('crons',d\\); print\\(json.dumps\\(c, indent=2\\)[:600]\\)\")",
+      "Bash(curl -s https://floow-crm.vercel.app/api/cron/stale-leads?token=__TRACKED_VAR__)",
+      "Bash(python3 -c \"import sys,json; print\\('   restantes:', len\\(json.load\\(sys.stdin\\)\\)\\)\")",
+      "mcp__plugin_vercel_vercel__get_runtime_logs"
     ]
   }
 }

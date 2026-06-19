@@ -4,7 +4,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, User } from "lucide-react";
+import { AlertTriangle, Calendar, User } from "lucide-react";
 import { InstagramIcon, WhatsAppIcon } from "@/components/icons/BrandIcons";
 import { computeLeadScore, PRIORITY_LABELS, PRIORITY_META, PRIORITY_SHORT } from "@/lib/lead-score";
 import {
@@ -59,6 +59,19 @@ export function LeadCard({ lead, onClick }: Props) {
           <div className="truncate text-[11px] text-zinc-500">{secondary}</div>
         )}
       </div>
+
+      {/* Alerta de no-shows seguidos: 2+ furos sem reunião acontecer entre eles. */}
+      {lead.no_show_count >= 2 && (
+        <div
+          title={lead.last_no_show_em
+            ? `Último no-show: ${format(new Date(lead.last_no_show_em), "d MMM · HH:mm", { locale: ptBR })}`
+            : undefined}
+          className="mt-2 flex items-center gap-1.5 rounded border border-rose-500/40 bg-rose-500/10 px-1.5 py-1 text-[10px] font-semibold text-rose-300"
+        >
+          <AlertTriangle size={11} />
+          <span>{lead.no_show_count} no-shows seguidos</span>
+        </div>
+      )}
 
       {/* Prioridade — só da etapa "Qualificado" (em_agendamento) em diante,
           quando o lead já passou pela qualificação. Não aparece na Entrada. */}

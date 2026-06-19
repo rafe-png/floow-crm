@@ -36,6 +36,7 @@ export function Board({ leads, onMove, onCardClick, onCreate, viewerRole, isAdmi
     const map: Record<LeadStatus, Lead[]> = {
       qualificado: [],
       em_agendamento: [],
+      agendando: [],
       reuniao_agendada: [],
       no_show: [],
       follow_up: [],

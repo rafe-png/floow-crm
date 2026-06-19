@@ -1,6 +1,7 @@
 export type LeadStatus =
   | "qualificado"
   | "em_agendamento"
+  | "agendando"
   | "reuniao_agendada"
   | "no_show"
   | "follow_up"
@@ -38,7 +39,7 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 // em diante o Closer "pega o bastão": etapas mais escuras e bloqueadas pro SDR.
 // Etapas que o SDR pode mover. Inclui "desqualificado"/"sem_resposta" (saída de
 // qualificação) e "carteira" (o SDR pode levar leads pra carteira).
-export const SDR_STAGES: LeadStatus[] = ["qualificado", "em_agendamento", "reuniao_agendada", "carteira", "desqualificado", "sem_resposta"];
+export const SDR_STAGES: LeadStatus[] = ["qualificado", "em_agendamento", "agendando", "reuniao_agendada", "carteira", "desqualificado", "sem_resposta"];
 
 export function canMoveTo(
   status: LeadStatus,
@@ -165,6 +166,11 @@ export type Lead = {
   reuniao_realizada_em: string | null; // momento que saiu de reuniao_agendada p/ ganho/perdido/follow_up
   ganho_em: string | null;             // momento que o lead virou negocio_ganho
 
+  // No-show: quantos no-shows SEGUIDOS (zera quando a reunião acontece) + data/hora
+  // do último horário furado. Mantidos por trigger no banco.
+  no_show_count: number;
+  last_no_show_em: string | null;
+
   // Rastreio de criativo (qual anúncio trouxe o cliente) — preenchido ao ganhar.
   criativo_codigo: number | null;
 
@@ -254,6 +260,7 @@ export type NewAdInvestmentInput = {
 export const STATUS_ORDER: LeadStatus[] = [
   "qualificado",
   "em_agendamento",
+  "agendando",
   "reuniao_agendada",
   "no_show",
   "follow_up",
@@ -269,6 +276,7 @@ export const STATUS_ORDER: LeadStatus[] = [
 // as etapas fechadas (ganho, perdido, sem resposta, desqualificado).
 export const PIPELINE_STATUSES: LeadStatus[] = [
   "em_agendamento",
+  "agendando",
   "reuniao_agendada",
   "no_show",
   "follow_up",
@@ -281,6 +289,7 @@ export const PIPELINE_STATUSES: LeadStatus[] = [
 export const STATUS_LABELS: Record<LeadStatus, string> = {
   qualificado: "Entrada",
   em_agendamento: "Qualificado",
+  agendando: "Em agendamento",
   reuniao_agendada: "Reunião agendada",
   no_show: "No show",
   follow_up: "Follow-up",
@@ -294,6 +303,7 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
 export const STATUS_COLORS: Record<LeadStatus, { bg: string; text: string; border: string; dot: string }> = {
   qualificado:      { bg: "bg-indigo-500/10",  text: "text-indigo-300",  border: "border-indigo-500/30",  dot: "bg-indigo-400" },
   em_agendamento:   { bg: "bg-teal-500/10",    text: "text-teal-300",    border: "border-teal-500/30",    dot: "bg-teal-400" },
+  agendando:        { bg: "bg-sky-500/10",     text: "text-sky-300",     border: "border-sky-500/30",     dot: "bg-sky-400" },
   reuniao_agendada: { bg: "bg-blue-500/10",    text: "text-blue-300",    border: "border-blue-500/30",    dot: "bg-blue-400" },
   no_show:          { bg: "bg-amber-500/10",   text: "text-amber-300",   border: "border-amber-500/30",   dot: "bg-amber-400" },
   follow_up:        { bg: "bg-violet-500/10",  text: "text-violet-300",  border: "border-violet-500/30",  dot: "bg-violet-400" },

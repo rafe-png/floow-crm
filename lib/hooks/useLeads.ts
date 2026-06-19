@@ -24,6 +24,8 @@ export type NewLeadInput = Omit<
   | "ganho_em"
   | "criativo_codigo"
   | "origem"
+  | "no_show_count"
+  | "last_no_show_em"
 >;
 
 type UpdateLeadInput = Partial<Omit<Lead, "id" | "created_at" | "updated_at">>;
@@ -126,6 +128,7 @@ export function useLeads() {
     if (
       patch.status === "qualificado" ||
       patch.status === "em_agendamento" ||
+      patch.status === "agendando" ||
       patch.status === "no_show"
     ) {
       patch = { ...patch, data_agendamento: null };
