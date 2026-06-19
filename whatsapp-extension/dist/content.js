@@ -21299,7 +21299,7 @@ ${suffix}`;
   var connDot;
   function mount() {
     if (document.getElementById("floow-panel")) return;
-    fab = h("button", { id: "floow-fab", title: "floow CRM", onclick: toggle }, ["floow"]);
+    fab = h("button", { id: "floow-fab", title: "floow CRM", onclick: toggle }, ["\u221E"]);
     connDot = h("span", { id: "floow-conn", class: "off" });
     const header = h("div", { id: "floow-head" }, [
       h("div", { class: "floow-brand" }, [connDot, "floow CRM"]),
