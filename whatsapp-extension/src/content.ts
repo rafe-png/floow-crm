@@ -503,6 +503,41 @@ function subscribeRealtime() {
 // ============================================================
 // Vínculo com a conversa aberta
 // ============================================================
+// Normaliza nome pra comparar: minúsculas, sem acento/pontuação, espaços únicos.
+function normName(s: string): string {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Match por nome tolerante: o nome salvo no WhatsApp costuma ter "extras"
+// (ex.: "Jailton Antonio | #75 Eridenim") e diferir do CRM ("Jailton Antonio
+// Silva" / empresa "Eri Denim"). Cruzamos por (a) empresa sem espaços contida no
+// título, e (b) 2+ palavras do nome em comum.
+function findByName(title: string): Lead | undefined {
+  const t = normName(title);
+  const tNoSpace = t.replace(/\s/g, "");
+  if (!t) return undefined;
+
+  for (const lead of leads) {
+    const nome = normName(lead.nome);
+    const empNoSpace = normName(lead.empresa || "").replace(/\s/g, "");
+    if (empNoSpace.length >= 4 && tNoSpace.includes(empNoSpace)) return lead;
+    if (nome && (nome === t || nome.includes(t) || t.includes(nome))) return lead;
+  }
+  // 2+ palavras significativas (>=3 letras) do nome presentes no título.
+  for (const lead of leads) {
+    const words = normName(lead.nome).split(" ").filter((w) => w.length >= 3);
+    if (!words.length) continue;
+    const hits = words.filter((w) => t.includes(w)).length;
+    if (hits >= Math.min(2, words.length)) return lead;
+  }
+  return undefined;
+}
+
 function matchFromChat() {
   const phone = readActiveChatPhone();
   const title = readActiveChatTitle();
@@ -514,16 +549,13 @@ function matchFromChat() {
     l = leads.find((x) => samePhone(x.telefone, phone));
     if (l) matchInfo = "por telefone (conversa)";
   }
+  if (!l && title && looksLikePhone(title)) {
+    l = leads.find((x) => samePhone(x.telefone, title));
+    if (l) matchInfo = "por telefone";
+  }
   if (!l && title) {
-    if (looksLikePhone(title)) {
-      l = leads.find((x) => samePhone(x.telefone, title));
-      if (l) matchInfo = "por telefone";
-    } else {
-      const t = title.toLowerCase();
-      l = leads.find((x) => (x.nome || "").toLowerCase() === t || (x.empresa || "").toLowerCase() === t)
-        ?? leads.find((x) => (x.nome || "").toLowerCase().includes(t) || (x.empresa || "").toLowerCase().includes(t));
-      if (l) matchInfo = "por nome";
-    }
+    l = findByName(title);
+    if (l) matchInfo = "por nome";
   }
   currentLeadId = l?.id ?? null;
   if (!l) matchInfo = "";

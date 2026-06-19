@@ -21776,6 +21776,27 @@ ${suffix}`;
       if (!collapsed && !searchMode && !document.querySelector(".floow-modal")) render();
     }).subscribe((status) => setConn(status === "SUBSCRIBED" ? "on" : "off"));
   }
+  function normName(s) {
+    return (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  }
+  function findByName(title) {
+    const t = normName(title);
+    const tNoSpace = t.replace(/\s/g, "");
+    if (!t) return void 0;
+    for (const lead of leads) {
+      const nome = normName(lead.nome);
+      const empNoSpace = normName(lead.empresa || "").replace(/\s/g, "");
+      if (empNoSpace.length >= 4 && tNoSpace.includes(empNoSpace)) return lead;
+      if (nome && (nome === t || nome.includes(t) || t.includes(nome))) return lead;
+    }
+    for (const lead of leads) {
+      const words = normName(lead.nome).split(" ").filter((w) => w.length >= 3);
+      if (!words.length) continue;
+      const hits = words.filter((w) => t.includes(w)).length;
+      if (hits >= Math.min(2, words.length)) return lead;
+    }
+    return void 0;
+  }
   function matchFromChat() {
     const phone = readActiveChatPhone();
     const title = readActiveChatTitle();
@@ -21786,15 +21807,13 @@ ${suffix}`;
       l = leads.find((x) => samePhone(x.telefone, phone));
       if (l) matchInfo = "por telefone (conversa)";
     }
+    if (!l && title && looksLikePhone(title)) {
+      l = leads.find((x) => samePhone(x.telefone, title));
+      if (l) matchInfo = "por telefone";
+    }
     if (!l && title) {
-      if (looksLikePhone(title)) {
-        l = leads.find((x) => samePhone(x.telefone, title));
-        if (l) matchInfo = "por telefone";
-      } else {
-        const t = title.toLowerCase();
-        l = leads.find((x) => (x.nome || "").toLowerCase() === t || (x.empresa || "").toLowerCase() === t) ?? leads.find((x) => (x.nome || "").toLowerCase().includes(t) || (x.empresa || "").toLowerCase().includes(t));
-        if (l) matchInfo = "por nome";
-      }
+      l = findByName(title);
+      if (l) matchInfo = "por nome";
     }
     currentLeadId = l?.id ?? null;
     if (!l) matchInfo = "";
