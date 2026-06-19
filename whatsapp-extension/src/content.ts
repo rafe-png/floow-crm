@@ -8,9 +8,11 @@ import {
   STATUS_ORDER,
   STATUS_DOT,
   FONTE_LABELS,
+  FONTE_OPTIONS,
   QUAL_FIELDS,
   MOTIVO_PERDA_LABELS,
   MOTIVO_DESQUALIFICACAO_LABELS,
+  NO_QUAL_STAGES,
   canMoveTo,
   needsQualification,
   patchForStatus,
@@ -168,7 +170,10 @@ function renderLead() {
           lastTitle ? `Conversa: ${lastTitle}` : "Abra uma conversa",
           lastPhone ? ` · ${lastPhone}` : "",
         ]),
-        h("button", { class: "floow-link", onclick: () => { searchMode = true; render(); } }, ["buscar"]),
+        h("div", { class: "floow-who" }, [
+          h("button", { class: "floow-link", onclick: () => beginCreate() }, ["+ novo"]),
+          h("button", { class: "floow-link", onclick: () => { searchMode = true; render(); } }, ["buscar"]),
+        ]),
       ]),
     ]),
   );
@@ -178,6 +183,7 @@ function renderLead() {
     body.append(
       h("div", { class: "floow-section floow-empty" }, [
         h("div", { class: "floow-hint" }, ["Nenhum lead vinculado a esta conversa."]),
+        h("button", { class: "floow-btn floow-btn-primary", style: "margin-bottom:6px", onclick: () => beginCreate() }, ["+ Novo lead"]),
         h("button", { class: "floow-btn", onclick: () => { searchMode = true; render(); } }, ["Buscar lead manualmente"]),
         h("div", { class: "floow-debug" }, [
           `detectado → tel: ${dbg.phone ?? "—"} · nome: ${dbg.title ?? "—"}${dbg.mainFound ? "" : " · (conversa não detectada)"}`,
@@ -445,6 +451,122 @@ async function beginMove(lead: Lead, target: LeadStatus) {
     if (r?.ok && (r.action === "created" || r.action === "updated")) flash("Reunião no Google Agenda ✓");
     else if (r?.ok && r.action === "deleted") flash("Removido do Google Agenda ✓");
     else if (r && !r.ok) flash("Movido ✓ — Google Agenda: " + (r.error || "falhou"));
+  }
+}
+
+// ============================================================
+// Novo lead (cria direto da conversa, com dedup + regras por etapa)
+// ============================================================
+type CreateResult =
+  | { existing: Lead }
+  | { nome: string; tel: string; insta: string; fonte: string | null; stage: LeadStatus }
+  | null;
+
+function openCreateForm(prefill: { nome: string; tel: string }): Promise<CreateResult> {
+  return openModal<CreateResult>("Novo lead", (api) => {
+    const wrap = h("div", {});
+    const nomeIn = h("input", { class: "floow-input", placeholder: "Nome / empresa *" }) as HTMLInputElement;
+    nomeIn.value = prefill.nome;
+    const telIn = h("input", { class: "floow-input", placeholder: "WhatsApp *", inputmode: "tel" }) as HTMLInputElement;
+    telIn.value = prefill.tel;
+    const instaIn = h("input", { class: "floow-input", placeholder: "Instagram (opcional)" }) as HTMLInputElement;
+
+    // Origem (fonte)
+    let selFonte: string | null = null;
+    const fontePills = h("div", { class: "floow-pills" });
+    for (const f of FONTE_OPTIONS) {
+      const b = h("button", { class: "floow-pill" }, [FONTE_LABELS[f]]);
+      b.addEventListener("click", () => { selFonte = selFonte === f ? null : f; fontePills.querySelectorAll(".floow-pill").forEach((x) => x.classList.remove("sel")); if (selFonte) b.classList.add("sel"); });
+      fontePills.append(b);
+    }
+
+    // Etapa (só as que o usuário pode criar)
+    let selStage: LeadStatus = "qualificado";
+    const stagePills = h("div", { class: "floow-pills" });
+    for (const s of STATUS_ORDER) {
+      if (!canMoveTo(s, member)) continue;
+      const b = h("button", { class: "floow-pill" + (s === selStage ? " sel" : ""), "data-s": s }, [STATUS_LABELS[s]]);
+      b.addEventListener("click", () => { selStage = s; stagePills.querySelectorAll(".floow-pill").forEach((x) => x.classList.remove("sel")); b.classList.add("sel"); });
+      stagePills.append(b);
+    }
+
+    const confirm = h("button", { class: "floow-btn floow-btn-primary", style: "margin-top:10px" }, ["Criar lead"]);
+    confirm.addEventListener("click", () => {
+      const nome = nomeIn.value.trim();
+      const tel = telIn.value.trim();
+      const insta = instaIn.value.trim().replace(/^@/, "");
+      if (!nome || !tel) { api.setError("Nome e WhatsApp são obrigatórios."); return; }
+      // Dedup: telefone OU instagram já existente.
+      const dup = leads.find((x) =>
+        samePhone(x.telefone, tel) ||
+        (insta && (x.instagram || "").toLowerCase().replace(/^@/, "") === insta.toLowerCase()),
+      );
+      if (dup) { api.done({ existing: dup }); return; }
+      api.done({ nome, tel, insta, fonte: selFonte, stage: selStage });
+    });
+
+    wrap.append(
+      h("div", { class: "floow-qlabel" }, ["Nome *"]), nomeIn,
+      h("div", { class: "floow-qlabel" }, ["WhatsApp *"]), telIn,
+      h("div", { class: "floow-qlabel" }, ["Instagram"]), instaIn,
+      h("div", { class: "floow-qlabel" }, ["Origem"]), fontePills,
+      h("div", { class: "floow-qlabel", style: "margin-top:10px" }, ["Etapa"]), stagePills,
+      confirm,
+    );
+    return wrap;
+  });
+}
+
+async function beginCreate() {
+  const detPhone = readActiveChatPhone();
+  const detTitle = readActiveChatTitle();
+  const prefill = {
+    nome: detTitle && !looksLikePhone(detTitle) ? detTitle : "",
+    tel: detPhone || (detTitle && looksLikePhone(detTitle) ? detTitle : ""),
+  };
+
+  const result = await openCreateForm(prefill);
+  if (!result) return;
+  if ("existing" in result) {
+    currentLeadId = result.existing.id;
+    matchInfo = "já existe no CRM";
+    render();
+    flash(`Já é um lead: ${result.existing.empresa || result.existing.nome} ✓`);
+    return;
+  }
+
+  const { nome, tel, insta, fonte, stage } = result;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const draft: any = {
+    nome, telefone: tel, status: stage,
+    instagram: insta || null, fonte: fonte || null,
+    origem: "manual", sdr_responsavel: member.name,
+  };
+
+  // Info extra conforme a etapa (mesmas regras do funil).
+  if (!NO_QUAL_STAGES.includes(stage)) {
+    const q = await askQualification(draft); if (!q) return; Object.assign(draft, q);
+  }
+  if (stage === "negocio_perdido") {
+    const m = await askReason("Motivo da perda", MOTIVO_PERDA_LABELS); if (!m) return; draft.motivo_perda = m;
+  } else if (stage === "desqualificado") {
+    const m = await askReason("Motivo da desqualificação", MOTIVO_DESQUALIFICACAO_LABELS); if (!m) return; draft.motivo_desqualificacao = m;
+  } else if (stage === "negocio_ganho") {
+    const c = await askCreative(draft); if (!c) return; draft.criativo_codigo = c.code;
+  } else if (stage === "reuniao_agendada") {
+    const r = await askCloserDate(draft); if (!r) return; draft.closer_responsavel = r.closer; draft.data_agendamento = r.dataIso;
+  }
+
+  const { data, error } = await supabase.from("leads").insert(draft).select(LEAD_COLUMNS).single();
+  if (error) { flash("Erro ao criar: " + error.message); return; }
+  if (data) { leads.unshift(data as Lead); currentLeadId = (data as Lead).id; matchInfo = "criado agora"; }
+  render();
+  flash("Lead criado ✓");
+
+  if (stage === "reuniao_agendada" && currentLeadId) {
+    flash("Sincronizando Google Agenda…");
+    const r = await reconcileCalendar(currentLeadId);
+    if (r?.ok && r.action === "created") flash("Reunião no Google Agenda ✓");
   }
 }
 

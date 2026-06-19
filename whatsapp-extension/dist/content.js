@@ -21135,6 +21135,7 @@ ${suffix}`;
     outbound: "Outbound",
     outro: "Outro"
   };
+  var FONTE_OPTIONS = Object.keys(FONTE_LABELS);
   var EXPERIENCIA_LABELS = {
     menos_6m: "Menos de 6 meses",
     "6m_1ano": "6 meses a 1 ano",
@@ -21430,10 +21431,13 @@ ${suffix}`;
             lastTitle ? `Conversa: ${lastTitle}` : "Abra uma conversa",
             lastPhone ? ` \xB7 ${lastPhone}` : ""
           ]),
-          h("button", { class: "floow-link", onclick: () => {
-            searchMode = true;
-            render();
-          } }, ["buscar"])
+          h("div", { class: "floow-who" }, [
+            h("button", { class: "floow-link", onclick: () => beginCreate() }, ["+ novo"]),
+            h("button", { class: "floow-link", onclick: () => {
+              searchMode = true;
+              render();
+            } }, ["buscar"])
+          ])
         ])
       ])
     );
@@ -21442,6 +21446,7 @@ ${suffix}`;
       body.append(
         h("div", { class: "floow-section floow-empty" }, [
           h("div", { class: "floow-hint" }, ["Nenhum lead vinculado a esta conversa."]),
+          h("button", { class: "floow-btn floow-btn-primary", style: "margin-bottom:6px", onclick: () => beginCreate() }, ["+ Novo lead"]),
           h("button", { class: "floow-btn", onclick: () => {
             searchMode = true;
             render();
@@ -21732,6 +21737,138 @@ ${suffix}`;
       if (r?.ok && (r.action === "created" || r.action === "updated")) flash("Reuni\xE3o no Google Agenda \u2713");
       else if (r?.ok && r.action === "deleted") flash("Removido do Google Agenda \u2713");
       else if (r && !r.ok) flash("Movido \u2713 \u2014 Google Agenda: " + (r.error || "falhou"));
+    }
+  }
+  function openCreateForm(prefill) {
+    return openModal("Novo lead", (api) => {
+      const wrap = h("div", {});
+      const nomeIn = h("input", { class: "floow-input", placeholder: "Nome / empresa *" });
+      nomeIn.value = prefill.nome;
+      const telIn = h("input", { class: "floow-input", placeholder: "WhatsApp *", inputmode: "tel" });
+      telIn.value = prefill.tel;
+      const instaIn = h("input", { class: "floow-input", placeholder: "Instagram (opcional)" });
+      let selFonte = null;
+      const fontePills = h("div", { class: "floow-pills" });
+      for (const f of FONTE_OPTIONS) {
+        const b = h("button", { class: "floow-pill" }, [FONTE_LABELS[f]]);
+        b.addEventListener("click", () => {
+          selFonte = selFonte === f ? null : f;
+          fontePills.querySelectorAll(".floow-pill").forEach((x) => x.classList.remove("sel"));
+          if (selFonte) b.classList.add("sel");
+        });
+        fontePills.append(b);
+      }
+      let selStage = "qualificado";
+      const stagePills = h("div", { class: "floow-pills" });
+      for (const s of STATUS_ORDER) {
+        if (!canMoveTo(s, member)) continue;
+        const b = h("button", { class: "floow-pill" + (s === selStage ? " sel" : ""), "data-s": s }, [STATUS_LABELS[s]]);
+        b.addEventListener("click", () => {
+          selStage = s;
+          stagePills.querySelectorAll(".floow-pill").forEach((x) => x.classList.remove("sel"));
+          b.classList.add("sel");
+        });
+        stagePills.append(b);
+      }
+      const confirm = h("button", { class: "floow-btn floow-btn-primary", style: "margin-top:10px" }, ["Criar lead"]);
+      confirm.addEventListener("click", () => {
+        const nome = nomeIn.value.trim();
+        const tel = telIn.value.trim();
+        const insta = instaIn.value.trim().replace(/^@/, "");
+        if (!nome || !tel) {
+          api.setError("Nome e WhatsApp s\xE3o obrigat\xF3rios.");
+          return;
+        }
+        const dup = leads.find(
+          (x) => samePhone(x.telefone, tel) || insta && (x.instagram || "").toLowerCase().replace(/^@/, "") === insta.toLowerCase()
+        );
+        if (dup) {
+          api.done({ existing: dup });
+          return;
+        }
+        api.done({ nome, tel, insta, fonte: selFonte, stage: selStage });
+      });
+      wrap.append(
+        h("div", { class: "floow-qlabel" }, ["Nome *"]),
+        nomeIn,
+        h("div", { class: "floow-qlabel" }, ["WhatsApp *"]),
+        telIn,
+        h("div", { class: "floow-qlabel" }, ["Instagram"]),
+        instaIn,
+        h("div", { class: "floow-qlabel" }, ["Origem"]),
+        fontePills,
+        h("div", { class: "floow-qlabel", style: "margin-top:10px" }, ["Etapa"]),
+        stagePills,
+        confirm
+      );
+      return wrap;
+    });
+  }
+  async function beginCreate() {
+    const detPhone = readActiveChatPhone();
+    const detTitle = readActiveChatTitle();
+    const prefill = {
+      nome: detTitle && !looksLikePhone(detTitle) ? detTitle : "",
+      tel: detPhone || (detTitle && looksLikePhone(detTitle) ? detTitle : "")
+    };
+    const result = await openCreateForm(prefill);
+    if (!result) return;
+    if ("existing" in result) {
+      currentLeadId = result.existing.id;
+      matchInfo = "j\xE1 existe no CRM";
+      render();
+      flash(`J\xE1 \xE9 um lead: ${result.existing.empresa || result.existing.nome} \u2713`);
+      return;
+    }
+    const { nome, tel, insta, fonte, stage } = result;
+    const draft = {
+      nome,
+      telefone: tel,
+      status: stage,
+      instagram: insta || null,
+      fonte: fonte || null,
+      origem: "manual",
+      sdr_responsavel: member.name
+    };
+    if (!NO_QUAL_STAGES.includes(stage)) {
+      const q = await askQualification(draft);
+      if (!q) return;
+      Object.assign(draft, q);
+    }
+    if (stage === "negocio_perdido") {
+      const m = await askReason("Motivo da perda", MOTIVO_PERDA_LABELS);
+      if (!m) return;
+      draft.motivo_perda = m;
+    } else if (stage === "desqualificado") {
+      const m = await askReason("Motivo da desqualifica\xE7\xE3o", MOTIVO_DESQUALIFICACAO_LABELS);
+      if (!m) return;
+      draft.motivo_desqualificacao = m;
+    } else if (stage === "negocio_ganho") {
+      const c = await askCreative(draft);
+      if (!c) return;
+      draft.criativo_codigo = c.code;
+    } else if (stage === "reuniao_agendada") {
+      const r = await askCloserDate(draft);
+      if (!r) return;
+      draft.closer_responsavel = r.closer;
+      draft.data_agendamento = r.dataIso;
+    }
+    const { data, error } = await supabase.from("leads").insert(draft).select(LEAD_COLUMNS).single();
+    if (error) {
+      flash("Erro ao criar: " + error.message);
+      return;
+    }
+    if (data) {
+      leads.unshift(data);
+      currentLeadId = data.id;
+      matchInfo = "criado agora";
+    }
+    render();
+    flash("Lead criado \u2713");
+    if (stage === "reuniao_agendada" && currentLeadId) {
+      flash("Sincronizando Google Agenda\u2026");
+      const r = await reconcileCalendar(currentLeadId);
+      if (r?.ok && r.action === "created") flash("Reuni\xE3o no Google Agenda \u2713");
     }
   }
   async function doLogout() {
