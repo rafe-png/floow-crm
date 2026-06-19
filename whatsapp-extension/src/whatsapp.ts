@@ -6,19 +6,18 @@
 export function readActiveChatPhone(): string | null {
   const main = document.querySelector("#main");
   if (!main) return null;
+  // JIDs de telefone real (NÃO @lid, que é um ID interno, não o número).
+  const RE = /(\d{8,})@(?:c\.us|s\.whatsapp\.net)/;
   // 1) Mensagens (data-id tem o JID do contato).
   for (const n of Array.from(main.querySelectorAll("[data-id]"))) {
-    const m = (n.getAttribute("data-id") || "").match(/(\d{8,})@c\.us/);
+    const m = (n.getAttribute("data-id") || "").match(RE);
     if (m) return m[1];
   }
-  // 2) Qualquer atributo do header que tenha um @c.us.
-  const header = main.querySelector("header");
-  if (header) {
-    for (const el of Array.from(header.querySelectorAll<HTMLElement>("*"))) {
-      for (const attr of Array.from(el.attributes)) {
-        const m = attr.value.match(/(\d{8,})@c\.us/);
-        if (m) return m[1];
-      }
+  // 2) Qualquer atributo dentro do #main que tenha um JID de telefone.
+  for (const el of Array.from(main.querySelectorAll<HTMLElement>("*"))) {
+    for (const attr of Array.from(el.attributes)) {
+      const m = attr.value.match(RE);
+      if (m) return m[1];
     }
   }
   return null;
