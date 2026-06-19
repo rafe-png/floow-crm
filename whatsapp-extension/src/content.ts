@@ -379,8 +379,27 @@ function askCloserDate(lead: Lead): Promise<{ closer: string; dataIso: string } 
 // ============================================================
 // Mover etapa (com as regras do app)
 // ============================================================
+// Chama o app pra criar/atualizar/apagar o evento no Google Agenda (a extensão
+// não tem acesso server-side ao Google).
+async function reconcileCalendar(leadId: string): Promise<{ ok: boolean; action?: string; error?: string } | null> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return null;
+  try {
+    const res = await fetch(`${APP_URL}/api/ext/calendar-reconcile`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ leadId }),
+    });
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 async function beginMove(lead: Lead, target: LeadStatus) {
   if (!canMoveTo(target, member)) { flash("Sem permissão pra essa etapa"); return; }
+  const prevEventId = lead.google_event_id;
   const patch = patchForStatus(target);
 
   if (needsQualification(lead, target)) {
@@ -407,6 +426,17 @@ async function beginMove(lead: Lead, target: LeadStatus) {
   Object.assign(lead, patch);
   render();
   flash(`Movido para "${STATUS_LABELS[target]}" ✓`);
+
+  // Sincroniza o Google Agenda: ao agendar (cria/atualiza) ou ao limpar o
+  // agendamento de um lead que tinha evento (apaga).
+  const clears = ["qualificado", "em_agendamento", "agendando", "no_show"].includes(target);
+  if (target === "reuniao_agendada" || (clears && prevEventId)) {
+    flash("Sincronizando Google Agenda…");
+    const r = await reconcileCalendar(lead.id);
+    if (r?.ok && (r.action === "created" || r.action === "updated")) flash("Reunião no Google Agenda ✓");
+    else if (r?.ok && r.action === "deleted") flash("Removido do Google Agenda ✓");
+    else if (r && !r.ok) flash("Movido ✓ — Google Agenda: " + (r.error || "falhou"));
+  }
 }
 
 async function doLogout() {

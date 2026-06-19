@@ -21082,7 +21082,7 @@ ${suffix}`;
   });
 
   // src/crm.ts
-  var LEAD_COLUMNS = "id,nome,empresa,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
+  var LEAD_COLUMNS = "id,nome,empresa,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
   var STATUS_LABELS = {
     qualificado: "Entrada",
     em_agendamento: "Qualificado",
@@ -21636,11 +21636,27 @@ ${suffix}`;
       return wrap;
     });
   }
+  async function reconcileCalendar(leadId) {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return null;
+    try {
+      const res = await fetch(`${APP_URL}/api/ext/calendar-reconcile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ leadId })
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
   async function beginMove(lead, target) {
     if (!canMoveTo(target, member)) {
       flash("Sem permiss\xE3o pra essa etapa");
       return;
     }
+    const prevEventId = lead.google_event_id;
     const patch = patchForStatus(target);
     if (needsQualification(lead, target)) {
       const q = await askQualification(lead);
@@ -21673,6 +21689,14 @@ ${suffix}`;
     Object.assign(lead, patch);
     render();
     flash(`Movido para "${STATUS_LABELS[target]}" \u2713`);
+    const clears = ["qualificado", "em_agendamento", "agendando", "no_show"].includes(target);
+    if (target === "reuniao_agendada" || clears && prevEventId) {
+      flash("Sincronizando Google Agenda\u2026");
+      const r = await reconcileCalendar(lead.id);
+      if (r?.ok && (r.action === "created" || r.action === "updated")) flash("Reuni\xE3o no Google Agenda \u2713");
+      else if (r?.ok && r.action === "deleted") flash("Removido do Google Agenda \u2713");
+      else if (r && !r.ok) flash("Movido \u2713 \u2014 Google Agenda: " + (r.error || "falhou"));
+    }
   }
   async function doLogout() {
     await supabase.auth.signOut();
