@@ -21266,17 +21266,15 @@ ${suffix}`;
   function readActiveChatPhone() {
     const main = document.querySelector("#main");
     if (!main) return null;
+    const RE = /(\d{8,})@(?:c\.us|s\.whatsapp\.net)/;
     for (const n of Array.from(main.querySelectorAll("[data-id]"))) {
-      const m = (n.getAttribute("data-id") || "").match(/(\d{8,})@c\.us/);
+      const m = (n.getAttribute("data-id") || "").match(RE);
       if (m) return m[1];
     }
-    const header = main.querySelector("header");
-    if (header) {
-      for (const el of Array.from(header.querySelectorAll("*"))) {
-        for (const attr of Array.from(el.attributes)) {
-          const m = attr.value.match(/(\d{8,})@c\.us/);
-          if (m) return m[1];
-        }
+    for (const el of Array.from(main.querySelectorAll("*"))) {
+      for (const attr of Array.from(el.attributes)) {
+        const m = attr.value.match(RE);
+        if (m) return m[1];
       }
     }
     return null;
