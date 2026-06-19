@@ -135,6 +135,7 @@ export async function POST(request: Request) {
     sdr_responsavel: sdr,
     criativo_codigo: criativo,
     origem: "whatsapp",
+    fonte: "meta_ads", // leads da automação vêm do anúncio (Meta Ads) por padrão
     observacoes: text ? `1ª mensagem (WhatsApp): ${text}` : "Entrou pelo WhatsApp (anúncio).",
   });
 

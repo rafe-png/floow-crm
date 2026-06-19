@@ -175,8 +175,25 @@ export type Lead = {
   criativo_codigo: number | null;
 
   // Origem do lead: 'manual' (cadastrado à mão) | 'whatsapp' (entrou pelo anúncio).
+  // Uso interno (filtro/roteamento), não confundir com `fonte` (marketing).
   origem: string | null;
+
+  // Fonte de marketing do lead (exibida/selecionável no card). Leads que entram
+  // pela automação do WhatsApp já nascem como 'meta_ads'.
+  fonte: LeadFonte | null;
 };
+
+// De onde o lead veio (canal de marketing).
+export type LeadFonte = "meta_ads" | "indicacao" | "outbound" | "outro";
+
+export const FONTE_LABELS: Record<LeadFonte, string> = {
+  meta_ads: "Meta Ads",
+  indicacao: "Indicação",
+  outbound: "Outbound",
+  outro: "Outro",
+};
+
+export const FONTE_OPTIONS = Object.keys(FONTE_LABELS) as LeadFonte[];
 
 export type LeadEventType = "created" | "status_change" | "note";
 
