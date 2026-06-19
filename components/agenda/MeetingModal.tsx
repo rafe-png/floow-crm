@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Calendar,
   Check,
+  ExternalLink,
   Pencil,
   Phone,
   Star,
@@ -54,6 +56,7 @@ type Props = {
 
 export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
   const { leads } = useLeadsContext();
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const initialDateTime = splitIso(lead.data_agendamento);
 
@@ -184,6 +187,16 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
               >
                 <InstagramIcon size={16} />
               </a>
+            )}
+            {!editing && (
+              <button
+                onClick={() => router.push(`/kanban?lead=${lead.id}`)}
+                className="flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-300 hover:border-zinc-700 hover:text-zinc-100"
+                title="Abrir o lead no funil"
+              >
+                <ExternalLink size={12} />
+                <span className="hidden sm:inline">Abrir no funil</span>
+              </button>
             )}
             {!editing ? (
               <button

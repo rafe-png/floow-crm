@@ -89,6 +89,33 @@
 #floow-panel .floow-footer { display: flex; align-items: center; justify-content: space-between; border-bottom: none; }
 #floow-panel .floow-who { display: flex; align-items: center; gap: 10px; }
 
+/* Datetime escuro */
+#floow-panel input[type="datetime-local"] { color-scheme: dark; }
+
+/* Modais (regras de etapa) */
+#floow-panel .floow-modal {
+  position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.6); padding: 14px;
+}
+#floow-panel .floow-modal-card {
+  width: 100%; max-height: 90%; display: flex; flex-direction: column;
+  background: #0f0f12; border: 1px solid #2a2a30; border-radius: 10px; overflow: hidden;
+}
+#floow-panel .floow-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border-bottom: 1px solid #1f1f23;
+}
+#floow-panel .floow-modal-body { padding: 12px; overflow-y: auto; }
+
+#floow-panel .floow-qlabel { font-size: 11px; font-weight: 600; color: #d4d4d8; margin: 8px 0 5px; }
+#floow-panel .floow-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+#floow-panel .floow-pill {
+  background: #18181b; border: 1px solid #27272a; color: #a1a1aa;
+  border-radius: 6px; padding: 5px 9px; font-size: 12px; cursor: pointer;
+}
+#floow-panel .floow-pill:hover { border-color: #3f3f46; color: #e7e9ee; }
+#floow-panel .floow-pill.sel { background: rgba(245,197,24,.15); border-color: rgba(245,197,24,.5); color: #f5c518; }
+
 #floow-flash {
   position: absolute; left: 14px; right: 14px; bottom: 14px; z-index: 1;
   background: #18181b; border: 1px solid #3f3f46; color: #fafafa;

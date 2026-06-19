@@ -7421,22 +7421,22 @@ Suggested solution: ${env.workaround}`;
         });
       });
     }
-    waitForBufferDone(conn2, callback, tries = 1) {
-      if (tries === 5 || !conn2.bufferedAmount) {
+    waitForBufferDone(conn, callback, tries = 1) {
+      if (tries === 5 || !conn.bufferedAmount) {
         callback();
         return;
       }
       setTimeout(() => {
-        this.waitForBufferDone(conn2, callback, tries + 1);
+        this.waitForBufferDone(conn, callback, tries + 1);
       }, 150 * tries);
     }
-    waitForSocketClosed(conn2, callback, tries = 1) {
-      if (tries === 5 || conn2.readyState === SOCKET_STATES.closed) {
+    waitForSocketClosed(conn, callback, tries = 1) {
+      if (tries === 5 || conn.readyState === SOCKET_STATES.closed) {
         callback();
         return;
       }
       setTimeout(() => {
-        this.waitForSocketClosed(conn2, callback, tries + 1);
+        this.waitForSocketClosed(conn, callback, tries + 1);
       }, 150 * tries);
     }
     /**
@@ -21082,6 +21082,7 @@ ${suffix}`;
   });
 
   // src/crm.ts
+  var LEAD_COLUMNS = "id,nome,empresa,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
   var STATUS_LABELS = {
     qualificado: "Entrada",
     em_agendamento: "Qualificado",
@@ -21095,6 +21096,19 @@ ${suffix}`;
     sem_resposta: "Sem resposta",
     desqualificado: "Desqualificado"
   };
+  var STATUS_ORDER = [
+    "qualificado",
+    "em_agendamento",
+    "agendando",
+    "reuniao_agendada",
+    "no_show",
+    "follow_up",
+    "carteira",
+    "negocio_ganho",
+    "negocio_perdido",
+    "sem_resposta",
+    "desqualificado"
+  ];
   var STATUS_DOT = {
     qualificado: "#818cf8",
     em_agendamento: "#2dd4bf",
@@ -21114,6 +21128,84 @@ ${suffix}`;
     outbound: "Outbound",
     outro: "Outro"
   };
+  var EXPERIENCIA_LABELS = {
+    menos_6m: "Menos de 6 meses",
+    "6m_1ano": "6 meses a 1 ano",
+    "1_5anos": "1 a 5 anos",
+    mais_5anos: "+5 anos"
+  };
+  var SITUACAO_LABELS = {
+    sem_clientes: "Sem clientes",
+    com_sem_demanda: "Com clientes, sem demanda",
+    com_com_demanda: "Com clientes e com demanda"
+  };
+  var CANAL_VENDAS_LABELS = {
+    box: "Box",
+    loja: "Loja",
+    online: "Somente online"
+  };
+  var ESTOQUE_LABELS = { muito: "Muito", medio: "M\xE9dio", pouco: "Pouco" };
+  var HISTORICO_LABELS = {
+    ja_fez: "J\xE1 fez tr\xE1fego",
+    fazendo: "Fazendo tr\xE1fego",
+    nunca_fez: "Nunca fez"
+  };
+  var ESTRUTURA_LABELS = {
+    "2_mais_vendedores": "2+ vendedores",
+    "1_vendedor": "1 vendedor dedicado",
+    dono_vende: "Dono que vende"
+  };
+  var BANT_BUDGET_LABELS = {
+    tem_verba: "Tem verba definida",
+    tem_indefinida: "Tem mas indefinida",
+    nao_tem: "N\xE3o tem agora"
+  };
+  var BANT_AUTHORITY_LABELS = {
+    decisor: "\xC9 o decisor",
+    influenciador: "Influencia",
+    precisa_aprovar: "Precisa aprovar"
+  };
+  var BANT_NEED_LABELS = { alta: "Alta", media: "M\xE9dia", explorando: "Explorando" };
+  var BANT_TIMING_LABELS = {
+    agora: "Quer come\xE7ar j\xE1",
+    "30_dias": "Em 30 dias",
+    "60_90_dias": "60-90 dias",
+    sem_urgencia: "Sem urg\xEAncia"
+  };
+  var MOTIVO_PERDA_LABELS = {
+    sem_budget: "Sem budget",
+    sem_timing: "Timing ruim",
+    sem_fit: "Sem fit",
+    concorrente: "Foi pro concorrente",
+    nao_decisor: "N\xE3o era decisor",
+    sem_retorno: "Sumiu / sem retorno",
+    preco_alto: "Pre\xE7o alto",
+    outro: "Outro"
+  };
+  var MOTIVO_DESQUALIFICACAO_LABELS = {
+    nao_e_confeccao: "N\xE3o \xE9 confec\xE7\xE3o",
+    muito_pequeno: "Muito pequeno / sem estrutura",
+    sem_verba: "Sem verba pra investir",
+    fora_perfil: "Fora do perfil (ICP)",
+    nao_decisor: "N\xE3o \xE9 o decisor",
+    ja_tem_solucao: "J\xE1 tem ag\xEAncia/solu\xE7\xE3o",
+    sem_interesse: "Sem interesse real",
+    nao_respondeu: "N\xE3o respondeu / sumiu",
+    regiao_fora: "Regi\xE3o/segmento fora do foco",
+    outro: "Outro"
+  };
+  var QUAL_FIELDS = [
+    { key: "experiencia", label: "Experi\xEAncia", options: EXPERIENCIA_LABELS },
+    { key: "situacao", label: "Situa\xE7\xE3o", options: SITUACAO_LABELS },
+    { key: "canal_vendas", label: "Canal de vendas", options: CANAL_VENDAS_LABELS },
+    { key: "estoque", label: "\u{1F4E6} Estoque", options: ESTOQUE_LABELS },
+    { key: "historico", label: "\u{1F4C8} Hist\xF3rico de tr\xE1fego", options: HISTORICO_LABELS },
+    { key: "estrutura", label: "\u{1F465} Estrutura comercial", options: ESTRUTURA_LABELS },
+    { key: "bant_budget", label: "\u{1F4B0} Budget", options: BANT_BUDGET_LABELS },
+    { key: "bant_authority", label: "\u{1F3AF} Authority", options: BANT_AUTHORITY_LABELS },
+    { key: "bant_need", label: "\u{1F525} Need", options: BANT_NEED_LABELS },
+    { key: "bant_timing", label: "\u23F1 Timing", options: BANT_TIMING_LABELS }
+  ];
   var SDR_STAGES = [
     "qualificado",
     "em_agendamento",
@@ -21123,14 +21215,13 @@ ${suffix}`;
     "desqualificado",
     "sem_resposta"
   ];
-  var SAFE_STAGES = [
-    "qualificado",
-    "em_agendamento",
-    "agendando",
-    "follow_up",
-    "carteira",
-    "sem_resposta"
-  ];
+  var NO_QUAL_STAGES = ["qualificado", "negocio_perdido", "sem_resposta", "desqualificado"];
+  function isQualComplete(l) {
+    return !!(l.experiencia && l.situacao && l.canal_vendas && l.estoque && l.historico && l.estrutura && l.bant_budget && l.bant_authority && l.bant_need && l.bant_timing);
+  }
+  function needsQualification(lead, target) {
+    return lead.status !== target && !NO_QUAL_STAGES.includes(target) && !isQualComplete(lead);
+  }
   function canMoveTo(status, opts) {
     if (opts.isAdmin) return true;
     if (opts.role === "Closer") return true;
@@ -21139,7 +21230,7 @@ ${suffix}`;
   }
   function patchForStatus(status) {
     const patch = { status };
-    if (status === "qualificado" || status === "em_agendamento" || status === "agendando") {
+    if (["qualificado", "em_agendamento", "agendando", "no_show"].includes(status)) {
       patch.data_agendamento = null;
     }
     return patch;
@@ -21155,6 +21246,17 @@ ${suffix}`;
   }
 
   // src/whatsapp.ts
+  function readActiveChatPhone() {
+    const main = document.querySelector("#main");
+    if (!main) return null;
+    const nodes = main.querySelectorAll("[data-id]");
+    for (const n of Array.from(nodes)) {
+      const id = n.getAttribute("data-id") || "";
+      const m = id.match(/(\d{8,})@c\.us/);
+      if (m) return m[1];
+    }
+    return null;
+  }
   function readActiveChatTitle() {
     const main = document.querySelector("#main");
     if (!main) return null;
@@ -21170,20 +21272,20 @@ ${suffix}`;
   var sessionEmail = null;
   var member = { name: null, role: null, isAdmin: false };
   var leads = [];
+  var closers = [];
   var currentLeadId = null;
   var matchInfo = "";
   var collapsed = true;
   var searchMode = false;
-  var conn = "off";
   var lastTitle = null;
+  var lastKey = "";
   function h(tag, props = {}, children = []) {
     const el = document.createElement(tag);
     for (const [k, v] of Object.entries(props)) {
       if (k === "class") el.className = String(v);
       else if (k === "style") el.setAttribute("style", String(v));
-      else if (k.startsWith("on") && typeof v === "function") {
-        el.addEventListener(k.slice(2).toLowerCase(), v);
-      } else if (v != null) el.setAttribute(k, String(v));
+      else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2).toLowerCase(), v);
+      else if (v != null) el.setAttribute(k, String(v));
     }
     for (const c of children) el.append(c instanceof Node ? c : document.createTextNode(c));
     return el;
@@ -21214,7 +21316,6 @@ ${suffix}`;
     if (!collapsed) render();
   }
   function setConn(state) {
-    conn = state;
     if (connDot) connDot.className = state;
   }
   function render() {
@@ -21231,10 +21332,7 @@ ${suffix}`;
     const btn = h("button", { class: "floow-btn floow-btn-primary" }, ["Entrar"]);
     btn.addEventListener("click", async () => {
       btn.textContent = "Entrando\u2026";
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.value.trim(),
-        password: pass.value
-      });
+      const { error } = await supabase.auth.signInWithPassword({ email: email.value.trim(), password: pass.value });
       if (error) {
         msg.textContent = "Login falhou: " + error.message;
         btn.textContent = "Entrar";
@@ -21296,16 +21394,17 @@ ${suffix}`;
   }
   function renderLead() {
     const lead = currentLead();
-    const top = h("div", { class: "floow-section" }, [
-      h("div", { class: "floow-row" }, [
-        h("div", { class: "floow-chat" }, [lastTitle ? `Conversa: ${lastTitle}` : "Abra uma conversa"]),
-        h("button", { class: "floow-link", onclick: () => {
-          searchMode = true;
-          render();
-        } }, ["buscar"])
+    body.append(
+      h("div", { class: "floow-section" }, [
+        h("div", { class: "floow-row" }, [
+          h("div", { class: "floow-chat" }, [lastTitle ? `Conversa: ${lastTitle}` : "Abra uma conversa"]),
+          h("button", { class: "floow-link", onclick: () => {
+            searchMode = true;
+            render();
+          } }, ["buscar"])
+        ])
       ])
-    ]);
-    body.append(top);
+    );
     if (!lead) {
       body.append(
         h("div", { class: "floow-section floow-empty" }, [
@@ -21331,30 +21430,25 @@ ${suffix}`;
         h("div", { class: "floow-meta" }, [
           lead.sdr_responsavel ? h("div", {}, [`SDR: ${lead.sdr_responsavel}`]) : document.createTextNode(""),
           lead.closer_responsavel ? h("div", {}, [`Closer: ${lead.closer_responsavel}`]) : document.createTextNode(""),
-          fonte ? h("div", {}, [`Origem: ${fonte}`]) : document.createTextNode("")
+          fonte ? h("div", {}, [`Origem: ${fonte}`]) : document.createTextNode(""),
+          lead.data_agendamento ? h("div", { style: "color:#f5c518" }, [`\u{1F4C5} ${fmtDate(lead.data_agendamento)}`]) : document.createTextNode("")
         ]),
         matchInfo ? h("div", { class: "floow-hint" }, [`vinculado ${matchInfo}`]) : document.createTextNode("")
       ])
     );
     const grid = h("div", { class: "floow-grid" });
-    for (const s of SAFE_STAGES) {
+    for (const s of STATUS_ORDER) {
       const active = s === lead.status;
       const allowed = active || canMoveTo(s, member);
       const b = h("button", {
         class: `floow-stage${active ? " active" : ""}${!allowed ? " locked" : ""}`,
         style: active ? `border-color:${STATUS_DOT[s]}55;color:${STATUS_DOT[s]}` : "",
-        title: !allowed ? "Sem permiss\xE3o pra essa etapa" : ""
+        title: !allowed ? "Etapa do Closer \u2014 sem permiss\xE3o" : ""
       }, [h("span", { class: "floow-dot", style: `background:${STATUS_DOT[s]}` }), STATUS_LABELS[s]]);
-      if (!active && allowed) b.addEventListener("click", () => moveStatus(lead, s));
+      if (!active && allowed) b.addEventListener("click", () => beginMove(lead, s));
       grid.append(b);
     }
-    body.append(
-      h("div", { class: "floow-section" }, [
-        h("div", { class: "floow-title" }, ["Mover para"]),
-        grid,
-        h("div", { class: "floow-hint" }, ["Reuni\xE3o, ganho/perdido e desqualificar: fa\xE7a no app (pedem dados extras)."])
-      ])
-    );
+    body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Mover para"]), grid]));
     const ta = h("textarea", { class: "floow-input floow-textarea", placeholder: "Observa\xE7\xF5es\u2026" });
     ta.value = lead.observacoes ?? "";
     const saveBtn = h("button", { class: "floow-btn floow-btn-primary", disabled: "true" }, ["Salvar observa\xE7\xF5es"]);
@@ -21381,13 +21475,7 @@ ${suffix}`;
       });
       flash("Observa\xE7\xF5es salvas \u2713");
     });
-    body.append(
-      h("div", { class: "floow-section" }, [
-        h("div", { class: "floow-title" }, ["Observa\xE7\xF5es"]),
-        ta,
-        saveBtn
-      ])
-    );
+    body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Observa\xE7\xF5es"]), ta, saveBtn]));
     renderFooter(lead);
   }
   function renderFooter(lead) {
@@ -21401,6 +21489,10 @@ ${suffix}`;
       ])
     );
   }
+  function fmtDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  }
   var flashTimer = null;
   function flash(text) {
     let el = document.getElementById("floow-flash");
@@ -21413,18 +21505,174 @@ ${suffix}`;
     if (flashTimer) clearTimeout(flashTimer);
     flashTimer = setTimeout(() => el.classList.remove("show"), 2200);
   }
-  async function moveStatus(lead, status) {
-    const prev = lead.status;
-    lead.status = status;
-    render();
-    const { error } = await supabase.from("leads").update(patchForStatus(status)).eq("id", lead.id);
-    if (error) {
-      lead.status = prev;
-      render();
-      flash("N\xE3o foi poss\xEDvel mover: " + error.message);
-    } else {
-      flash(`Movido para "${STATUS_LABELS[status]}" \u2713`);
+  function openModal(title, build) {
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (v) => {
+        if (settled) return;
+        settled = true;
+        overlay.remove();
+        resolve(v);
+      };
+      const errEl = h("div", { class: "floow-msg" });
+      const api = { setError: (m) => {
+        errEl.textContent = m;
+      }, done: (v) => finish(v), cancel: () => finish(null) };
+      const bodyEl = build(api);
+      const overlay = h("div", { class: "floow-modal" }, [
+        h("div", { class: "floow-modal-card" }, [
+          h("div", { class: "floow-modal-head" }, [
+            h("div", { class: "floow-title" }, [title]),
+            h("button", { class: "floow-x", onclick: () => api.cancel() }, ["\xD7"])
+          ]),
+          h("div", { class: "floow-modal-body" }, [bodyEl, errEl])
+        ])
+      ]);
+      panel.append(overlay);
+    });
+  }
+  function askQualification(lead) {
+    const vals = {};
+    for (const f of QUAL_FIELDS) {
+      const v = lead[f.key];
+      if (v) vals[f.key] = v;
     }
+    return openModal("Qualifica\xE7\xE3o obrigat\xF3ria", (api) => {
+      const wrap = h("div", {});
+      wrap.append(h("div", { class: "floow-hint", style: "margin-bottom:8px" }, ["Preencha pra avan\xE7ar (igual ao app)."]));
+      for (const f of QUAL_FIELDS) {
+        const pills = h("div", { class: "floow-pills" });
+        for (const [val, label] of Object.entries(f.options)) {
+          const b = h("button", { class: "floow-pill" + (vals[f.key] === val ? " sel" : "") }, [label]);
+          b.addEventListener("click", () => {
+            vals[f.key] = val;
+            pills.querySelectorAll(".floow-pill").forEach((x) => x.classList.remove("sel"));
+            b.classList.add("sel");
+          });
+          pills.append(b);
+        }
+        wrap.append(h("div", { class: "floow-qlabel" }, [f.label]), pills);
+      }
+      const confirm = h("button", { class: "floow-btn floow-btn-primary", style: "margin-top:10px" }, ["Confirmar qualifica\xE7\xE3o"]);
+      confirm.addEventListener("click", () => {
+        for (const f of QUAL_FIELDS) if (!vals[f.key]) {
+          api.setError("Falta: " + f.label);
+          return;
+        }
+        api.done({ ...vals });
+      });
+      wrap.append(confirm);
+      return wrap;
+    });
+  }
+  function askReason(title, labels) {
+    return openModal(title, (api) => {
+      const wrap = h("div", { class: "floow-pills" });
+      for (const [val, label] of Object.entries(labels)) {
+        const b = h("button", { class: "floow-pill" }, [label]);
+        b.addEventListener("click", () => api.done(val));
+        wrap.append(b);
+      }
+      return wrap;
+    });
+  }
+  function askCreative(lead) {
+    return openModal("C\xF3digo do criativo", (api) => {
+      const wrap = h("div", {});
+      const input = h("input", { type: "number", min: "1", placeholder: "Ex: 12", class: "floow-input" });
+      if (lead.criativo_codigo != null) input.value = String(lead.criativo_codigo);
+      const ok = h("button", { class: "floow-btn floow-btn-primary" }, ["Confirmar"]);
+      ok.addEventListener("click", () => {
+        const v = input.value.trim();
+        api.done({ code: v ? Number(v) : null });
+      });
+      const skip = h("button", { class: "floow-btn", style: "margin-top:6px" }, ["Sem c\xF3digo"]);
+      skip.addEventListener("click", () => api.done({ code: null }));
+      wrap.append(h("div", { class: "floow-hint", style: "margin-bottom:8px" }, ["Qual an\xFAncio trouxe esse cliente?"]), input, ok, skip);
+      return wrap;
+    });
+  }
+  function askCloserDate(lead) {
+    return openModal("Agendar reuni\xE3o", (api) => {
+      const wrap = h("div", {});
+      let sel = lead.closer_responsavel ?? null;
+      const pills = h("div", { class: "floow-pills" });
+      if (!closers.length) pills.append(h("div", { class: "floow-hint" }, ["Nenhum Closer cadastrado."]));
+      for (const c of closers) {
+        const b = h("button", { class: "floow-pill" + (sel === c.name ? " sel" : "") }, [c.name]);
+        b.addEventListener("click", () => {
+          sel = c.name;
+          pills.querySelectorAll(".floow-pill").forEach((x) => x.classList.remove("sel"));
+          b.classList.add("sel");
+        });
+        pills.append(b);
+      }
+      const dt = h("input", { type: "datetime-local", class: "floow-input" });
+      if (lead.data_agendamento) {
+        const d = new Date(lead.data_agendamento);
+        const p = (n) => String(n).padStart(2, "0");
+        dt.value = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+      }
+      const ok = h("button", { class: "floow-btn floow-btn-primary", style: "margin-top:10px" }, ["Confirmar reuni\xE3o"]);
+      ok.addEventListener("click", () => {
+        if (!sel) {
+          api.setError("Escolha o Closer.");
+          return;
+        }
+        if (!dt.value) {
+          api.setError("Escolha data e hora.");
+          return;
+        }
+        api.done({ closer: sel, dataIso: new Date(dt.value).toISOString() });
+      });
+      wrap.append(
+        h("div", { class: "floow-qlabel" }, ["Closer respons\xE1vel *"]),
+        pills,
+        h("div", { class: "floow-qlabel", style: "margin-top:10px" }, ["Data e hora *"]),
+        dt,
+        ok,
+        h("div", { class: "floow-hint", style: "margin-top:8px" }, ["O evento no Google Agenda \xE9 criado/ajustado pelo app."])
+      );
+      return wrap;
+    });
+  }
+  async function beginMove(lead, target) {
+    if (!canMoveTo(target, member)) {
+      flash("Sem permiss\xE3o pra essa etapa");
+      return;
+    }
+    const patch = patchForStatus(target);
+    if (needsQualification(lead, target)) {
+      const q = await askQualification(lead);
+      if (!q) return;
+      Object.assign(patch, q);
+    }
+    if (target === "negocio_perdido") {
+      const m = await askReason("Motivo da perda", MOTIVO_PERDA_LABELS);
+      if (!m) return;
+      patch.motivo_perda = m;
+    } else if (target === "desqualificado") {
+      const m = await askReason("Motivo da desqualifica\xE7\xE3o", MOTIVO_DESQUALIFICACAO_LABELS);
+      if (!m) return;
+      patch.motivo_desqualificacao = m;
+    } else if (target === "negocio_ganho") {
+      const c = await askCreative(lead);
+      if (!c) return;
+      patch.criativo_codigo = c.code;
+    } else if (target === "reuniao_agendada") {
+      const r = await askCloserDate(lead);
+      if (!r) return;
+      patch.closer_responsavel = r.closer;
+      patch.data_agendamento = r.dataIso;
+    }
+    const { error } = await supabase.from("leads").update(patch).eq("id", lead.id);
+    if (error) {
+      flash("N\xE3o foi poss\xEDvel: " + error.message);
+      return;
+    }
+    Object.assign(lead, patch);
+    render();
+    flash(`Movido para "${STATUS_LABELS[target]}" \u2713`);
   }
   async function doLogout() {
     await supabase.auth.signOut();
@@ -21439,18 +21687,16 @@ ${suffix}`;
     authed = !!sessionEmail;
     if (!authed) return render();
     const { data: m } = await supabase.from("team_members").select("name,role,is_admin").eq("email", sessionEmail).maybeSingle();
-    member = {
-      name: m?.name ?? null,
-      role: m?.role ?? null,
-      isAdmin: !!m?.is_admin || sessionEmail?.toLowerCase() === ADMIN_EMAIL
-    };
+    member = { name: m?.name ?? null, role: m?.role ?? null, isAdmin: !!m?.is_admin || sessionEmail?.toLowerCase() === ADMIN_EMAIL };
+    const { data: cl } = await supabase.from("team_members").select("id,name").eq("role", "Closer").eq("active", true).order("name");
+    closers = cl ?? [];
     await loadLeads();
     subscribeRealtime();
-    matchFromChat(readActiveChatTitle());
+    matchFromChat();
     render();
   }
   async function loadLeads() {
-    const { data } = await supabase.from("leads").select("id,nome,empresa,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,updated_at").order("updated_at", { ascending: false });
+    const { data } = await supabase.from("leads").select(LEAD_COLUMNS).order("updated_at", { ascending: false });
     leads = data ?? [];
   }
   var channelStarted = false;
@@ -21467,35 +21713,40 @@ ${suffix}`;
         if (i >= 0) leads[i] = { ...leads[i], ...row };
         else leads.unshift(row);
       }
-      if (!collapsed && !searchMode) render();
+      if (!collapsed && !searchMode && !document.querySelector(".floow-modal")) render();
     }).subscribe((status) => setConn(status === "SUBSCRIBED" ? "on" : "off"));
   }
-  function matchFromChat(title) {
-    lastTitle = title;
-    if (!title) {
-      currentLeadId = null;
-      matchInfo = "";
-      return;
+  function matchFromChat() {
+    const phone = readActiveChatPhone();
+    const title = readActiveChatTitle();
+    lastTitle = title || (phone ? `+${phone}` : null);
+    let l;
+    if (phone) {
+      const norm = normalizePhone(phone);
+      l = leads.find((x) => normalizePhone(x.telefone) === norm);
+      if (l) matchInfo = "por telefone (conversa)";
     }
-    if (looksLikePhone(title)) {
-      const norm = normalizePhone(title);
-      const l2 = leads.find((x) => normalizePhone(x.telefone) === norm);
-      currentLeadId = l2?.id ?? null;
-      matchInfo = l2 ? "por telefone" : "";
-      return;
+    if (!l && title) {
+      if (looksLikePhone(title)) {
+        const norm = normalizePhone(title);
+        l = leads.find((x) => normalizePhone(x.telefone) === norm);
+        if (l) matchInfo = "por telefone";
+      } else {
+        const t = title.toLowerCase();
+        l = leads.find((x) => (x.nome || "").toLowerCase() === t || (x.empresa || "").toLowerCase() === t) ?? leads.find((x) => (x.nome || "").toLowerCase().includes(t) || (x.empresa || "").toLowerCase().includes(t));
+        if (l) matchInfo = "por nome";
+      }
     }
-    const t = title.toLowerCase();
-    let l = leads.find((x) => (x.nome || "").toLowerCase() === t || (x.empresa || "").toLowerCase() === t);
-    if (!l) l = leads.find((x) => (x.nome || "").toLowerCase().includes(t) || (x.empresa || "").toLowerCase().includes(t));
     currentLeadId = l?.id ?? null;
-    matchInfo = l ? "por nome" : "";
+    if (!l) matchInfo = "";
   }
   function startChatWatch() {
     setInterval(() => {
-      const title = readActiveChatTitle();
-      if (title === lastTitle) return;
-      matchFromChat(title);
-      if (authed && !searchMode && !collapsed) render();
+      const key = (readActiveChatPhone() || "") + "|" + (readActiveChatTitle() || "");
+      if (key === lastKey) return;
+      lastKey = key;
+      matchFromChat();
+      if (authed && !searchMode && !collapsed && !document.querySelector(".floow-modal")) render();
     }, 1e3);
   }
   async function boot() {

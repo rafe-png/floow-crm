@@ -3,16 +3,21 @@ import { APP_URL, ADMIN_EMAIL } from "./config";
 import {
   type Lead,
   type LeadStatus,
+  LEAD_COLUMNS,
   STATUS_LABELS,
+  STATUS_ORDER,
   STATUS_DOT,
   FONTE_LABELS,
-  SAFE_STAGES,
+  QUAL_FIELDS,
+  MOTIVO_PERDA_LABELS,
+  MOTIVO_DESQUALIFICACAO_LABELS,
   canMoveTo,
+  needsQualification,
   patchForStatus,
   normalizePhone,
   looksLikePhone,
 } from "./crm";
-import { readActiveChatTitle } from "./whatsapp";
+import { readActiveChatPhone, readActiveChatTitle } from "./whatsapp";
 
 // ============================================================
 // Estado
@@ -21,15 +26,16 @@ let authed = false;
 let sessionEmail: string | null = null;
 let member: { name: string | null; role: string | null; isAdmin: boolean } = { name: null, role: null, isAdmin: false };
 let leads: Lead[] = [];
+let closers: { id: string; name: string }[] = [];
 let currentLeadId: string | null = null;
 let matchInfo = "";
 let collapsed = true;
 let searchMode = false;
-let conn: "on" | "off" = "off";
 let lastTitle: string | null = null;
+let lastKey = "";
 
 // ============================================================
-// Helpers de DOM
+// Helper de DOM
 // ============================================================
 function h<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -40,9 +46,8 @@ function h<K extends keyof HTMLElementTagNameMap>(
   for (const [k, v] of Object.entries(props)) {
     if (k === "class") el.className = String(v);
     else if (k === "style") el.setAttribute("style", String(v));
-    else if (k.startsWith("on") && typeof v === "function") {
-      el.addEventListener(k.slice(2).toLowerCase(), v as EventListener);
-    } else if (v != null) el.setAttribute(k, String(v));
+    else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2).toLowerCase(), v as EventListener);
+    else if (v != null) el.setAttribute(k, String(v));
   }
   for (const c of children) el.append(c instanceof Node ? c : document.createTextNode(c));
   return el;
@@ -62,18 +67,14 @@ let connDot: HTMLElement;
 
 function mount() {
   if (document.getElementById("floow-panel")) return;
-
   fab = h("button", { id: "floow-fab", title: "floow CRM", onclick: toggle }, ["floow"]);
   connDot = h("span", { id: "floow-conn", class: "off" });
-
   const header = h("div", { id: "floow-head" }, [
     h("div", { class: "floow-brand" }, [connDot, "floow CRM"]),
     h("button", { class: "floow-x", title: "Fechar", onclick: toggle }, ["×"]),
   ]);
-
   body = h("div", { id: "floow-body" });
   panel = h("div", { id: "floow-panel", class: "collapsed" }, [header, body]);
-
   document.body.append(fab, panel);
 }
 
@@ -85,7 +86,6 @@ function toggle() {
 }
 
 function setConn(state: "on" | "off") {
-  conn = state;
   if (connDot) connDot.className = state;
 }
 
@@ -105,21 +105,12 @@ function renderAuth() {
   const pass = h("input", { type: "password", placeholder: "Senha", class: "floow-input" }) as HTMLInputElement;
   const msg = h("div", { class: "floow-msg" });
   const btn = h("button", { class: "floow-btn floow-btn-primary" }, ["Entrar"]);
-
   btn.addEventListener("click", async () => {
     btn.textContent = "Entrando…";
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.value.trim(),
-      password: pass.value,
-    });
-    if (error) {
-      msg.textContent = "Login falhou: " + error.message;
-      btn.textContent = "Entrar";
-      return;
-    }
+    const { error } = await supabase.auth.signInWithPassword({ email: email.value.trim(), password: pass.value });
+    if (error) { msg.textContent = "Login falhou: " + error.message; btn.textContent = "Entrar"; return; }
     await afterAuth();
   });
-
   body.append(
     h("div", { class: "floow-section" }, [
       h("div", { class: "floow-title" }, ["Entrar no floow CRM"]),
@@ -132,18 +123,15 @@ function renderAuth() {
 function renderSearch() {
   const input = h("input", { type: "text", placeholder: "Buscar lead por nome ou telefone…", class: "floow-input" }) as HTMLInputElement;
   const list = h("div", { class: "floow-list" });
-
   function update() {
     const q = input.value.trim().toLowerCase();
     const qd = normalizePhone(q);
-    const res = leads
-      .filter((l) =>
-        !q ? false :
-        (l.nome || "").toLowerCase().includes(q) ||
-        (l.empresa || "").toLowerCase().includes(q) ||
-        (qd && normalizePhone(l.telefone).includes(qd)),
-      )
-      .slice(0, 8);
+    const res = leads.filter((l) =>
+      !q ? false :
+      (l.nome || "").toLowerCase().includes(q) ||
+      (l.empresa || "").toLowerCase().includes(q) ||
+      (qd && normalizePhone(l.telefone).includes(qd)),
+    ).slice(0, 8);
     list.replaceChildren(
       ...res.map((l) =>
         h("button", { class: "floow-listitem", onclick: () => { currentLeadId = l.id; searchMode = false; matchInfo = "escolhido na busca"; render(); } }, [
@@ -156,7 +144,6 @@ function renderSearch() {
     if (!res.length && q) list.append(h("div", { class: "floow-hint" }, ["Nenhum lead encontrado."]));
   }
   input.addEventListener("input", update);
-
   body.append(
     h("div", { class: "floow-section" }, [
       h("div", { class: "floow-row" }, [
@@ -172,14 +159,14 @@ function renderSearch() {
 function renderLead() {
   const lead = currentLead();
 
-  // Cabeçalho: chat atual + ações
-  const top = h("div", { class: "floow-section" }, [
-    h("div", { class: "floow-row" }, [
-      h("div", { class: "floow-chat" }, [lastTitle ? `Conversa: ${lastTitle}` : "Abra uma conversa"]),
-      h("button", { class: "floow-link", onclick: () => { searchMode = true; render(); } }, ["buscar"]),
+  body.append(
+    h("div", { class: "floow-section" }, [
+      h("div", { class: "floow-row" }, [
+        h("div", { class: "floow-chat" }, [lastTitle ? `Conversa: ${lastTitle}` : "Abra uma conversa"]),
+        h("button", { class: "floow-link", onclick: () => { searchMode = true; render(); } }, ["buscar"]),
+      ]),
     ]),
-  ]);
-  body.append(top);
+  );
 
   if (!lead) {
     body.append(
@@ -192,45 +179,38 @@ function renderLead() {
     return;
   }
 
-  // Card do lead
   const fonte = lead.fonte ? (FONTE_LABELS[lead.fonte] ?? lead.fonte) : null;
   body.append(
     h("div", { class: "floow-section" }, [
       h("div", { class: "floow-leadname" }, [lead.empresa || lead.nome]),
       lead.empresa ? h("div", { class: "floow-leadsub" }, [lead.nome]) : document.createTextNode(""),
       h("div", { class: "floow-badge", style: `border-color:${STATUS_DOT[lead.status]}55;color:${STATUS_DOT[lead.status]}` }, [
-        h("span", { class: "floow-dot", style: `background:${STATUS_DOT[lead.status]}` }),
-        STATUS_LABELS[lead.status],
+        h("span", { class: "floow-dot", style: `background:${STATUS_DOT[lead.status]}` }), STATUS_LABELS[lead.status],
       ]),
       h("div", { class: "floow-meta" }, [
         lead.sdr_responsavel ? h("div", {}, [`SDR: ${lead.sdr_responsavel}`]) : document.createTextNode(""),
         lead.closer_responsavel ? h("div", {}, [`Closer: ${lead.closer_responsavel}`]) : document.createTextNode(""),
         fonte ? h("div", {}, [`Origem: ${fonte}`]) : document.createTextNode(""),
+        lead.data_agendamento ? h("div", { style: "color:#f5c518" }, [`📅 ${fmtDate(lead.data_agendamento)}`]) : document.createTextNode(""),
       ]),
       matchInfo ? h("div", { class: "floow-hint" }, [`vinculado ${matchInfo}`]) : document.createTextNode(""),
     ]),
   );
 
-  // Mover etapa (só etapas seguras)
+  // Mover etapa — TODAS as etapas, com trava por papel + regras (dialogs).
   const grid = h("div", { class: "floow-grid" });
-  for (const s of SAFE_STAGES) {
+  for (const s of STATUS_ORDER) {
     const active = s === lead.status;
     const allowed = active || canMoveTo(s, member);
     const b = h("button", {
       class: `floow-stage${active ? " active" : ""}${!allowed ? " locked" : ""}`,
       style: active ? `border-color:${STATUS_DOT[s]}55;color:${STATUS_DOT[s]}` : "",
-      title: !allowed ? "Sem permissão pra essa etapa" : "",
+      title: !allowed ? "Etapa do Closer — sem permissão" : "",
     }, [h("span", { class: "floow-dot", style: `background:${STATUS_DOT[s]}` }), STATUS_LABELS[s]]);
-    if (!active && allowed) b.addEventListener("click", () => moveStatus(lead, s));
+    if (!active && allowed) b.addEventListener("click", () => beginMove(lead, s));
     grid.append(b);
   }
-  body.append(
-    h("div", { class: "floow-section" }, [
-      h("div", { class: "floow-title" }, ["Mover para"]),
-      grid,
-      h("div", { class: "floow-hint" }, ["Reunião, ganho/perdido e desqualificar: faça no app (pedem dados extras)."]),
-    ]),
-  );
+  body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Mover para"]), grid]));
 
   // Observações
   const ta = h("textarea", { class: "floow-input floow-textarea", placeholder: "Observações…" }) as HTMLTextAreaElement;
@@ -245,22 +225,13 @@ function renderLead() {
     if (error) { flash("Erro ao salvar: " + error.message); return; }
     lead.observacoes = novo;
     saveBtn.disabled = true;
-    // Registra a alteração no histórico, vinculada ao usuário logado.
     await supabase.from("lead_events").insert({
-      lead_id: lead.id,
-      tipo: "note",
-      actor_email: sessionEmail,
-      actor_name: member.name,
+      lead_id: lead.id, tipo: "note", actor_email: sessionEmail, actor_name: member.name,
       payload: { via: "whatsapp_ext", note: "Observações atualizadas pela extensão" },
     });
     flash("Observações salvas ✓");
   });
-  body.append(
-    h("div", { class: "floow-section" }, [
-      h("div", { class: "floow-title" }, ["Observações"]),
-      ta, saveBtn,
-    ]),
-  );
+  body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Observações"]), ta, saveBtn]));
 
   renderFooter(lead);
 }
@@ -279,6 +250,11 @@ function renderFooter(lead?: Lead) {
   );
 }
 
+function fmtDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
 let flashTimer: ReturnType<typeof setTimeout> | null = null;
 function flash(text: string) {
   let el = document.getElementById("floow-flash");
@@ -290,27 +266,152 @@ function flash(text: string) {
 }
 
 // ============================================================
-// Ações
+// Modais (regras de cada etapa, como no app)
 // ============================================================
-async function moveStatus(lead: Lead, status: LeadStatus) {
-  const prev = lead.status;
-  lead.status = status; // otimista
-  render();
-  const { error } = await supabase.from("leads").update(patchForStatus(status)).eq("id", lead.id);
-  if (error) {
-    lead.status = prev;
-    render();
-    flash("Não foi possível mover: " + error.message);
-  } else {
-    flash(`Movido para "${STATUS_LABELS[status]}" ✓`);
+type ModalApi<T> = { setError: (m: string) => void; done: (v: T) => void; cancel: () => void };
+
+function openModal<T>(title: string, build: (api: ModalApi<T>) => HTMLElement): Promise<T | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (v: T | null) => { if (settled) return; settled = true; overlay.remove(); resolve(v); };
+    const errEl = h("div", { class: "floow-msg" });
+    const api: ModalApi<T> = { setError: (m) => { errEl.textContent = m; }, done: (v) => finish(v), cancel: () => finish(null) };
+    const bodyEl = build(api);
+    const overlay = h("div", { class: "floow-modal" }, [
+      h("div", { class: "floow-modal-card" }, [
+        h("div", { class: "floow-modal-head" }, [
+          h("div", { class: "floow-title" }, [title]),
+          h("button", { class: "floow-x", onclick: () => api.cancel() }, ["×"]),
+        ]),
+        h("div", { class: "floow-modal-body" }, [bodyEl, errEl]),
+      ]),
+    ]);
+    panel.append(overlay);
+  });
+}
+
+function askQualification(lead: Lead): Promise<Record<string, string> | null> {
+  const vals: Record<string, string> = {};
+  for (const f of QUAL_FIELDS) { const v = lead[f.key] as string | null; if (v) vals[f.key as string] = v; }
+  return openModal("Qualificação obrigatória", (api) => {
+    const wrap = h("div", {});
+    wrap.append(h("div", { class: "floow-hint", style: "margin-bottom:8px" }, ["Preencha pra avançar (igual ao app)."]));
+    for (const f of QUAL_FIELDS) {
+      const pills = h("div", { class: "floow-pills" });
+      for (const [val, label] of Object.entries(f.options)) {
+        const b = h("button", { class: "floow-pill" + (vals[f.key as string] === val ? " sel" : "") }, [label]);
+        b.addEventListener("click", () => {
+          vals[f.key as string] = val;
+          pills.querySelectorAll(".floow-pill").forEach((x) => x.classList.remove("sel"));
+          b.classList.add("sel");
+        });
+        pills.append(b);
+      }
+      wrap.append(h("div", { class: "floow-qlabel" }, [f.label]), pills);
+    }
+    const confirm = h("button", { class: "floow-btn floow-btn-primary", style: "margin-top:10px" }, ["Confirmar qualificação"]);
+    confirm.addEventListener("click", () => {
+      for (const f of QUAL_FIELDS) if (!vals[f.key as string]) { api.setError("Falta: " + f.label); return; }
+      api.done({ ...vals });
+    });
+    wrap.append(confirm);
+    return wrap;
+  });
+}
+
+function askReason(title: string, labels: Record<string, string>): Promise<string | null> {
+  return openModal(title, (api) => {
+    const wrap = h("div", { class: "floow-pills" });
+    for (const [val, label] of Object.entries(labels)) {
+      const b = h("button", { class: "floow-pill" }, [label]);
+      b.addEventListener("click", () => api.done(val));
+      wrap.append(b);
+    }
+    return wrap;
+  });
+}
+
+function askCreative(lead: Lead): Promise<{ code: number | null } | null> {
+  return openModal("Código do criativo", (api) => {
+    const wrap = h("div", {});
+    const input = h("input", { type: "number", min: "1", placeholder: "Ex: 12", class: "floow-input" }) as HTMLInputElement;
+    if (lead.criativo_codigo != null) input.value = String(lead.criativo_codigo);
+    const ok = h("button", { class: "floow-btn floow-btn-primary" }, ["Confirmar"]);
+    ok.addEventListener("click", () => { const v = input.value.trim(); api.done({ code: v ? Number(v) : null }); });
+    const skip = h("button", { class: "floow-btn", style: "margin-top:6px" }, ["Sem código"]);
+    skip.addEventListener("click", () => api.done({ code: null }));
+    wrap.append(h("div", { class: "floow-hint", style: "margin-bottom:8px" }, ["Qual anúncio trouxe esse cliente?"]), input, ok, skip);
+    return wrap;
+  });
+}
+
+function askCloserDate(lead: Lead): Promise<{ closer: string; dataIso: string } | null> {
+  return openModal("Agendar reunião", (api) => {
+    const wrap = h("div", {});
+    let sel: string | null = lead.closer_responsavel ?? null;
+    const pills = h("div", { class: "floow-pills" });
+    if (!closers.length) pills.append(h("div", { class: "floow-hint" }, ["Nenhum Closer cadastrado."]));
+    for (const c of closers) {
+      const b = h("button", { class: "floow-pill" + (sel === c.name ? " sel" : "") }, [c.name]);
+      b.addEventListener("click", () => { sel = c.name; pills.querySelectorAll(".floow-pill").forEach((x) => x.classList.remove("sel")); b.classList.add("sel"); });
+      pills.append(b);
+    }
+    const dt = h("input", { type: "datetime-local", class: "floow-input" }) as HTMLInputElement;
+    if (lead.data_agendamento) {
+      const d = new Date(lead.data_agendamento); const p = (n: number) => String(n).padStart(2, "0");
+      dt.value = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+    const ok = h("button", { class: "floow-btn floow-btn-primary", style: "margin-top:10px" }, ["Confirmar reunião"]);
+    ok.addEventListener("click", () => {
+      if (!sel) { api.setError("Escolha o Closer."); return; }
+      if (!dt.value) { api.setError("Escolha data e hora."); return; }
+      api.done({ closer: sel, dataIso: new Date(dt.value).toISOString() });
+    });
+    wrap.append(
+      h("div", { class: "floow-qlabel" }, ["Closer responsável *"]), pills,
+      h("div", { class: "floow-qlabel", style: "margin-top:10px" }, ["Data e hora *"]), dt, ok,
+      h("div", { class: "floow-hint", style: "margin-top:8px" }, ["O evento no Google Agenda é criado/ajustado pelo app."]),
+    );
+    return wrap;
+  });
+}
+
+// ============================================================
+// Mover etapa (com as regras do app)
+// ============================================================
+async function beginMove(lead: Lead, target: LeadStatus) {
+  if (!canMoveTo(target, member)) { flash("Sem permissão pra essa etapa"); return; }
+  const patch = patchForStatus(target);
+
+  if (needsQualification(lead, target)) {
+    const q = await askQualification(lead);
+    if (!q) return;
+    Object.assign(patch, q);
   }
+  if (target === "negocio_perdido") {
+    const m = await askReason("Motivo da perda", MOTIVO_PERDA_LABELS);
+    if (!m) return; patch.motivo_perda = m;
+  } else if (target === "desqualificado") {
+    const m = await askReason("Motivo da desqualificação", MOTIVO_DESQUALIFICACAO_LABELS);
+    if (!m) return; patch.motivo_desqualificacao = m;
+  } else if (target === "negocio_ganho") {
+    const c = await askCreative(lead);
+    if (!c) return; patch.criativo_codigo = c.code;
+  } else if (target === "reuniao_agendada") {
+    const r = await askCloserDate(lead);
+    if (!r) return; patch.closer_responsavel = r.closer; patch.data_agendamento = r.dataIso;
+  }
+
+  const { error } = await supabase.from("leads").update(patch).eq("id", lead.id);
+  if (error) { flash("Não foi possível: " + error.message); return; }
+  Object.assign(lead, patch);
+  render();
+  flash(`Movido para "${STATUS_LABELS[target]}" ✓`);
 }
 
 async function doLogout() {
   await supabase.auth.signOut();
-  authed = false;
-  leads = [];
-  currentLeadId = null;
+  authed = false; leads = []; currentLeadId = null;
   render();
 }
 
@@ -323,29 +424,20 @@ async function afterAuth() {
   authed = !!sessionEmail;
   if (!authed) return render();
 
-  // Papel do usuário (pra travar etapas como no app)
-  const { data: m } = await supabase
-    .from("team_members")
-    .select("name,role,is_admin")
-    .eq("email", sessionEmail)
-    .maybeSingle();
-  member = {
-    name: (m?.name as string) ?? null,
-    role: (m?.role as string) ?? null,
-    isAdmin: !!m?.is_admin || sessionEmail?.toLowerCase() === ADMIN_EMAIL,
-  };
+  const { data: m } = await supabase.from("team_members").select("name,role,is_admin").eq("email", sessionEmail).maybeSingle();
+  member = { name: (m?.name as string) ?? null, role: (m?.role as string) ?? null, isAdmin: !!m?.is_admin || sessionEmail?.toLowerCase() === ADMIN_EMAIL };
+
+  const { data: cl } = await supabase.from("team_members").select("id,name").eq("role", "Closer").eq("active", true).order("name");
+  closers = (cl as { id: string; name: string }[]) ?? [];
 
   await loadLeads();
   subscribeRealtime();
-  matchFromChat(readActiveChatTitle());
+  matchFromChat();
   render();
 }
 
 async function loadLeads() {
-  const { data } = await supabase
-    .from("leads")
-    .select("id,nome,empresa,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,updated_at")
-    .order("updated_at", { ascending: false });
+  const { data } = await supabase.from("leads").select(LEAD_COLUMNS).order("updated_at", { ascending: false });
   leads = (data as Lead[]) ?? [];
 }
 
@@ -362,10 +454,9 @@ function subscribeRealtime() {
         leads = leads.filter((l) => l.id !== oldId);
       } else if (row.id) {
         const i = leads.findIndex((l) => l.id === row.id);
-        if (i >= 0) leads[i] = { ...leads[i], ...row };
-        else leads.unshift(row);
+        if (i >= 0) leads[i] = { ...leads[i], ...row }; else leads.unshift(row);
       }
-      if (!collapsed && !searchMode) render();
+      if (!collapsed && !searchMode && !document.querySelector(".floow-modal")) render();
     })
     .subscribe((status) => setConn(status === "SUBSCRIBED" ? "on" : "off"));
 }
@@ -373,30 +464,40 @@ function subscribeRealtime() {
 // ============================================================
 // Vínculo com a conversa aberta
 // ============================================================
-function matchFromChat(title: string | null) {
-  lastTitle = title;
-  if (!title) { currentLeadId = null; matchInfo = ""; return; }
+function matchFromChat() {
+  const phone = readActiveChatPhone();
+  const title = readActiveChatTitle();
+  lastTitle = title || (phone ? `+${phone}` : null);
 
-  if (looksLikePhone(title)) {
-    const norm = normalizePhone(title);
-    const l = leads.find((x) => normalizePhone(x.telefone) === norm);
-    currentLeadId = l?.id ?? null;
-    matchInfo = l ? "por telefone" : "";
-    return;
+  let l: Lead | undefined;
+  if (phone) {
+    const norm = normalizePhone(phone);
+    l = leads.find((x) => normalizePhone(x.telefone) === norm);
+    if (l) matchInfo = "por telefone (conversa)";
   }
-  const t = title.toLowerCase();
-  let l = leads.find((x) => (x.nome || "").toLowerCase() === t || (x.empresa || "").toLowerCase() === t);
-  if (!l) l = leads.find((x) => (x.nome || "").toLowerCase().includes(t) || (x.empresa || "").toLowerCase().includes(t));
+  if (!l && title) {
+    if (looksLikePhone(title)) {
+      const norm = normalizePhone(title);
+      l = leads.find((x) => normalizePhone(x.telefone) === norm);
+      if (l) matchInfo = "por telefone";
+    } else {
+      const t = title.toLowerCase();
+      l = leads.find((x) => (x.nome || "").toLowerCase() === t || (x.empresa || "").toLowerCase() === t)
+        ?? leads.find((x) => (x.nome || "").toLowerCase().includes(t) || (x.empresa || "").toLowerCase().includes(t));
+      if (l) matchInfo = "por nome";
+    }
+  }
   currentLeadId = l?.id ?? null;
-  matchInfo = l ? "por nome" : "";
+  if (!l) matchInfo = "";
 }
 
 function startChatWatch() {
   setInterval(() => {
-    const title = readActiveChatTitle();
-    if (title === lastTitle) return;
-    matchFromChat(title);
-    if (authed && !searchMode && !collapsed) render();
+    const key = (readActiveChatPhone() || "") + "|" + (readActiveChatTitle() || "");
+    if (key === lastKey) return;
+    lastKey = key;
+    matchFromChat();
+    if (authed && !searchMode && !collapsed && !document.querySelector(".floow-modal")) render();
   }, 1000);
 }
 
@@ -411,6 +512,5 @@ async function boot() {
   else { authed = false; render(); }
 }
 
-// WhatsApp Web demora a montar; espera o body existir.
 if (document.body) boot();
 else window.addEventListener("DOMContentLoaded", boot);
