@@ -21168,7 +21168,7 @@ ${suffix}`;
   // src/content.ts
   var authed = false;
   var sessionEmail = null;
-  var member = { role: null, isAdmin: false };
+  var member = { name: null, role: null, isAdmin: false };
   var leads = [];
   var currentLeadId = null;
   var matchInfo = "";
@@ -21363,13 +21363,23 @@ ${suffix}`;
     });
     saveBtn.addEventListener("click", async () => {
       saveBtn.textContent = "Salvando\u2026";
-      const { error } = await supabase.from("leads").update({ observacoes: ta.value.trim() || null }).eq("id", lead.id);
+      const novo = ta.value.trim() || null;
+      const { error } = await supabase.from("leads").update({ observacoes: novo }).eq("id", lead.id);
       saveBtn.textContent = "Salvar observa\xE7\xF5es";
-      if (error) flash("Erro ao salvar: " + error.message);
-      else {
-        saveBtn.disabled = true;
-        flash("Observa\xE7\xF5es salvas \u2713");
+      if (error) {
+        flash("Erro ao salvar: " + error.message);
+        return;
       }
+      lead.observacoes = novo;
+      saveBtn.disabled = true;
+      await supabase.from("lead_events").insert({
+        lead_id: lead.id,
+        tipo: "note",
+        actor_email: sessionEmail,
+        actor_name: member.name,
+        payload: { via: "whatsapp_ext", note: "Observa\xE7\xF5es atualizadas pela extens\xE3o" }
+      });
+      flash("Observa\xE7\xF5es salvas \u2713");
     });
     body.append(
       h("div", { class: "floow-section" }, [
@@ -21384,7 +21394,10 @@ ${suffix}`;
     body.append(
       h("div", { class: "floow-section floow-footer" }, [
         lead ? h("a", { class: "floow-link", href: `${APP_URL}/kanban?lead=${lead.id}`, target: "_blank" }, ["Abrir no app \u2197"]) : h("a", { class: "floow-link", href: `${APP_URL}/kanban`, target: "_blank" }, ["Abrir app \u2197"]),
-        h("button", { class: "floow-link", onclick: doLogout }, ["sair"])
+        h("div", { class: "floow-who" }, [
+          h("span", { class: "floow-hint" }, [member.name ? `Logado: ${member.name}` : sessionEmail ?? ""]),
+          h("button", { class: "floow-link", onclick: doLogout }, ["sair"])
+        ])
       ])
     );
   }
@@ -21425,8 +21438,9 @@ ${suffix}`;
     sessionEmail = sess.session?.user?.email ?? null;
     authed = !!sessionEmail;
     if (!authed) return render();
-    const { data: m } = await supabase.from("team_members").select("role,is_admin").eq("email", sessionEmail).maybeSingle();
+    const { data: m } = await supabase.from("team_members").select("name,role,is_admin").eq("email", sessionEmail).maybeSingle();
     member = {
+      name: m?.name ?? null,
       role: m?.role ?? null,
       isAdmin: !!m?.is_admin || sessionEmail?.toLowerCase() === ADMIN_EMAIL
     };

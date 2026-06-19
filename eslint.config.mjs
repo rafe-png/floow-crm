@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Extensão do WhatsApp é um projeto à parte (vanilla TS + esbuild bundle).
+    "whatsapp-extension/**",
   ]),
 ]);
 

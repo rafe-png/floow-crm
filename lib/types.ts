@@ -205,6 +205,9 @@ export type LeadEvent = {
   from_status: LeadStatus | null;
   to_status: LeadStatus | null;
   payload: Record<string, unknown> | null;
+  // Autoria (migração 031): quem fez a alteração. Null = sistema (webhook).
+  actor_email: string | null;
+  actor_name: string | null;
 };
 
 export type UserGoals = {

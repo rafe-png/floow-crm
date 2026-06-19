@@ -19,7 +19,7 @@ import { readActiveChatTitle } from "./whatsapp";
 // ============================================================
 let authed = false;
 let sessionEmail: string | null = null;
-let member: { role: string | null; isAdmin: boolean } = { role: null, isAdmin: false };
+let member: { name: string | null; role: string | null; isAdmin: boolean } = { name: null, role: null, isAdmin: false };
 let leads: Lead[] = [];
 let currentLeadId: string | null = null;
 let matchInfo = "";
@@ -239,10 +239,21 @@ function renderLead() {
   ta.addEventListener("input", () => { saveBtn.disabled = ta.value === (lead.observacoes ?? ""); });
   saveBtn.addEventListener("click", async () => {
     saveBtn.textContent = "Salvando…";
-    const { error } = await supabase.from("leads").update({ observacoes: ta.value.trim() || null }).eq("id", lead.id);
+    const novo = ta.value.trim() || null;
+    const { error } = await supabase.from("leads").update({ observacoes: novo }).eq("id", lead.id);
     saveBtn.textContent = "Salvar observações";
-    if (error) flash("Erro ao salvar: " + error.message);
-    else { saveBtn.disabled = true; flash("Observações salvas ✓"); }
+    if (error) { flash("Erro ao salvar: " + error.message); return; }
+    lead.observacoes = novo;
+    saveBtn.disabled = true;
+    // Registra a alteração no histórico, vinculada ao usuário logado.
+    await supabase.from("lead_events").insert({
+      lead_id: lead.id,
+      tipo: "note",
+      actor_email: sessionEmail,
+      actor_name: member.name,
+      payload: { via: "whatsapp_ext", note: "Observações atualizadas pela extensão" },
+    });
+    flash("Observações salvas ✓");
   });
   body.append(
     h("div", { class: "floow-section" }, [
@@ -260,7 +271,10 @@ function renderFooter(lead?: Lead) {
       lead
         ? h("a", { class: "floow-link", href: `${APP_URL}/kanban?lead=${lead.id}`, target: "_blank" }, ["Abrir no app ↗"])
         : h("a", { class: "floow-link", href: `${APP_URL}/kanban`, target: "_blank" }, ["Abrir app ↗"]),
-      h("button", { class: "floow-link", onclick: doLogout }, ["sair"]),
+      h("div", { class: "floow-who" }, [
+        h("span", { class: "floow-hint" }, [member.name ? `Logado: ${member.name}` : (sessionEmail ?? "")]),
+        h("button", { class: "floow-link", onclick: doLogout }, ["sair"]),
+      ]),
     ]),
   );
 }
@@ -312,10 +326,11 @@ async function afterAuth() {
   // Papel do usuário (pra travar etapas como no app)
   const { data: m } = await supabase
     .from("team_members")
-    .select("role,is_admin")
+    .select("name,role,is_admin")
     .eq("email", sessionEmail)
     .maybeSingle();
   member = {
+    name: (m?.name as string) ?? null,
     role: (m?.role as string) ?? null,
     isAdmin: !!m?.is_admin || sessionEmail?.toLowerCase() === ADMIN_EMAIL,
   };

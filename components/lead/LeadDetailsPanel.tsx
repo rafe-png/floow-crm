@@ -417,7 +417,18 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
                         <span className={STATUS_COLORS[ev.to_status!].text}>{STATUS_LABELS[ev.to_status!]}</span>
                       </span>
                     )}
+                    {ev.tipo === "note" && (
+                      <span>{String(ev.payload?.note ?? "Observações atualizadas")}</span>
+                    )}
                   </div>
+                  {(ev.actor_name || ev.actor_email || ev.payload?.via === "whatsapp_ext") && (
+                    <div className="mt-1 text-[10px] text-zinc-500">
+                      por {ev.actor_name || ev.actor_email || "—"}
+                      {ev.payload?.via === "whatsapp_ext" && (
+                        <span className="ml-1 rounded bg-[#25D366]/10 px-1 py-0.5 text-[#25D366]">via WhatsApp</span>
+                      )}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

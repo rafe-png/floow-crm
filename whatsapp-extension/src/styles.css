@@ -87,6 +87,7 @@
 #floow-panel .floow-listname { flex: 1 1 auto; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #floow-panel .floow-listtag { font-size: 10px; color: #a1a1aa; }
 #floow-panel .floow-footer { display: flex; align-items: center; justify-content: space-between; border-bottom: none; }
+#floow-panel .floow-who { display: flex; align-items: center; gap: 10px; }
 
 #floow-flash {
   position: absolute; left: 14px; right: 14px; bottom: 14px; z-index: 1;
