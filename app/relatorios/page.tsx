@@ -17,6 +17,7 @@ import {
   buildLossReasons,
   buildMonthlyStats,
   buildPersonStats,
+  buildSourceStats,
   buildWeekdayStats,
   downloadCsv,
   filterLeadsByPeriod,
@@ -39,6 +40,7 @@ export default function RelatoriosPage() {
   const disqualReasons = useMemo(() => buildDisqualReasons(filtered), [filtered]);
   const sdrStats = useMemo(() => buildPersonStats(filtered, "SDR"), [filtered]);
   const closerStats = useMemo(() => buildPersonStats(filtered, "Closer"), [filtered]);
+  const sourceStats = useMemo(() => buildSourceStats(filtered), [filtered]);
   const monthly = useMemo(() => buildMonthlyStats(leads, 6), [leads]);
   const weekday = useMemo(() => buildWeekdayStats(filtered), [filtered]);
   const creatives = useMemo(() => buildCreativeStats(filtered), [filtered]);
@@ -160,6 +162,41 @@ export default function RelatoriosPage() {
                 );
               })}
             </div>
+          </section>
+
+          {/* Por origem (fonte de marketing) */}
+          <section className="rounded-xl border border-zinc-900 bg-zinc-950/60 p-4">
+            <h3 className="mb-3 text-sm font-semibold text-zinc-200">Por origem (fonte)</h3>
+            {sourceStats.length === 0 ? (
+              <p className="text-xs text-zinc-500">Sem dados no período.</p>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-[10px] uppercase tracking-wider text-zinc-500">
+                    <th className="pb-2 font-medium">Origem</th>
+                    <th className="pb-2 text-right font-medium">Leads</th>
+                    <th className="pb-2 text-right font-medium">Qualif.</th>
+                    <th className="pb-2 text-right font-medium">Agendou</th>
+                    <th className="pb-2 text-right font-medium">Ganhou</th>
+                    <th className="pb-2 text-right font-medium">Conversão</th>
+                    <th className="pb-2 text-right font-medium">Faturamento</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sourceStats.map((s) => (
+                    <tr key={s.key} className="border-t border-zinc-900">
+                      <td className="py-2 text-zinc-200">{s.label}</td>
+                      <td className="py-2 text-right text-zinc-300">{s.leads}</td>
+                      <td className="py-2 text-right text-zinc-300">{s.qualificados}</td>
+                      <td className="py-2 text-right text-zinc-300">{s.agendamentos}</td>
+                      <td className="py-2 text-right text-zinc-300">{s.ganhos}</td>
+                      <td className="py-2 text-right text-[#f5c518]">{fmtPct(s.convRate)}</td>
+                      <td className="py-2 text-right text-emerald-300">{fmtBRL(s.faturamento)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </section>
 
           {/* Motivos de perda */}

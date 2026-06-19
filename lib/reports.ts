@@ -2,10 +2,12 @@ import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   PIPELINE_STATUSES,
+  FONTE_LABELS,
   MOTIVO_DESQUALIFICACAO_LABELS,
   MOTIVO_PERDA_LABELS,
   STATUS_LABELS,
   type Lead,
+  type LeadFonte,
   type LeadStatus,
   type MotivoDesqualificacao,
   type MotivoPerda,
@@ -228,6 +230,45 @@ export function buildPersonStats(leads: Lead[], role: "SDR" | "Closer"): PersonS
 }
 
 // ============================================================
+// Por fonte de marketing (Meta Ads / Indicação / Outbound / Outro)
+// ============================================================
+
+export type SourceStat = {
+  key: LeadFonte | "sem_fonte";
+  label: string;
+  leads: number;
+  qualificados: number;
+  agendamentos: number;
+  ganhos: number;
+  faturamento: number;
+  convRate: number; // ganhos ÷ leads (%)
+};
+
+/** Agrupa os leads por fonte: quantos chegaram, qualificaram, agendaram, ganharam. */
+export function buildSourceStats(leads: Lead[]): SourceStat[] {
+  const map = new Map<LeadFonte | "sem_fonte", SourceStat>();
+  for (const l of leads) {
+    const k = (l.fonte ?? "sem_fonte") as LeadFonte | "sem_fonte";
+    const cur = map.get(k) ?? {
+      key: k,
+      label: k === "sem_fonte" ? "Sem origem" : FONTE_LABELS[k],
+      leads: 0, qualificados: 0, agendamentos: 0, ganhos: 0, faturamento: 0, convRate: 0,
+    };
+    cur.leads++;
+    if (wasQualified(l)) cur.qualificados++;
+    if (l.agendado_em) cur.agendamentos++;
+    if (l.status === "negocio_ganho") {
+      cur.ganhos++;
+      if (l.valor) cur.faturamento += Number(l.valor);
+    }
+    map.set(k, cur);
+  }
+  return Array.from(map.values())
+    .map((s) => ({ ...s, convRate: s.leads > 0 ? (s.ganhos / s.leads) * 100 : 0 }))
+    .sort((a, b) => b.leads - a.leads);
+}
+
+// ============================================================
 // Análises inteligentes (dia da semana, mensal, criativos)
 // ============================================================
 
@@ -325,6 +366,7 @@ export function buildLeadsCsv(leads: Lead[]): string {
     "Telefone",
     "Instagram",
     "Status",
+    "Origem",
     "Valor",
     "SDR responsável",
     "Closer responsável",
@@ -351,6 +393,7 @@ export function buildLeadsCsv(leads: Lead[]): string {
     l.telefone,
     l.instagram ?? "",
     STATUS_LABELS[l.status],
+    l.fonte ? FONTE_LABELS[l.fonte] : "",
     l.valor ?? "",
     l.sdr_responsavel ?? "",
     l.closer_responsavel ?? "",

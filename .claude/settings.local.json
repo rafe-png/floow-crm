@@ -101,7 +101,8 @@
       "Bash(python3 -c \"import sys,json; print\\('   restantes:', len\\(json.load\\(sys.stdin\\)\\)\\)\")",
       "mcp__plugin_vercel_vercel__get_runtime_logs",
       "Bash(npx --yes vercel@latest ls --prod)",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); from collections import Counter; print\\(Counter\\(x['origem'] for x in d\\)\\)\")"
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); from collections import Counter; print\\(Counter\\(x['origem'] for x in d\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; from collections import Counter; print\\(Counter\\(x['fonte'] for x in json.load\\(sys.stdin\\)\\)\\)\")"
     ]
   }
 }
