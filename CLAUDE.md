@@ -82,6 +82,9 @@ SQL migrations live in `supabase/migrations/`. They are applied manually via Sup
 - `024` / `025` — etapa **`sem_resposta`** (pulmão de recontato, não-descarte) no enum (024, sozinha) + RLS liberando o SDR (025). Auto-move: Vercel Cron diário (`vercel.json` → `/api/cron/stale-leads`, 9h UTC) move leads parados em `qualificado` (Entrada) há > `STALE_LEAD_DAYS` (=7) dias pra `sem_resposta`. Rota protegida por `CRON_SECRET` (Authorization Bearer, ou `?token=`); usa service_role. Middleware libera `/api/cron`. SDR recupera arrastando de volta.
 - `022` / `023` — etapa **`desqualificado`** no enum (022, rodar sozinha) + coluna `leads.motivo_desqualificacao` (text) e RLS liberando o SDR a desqualificar (023). Popup de motivo em `DisqualifyDialog`; motivos em `MOTIVO_DESQUALIFICACAO_LABELS`; relatório "Motivos de desqualificação".
 - `018` — papel "Gestor de tráfego" (`team_members.role` aceita 'Trafego'; helper `app_is_traffic()`), insere Eduardo (eduardo@floowdigital.com), e cria `ad_investments` (investimento de ads por período, trava de sobreposição via EXCLUDE gist, RLS leitura=autenticado/escrita=admin+trafego). Rodar DEPOIS da 016.
+- `028` — etapa **`agendando`** ("Em agendamento") no enum, entre `em_agendamento` e `reuniao_agendada`. Rodar SOZINHA (ALTER TYPE ADD VALUE). Voltar um lead de `reuniao_agendada` pra essa etapa limpa o agendamento (igual qualificado/em_agendamento/no_show em `useLeads.updateLead`).
+- `029` — rastreio de **no-shows seguidos**: `leads.no_show_count` (int default 0) + `leads.last_no_show_em` (timestamptz). Estende `set_status_timestamps`: ao entrar em `no_show` guarda `OLD.data_agendamento` em `last_no_show_em` e incrementa o contador; quando a reunião acontece (sai de `reuniao_agendada` p/ ganho/perdido/follow_up/carteira) zera o contador. 2+ → aviso vermelho no `LeadCard`. Backfill via `lead_events`. Rodar DEPOIS da 028.
+- `030` — `leads.fonte` (text: 'meta_ads'|'indicacao'|'outbound'|'outro') = fonte de marketing (read-only no card + select no `LeadDetailsPanel`). Webhook do WhatsApp grava `fonte='meta_ads'`. Backfill: `origem='whatsapp'`→`meta_ads`. NÃO confundir com `origem` (controle interno 'manual'|'whatsapp'). Relatórios: `buildSourceStats` ("Por origem (fonte)") + coluna no CSV.
 - `016` — RLS com papéis no banco (antes era só `auth.role() = 'authenticated'`). Adiciona coluna `team_members.is_admin` (admin vira dado, não email fixo) e helpers SECURITY DEFINER (`app_is_admin`, `app_is_closer`, `app_owns_lead`, `app_owns_goal`) que cruzam `auth.email()` × `team_members`. Regras: leads UPDATE trava a zona do Closer pro SDR (status resultante só pode ser etapa SDR); leads DELETE só admin/dono; team_members escrita só admin (API routes com service_role ignoram RLS); user_goals cada um edita a meta do próprio papel. SELECT continua aberto a autenticados (de propósito). `app_is_admin()` lê `is_admin` com fallback no email `rafe@floowdigital.com` (rede de segurança, espelha `ADMIN_EMAIL` em `lib/types.ts`). Client: `TeamContext.isAdmin` = `currentMember.is_admin || isAdminEmail(email)`; TopBar só mostra o lápis de meta pro dono do papel/admin. Rollback: `016_rls_permissions_rollback.sql`.
 
 ## Phased delivery — current state
@@ -91,7 +94,16 @@ SQL migrations live in `supabase/migrations/`. They are applied manually via Sup
 - Phase 2.2 (done) — Gamification: pontos, streak, nível, badges, ranking SDR vs Closer (all derived from `lead_events`)
 - Phase 2.3 (done) — Agenda visual com toggle mês/semana, navegação por período, click → painel lateral
 - Phase 2.7 (done) — Etapa "Em agendamento"; papéis/permissões (admin, zona do Closer travada pro SDR); filtro por responsável (só admin); gestão de usuários self-service; celebrações (dopamina) ao agendar/ganhar
-- Phase 3 (todo) — WhatsApp lead capture (Evolution API or Z-API)
+- Phase 3 (done) — WhatsApp lead capture via Z-API (webhook `app/api/webhooks/whatsapp/route.ts`): leads do anúncio entram em "Entrada" gateados por código `[NN]`, roteamento de SDR por número (`WHATSAPP_NUMBER_MAP`), `origem='whatsapp'`, `fonte='meta_ads'`
+- Phase 4 (MVP done) — **Extensão Chrome sobre o WhatsApp Web** (`whatsapp-extension/`). Ver seção abaixo.
+
+### Extensão WhatsApp (Phase 4)
+
+Diretório `whatsapp-extension/` (projeto à parte, vanilla TS + esbuild, NÃO faz parte do build Next). Painel injetado em `web.whatsapp.com` via content script que conversa direto com o mesmo Supabase (anon key embutida no build via `build.mjs` lendo `../.env.local`).
+- `src/content.ts` — UI do painel (DOM puro, escopado em `#floow-*`) + login Supabase (sessão em `chrome.storage.local`) + realtime + ações.
+- `src/whatsapp.ts` — lê a conversa aberta (`#main header span[title]`); frágil por design (HTML ofuscado), busca manual é a rede de segurança.
+- `src/crm.ts` — espelho enxuto de tipos/labels/`canMoveTo`/`normalizePhone` do app. Manter em sincronia se o funil mudar.
+- Só move pra `SAFE_STAGES` (sem dialogs de info extra); respeita RLS por papel. Build: `cd whatsapp-extension && npm install && npm run build` → carrega `dist/` em `chrome://extensions` (modo dev). `dist/` é commitado pra instalar sem buildar.
 
 ### Papéis e permissões (Phase 2.7)
 
