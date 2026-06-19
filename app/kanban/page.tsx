@@ -322,7 +322,6 @@ function KanbanContent() {
           onMove={handleMove}
           onCardClick={(lead) => setSelected(lead)}
           onCreate={(status) => { setNewStatus(status); setNewOpen(true); }}
-          onChangeFonte={(id, fonte) => updateLead(id, { fonte })}
           viewerRole={isAdmin || currentMember?.role === "Trafego" ? null : currentMember?.role ?? null}
           isAdmin={isAdmin}
         />

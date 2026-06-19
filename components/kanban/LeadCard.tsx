@@ -12,20 +12,17 @@ import {
   BANT_TIMING_LABELS,
   ESTOQUE_LABELS,
   FONTE_LABELS,
-  FONTE_OPTIONS,
   SEGMENTO_LABELS,
   type Lead,
-  type LeadFonte,
   whatsappLink,
 } from "@/lib/types";
 
 type Props = {
   lead: Lead;
   onClick: () => void;
-  onChangeFonte?: (id: string, fonte: LeadFonte) => void;
 };
 
-export function LeadCard({ lead, onClick, onChangeFonte }: Props) {
+export function LeadCard({ lead, onClick }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,
     data: { lead },
@@ -120,31 +117,13 @@ export function LeadCard({ lead, onClick, onChangeFonte }: Props) {
         </div>
       )}
 
-      {/* Origem (fonte de marketing) — selecionável direto no card */}
-      <div className="mt-2 flex items-center gap-1.5">
-        <span className="text-[10px] text-zinc-500">Origem:</span>
-        {onChangeFonte ? (
-          <select
-            value={lead.fonte ?? ""}
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-            onChange={(e) => {
-              e.stopPropagation();
-              if (e.target.value) onChangeFonte(lead.id, e.target.value as LeadFonte);
-            }}
-            className="rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 text-[10px] font-medium text-zinc-200 outline-none focus:border-[#f5c518]"
-          >
-            <option value="" disabled>Selecionar…</option>
-            {FONTE_OPTIONS.map((f) => (
-              <option key={f} value={f}>{FONTE_LABELS[f]}</option>
-            ))}
-          </select>
-        ) : (
-          <span className="text-[10px] font-medium text-zinc-300">
-            {lead.fonte ? FONTE_LABELS[lead.fonte] : "—"}
-          </span>
-        )}
-      </div>
+      {/* Origem (fonte de marketing) — só exibição; edição fica no modal */}
+      {lead.fonte && (
+        <div className="mt-2 flex items-center gap-1.5 text-[10px] text-zinc-500">
+          <span>Origem:</span>
+          <span className="font-medium text-zinc-300">{FONTE_LABELS[lead.fonte]}</span>
+        </div>
+      )}
 
       {/* Responsáveis */}
       {(lead.sdr_responsavel || lead.closer_responsavel) && (

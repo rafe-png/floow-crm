@@ -3,19 +3,18 @@
 import { useDroppable } from "@dnd-kit/core";
 import { Lock, Plus } from "lucide-react";
 import { LeadCard } from "./LeadCard";
-import { STATUS_COLORS, STATUS_LABELS, type Lead, type LeadFonte, type LeadStatus } from "@/lib/types";
+import { STATUS_COLORS, STATUS_LABELS, type Lead, type LeadStatus } from "@/lib/types";
 
 type Props = {
   status: LeadStatus;
   leads: Lead[];
   onCardClick: (lead: Lead) => void;
   onCreate: (status: LeadStatus) => void;
-  onChangeFonte: (id: string, fonte: LeadFonte) => void;
   /** Etapa do Closer que o viewer (SDR) não pode mexer: mais escura e sem drop */
   locked?: boolean;
 };
 
-export function Column({ status, leads, onCardClick, onCreate, onChangeFonte, locked = false }: Props) {
+export function Column({ status, leads, onCardClick, onCreate, locked = false }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: status, disabled: locked });
   const colors = STATUS_COLORS[status];
 
@@ -71,7 +70,7 @@ export function Column({ status, leads, onCardClick, onCreate, onChangeFonte, lo
           </div>
         )}
         {leads.map((lead) => (
-          <LeadCard key={lead.id} lead={lead} onClick={() => onCardClick(lead)} onChangeFonte={onChangeFonte} />
+          <LeadCard key={lead.id} lead={lead} onClick={() => onCardClick(lead)} />
         ))}
       </div>
     </div>

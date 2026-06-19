@@ -13,19 +13,18 @@ import {
 } from "@dnd-kit/core";
 import { Column } from "./Column";
 import { LeadCard } from "./LeadCard";
-import { canMoveTo, STATUS_ORDER, type Lead, type LeadFonte, type LeadStatus, type Owner } from "@/lib/types";
+import { canMoveTo, STATUS_ORDER, type Lead, type LeadStatus, type Owner } from "@/lib/types";
 
 type Props = {
   leads: Lead[];
   onMove: (id: string, status: LeadStatus) => Promise<void>;
   onCardClick: (lead: Lead) => void;
   onCreate: (status: LeadStatus) => void;
-  onChangeFonte: (id: string, fonte: LeadFonte) => void;
   viewerRole: Owner | null;
   isAdmin: boolean;
 };
 
-export function Board({ leads, onMove, onCardClick, onCreate, onChangeFonte, viewerRole, isAdmin }: Props) {
+export function Board({ leads, onMove, onCardClick, onCreate, viewerRole, isAdmin }: Props) {
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
 
   const sensors = useSensors(
@@ -82,7 +81,6 @@ export function Board({ leads, onMove, onCardClick, onCreate, onChangeFonte, vie
             leads={byStatus[status]}
             onCardClick={onCardClick}
             onCreate={onCreate}
-            onChangeFonte={onChangeFonte}
             locked={!canMoveTo(status, { role: viewerRole, isAdmin })}
           />
         ))}
