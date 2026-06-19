@@ -15,6 +15,7 @@ import {
   needsQualification,
   patchForStatus,
   normalizePhone,
+  samePhone,
   looksLikePhone,
 } from "./crm";
 import { readActiveChatPhone, readActiveChatTitle, readChatDebug } from "./whatsapp";
@@ -510,14 +511,12 @@ function matchFromChat() {
 
   let l: Lead | undefined;
   if (phone) {
-    const norm = normalizePhone(phone);
-    l = leads.find((x) => normalizePhone(x.telefone) === norm);
+    l = leads.find((x) => samePhone(x.telefone, phone));
     if (l) matchInfo = "por telefone (conversa)";
   }
   if (!l && title) {
     if (looksLikePhone(title)) {
-      const norm = normalizePhone(title);
-      l = leads.find((x) => normalizePhone(x.telefone) === norm);
+      l = leads.find((x) => samePhone(x.telefone, title));
       if (l) matchInfo = "por telefone";
     } else {
       const t = title.toLowerCase();

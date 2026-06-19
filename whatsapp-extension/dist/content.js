@@ -21247,6 +21247,16 @@ ${suffix}`;
     if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
     return d;
   }
+  function phoneTail(t) {
+    const n = normalizePhone(t);
+    return n.length >= 8 ? n.slice(-8) : n;
+  }
+  function samePhone(a, b) {
+    const na = normalizePhone(a), nb = normalizePhone(b);
+    if (na && nb && na === nb) return true;
+    const ta = phoneTail(a), tb = phoneTail(b);
+    return ta.length >= 8 && ta === tb;
+  }
   function looksLikePhone(s) {
     const digits = s.replace(/\D/g, "");
     return digits.length >= 8 && /^[+\d][\d\s().-]+$/.test(s.trim());
@@ -21775,14 +21785,12 @@ ${suffix}`;
     lastTitle = title || (phone ? `+${phone}` : null);
     let l;
     if (phone) {
-      const norm = normalizePhone(phone);
-      l = leads.find((x) => normalizePhone(x.telefone) === norm);
+      l = leads.find((x) => samePhone(x.telefone, phone));
       if (l) matchInfo = "por telefone (conversa)";
     }
     if (!l && title) {
       if (looksLikePhone(title)) {
-        const norm = normalizePhone(title);
-        l = leads.find((x) => normalizePhone(x.telefone) === norm);
+        l = leads.find((x) => samePhone(x.telefone, title));
         if (l) matchInfo = "por telefone";
       } else {
         const t = title.toLowerCase();

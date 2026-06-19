@@ -180,6 +180,20 @@ export function normalizePhone(t: string | null | undefined): string {
   return d;
 }
 
+// Últimos 8 dígitos (número do assinante) — ignora "9" extra/DDI/formatação.
+export function phoneTail(t: string | null | undefined): string {
+  const n = normalizePhone(t);
+  return n.length >= 8 ? n.slice(-8) : n;
+}
+
+// Dois telefones são "o mesmo": match exato normalizado OU mesmos 8 dígitos finais.
+export function samePhone(a: string | null | undefined, b: string | null | undefined): boolean {
+  const na = normalizePhone(a), nb = normalizePhone(b);
+  if (na && nb && na === nb) return true;
+  const ta = phoneTail(a), tb = phoneTail(b);
+  return ta.length >= 8 && ta === tb;
+}
+
 export function looksLikePhone(s: string): boolean {
   const digits = s.replace(/\D/g, "");
   return digits.length >= 8 && /^[+\d][\d\s().-]+$/.test(s.trim());
