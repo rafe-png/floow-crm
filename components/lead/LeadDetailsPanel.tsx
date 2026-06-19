@@ -23,6 +23,8 @@ import {
   BANT_TIMING_LABELS,
   ESTOQUE_LABELS,
   ESTRUTURA_LABELS,
+  FONTE_LABELS,
+  FONTE_OPTIONS,
   HISTORICO_LABELS,
   LOCAL_ICONS,
   LOCAL_LABELS,
@@ -37,6 +39,7 @@ import {
   type EstruturaComercial,
   type HistoricoTrafego,
   type Lead,
+  type LeadFonte,
   type LeadStatus,
   type LocalReuniao,
   type Owner,
@@ -64,6 +67,7 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
   const [empresa, setEmpresa] = useState(lead.empresa ?? "");
   const [instagram, setInstagram] = useState(lead.instagram ?? "");
   const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(lead.segmento);
+  const [fonte, setFonte] = useState<LeadFonte | null>(lead.fonte);
   const [valor, setValor] = useState(lead.valor != null ? String(lead.valor) : "");
   const [observacoes, setObservacoes] = useState(lead.observacoes ?? "");
   const [sdrResp, setSdrResp] = useState<string | null>(lead.sdr_responsavel);
@@ -108,6 +112,7 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
         empresa: empresa.trim() || null,
         instagram: instagram.trim().replace(/^@/, "") || null,
         segmento,
+        fonte,
         valor: parsedValor != null && !Number.isNaN(parsedValor) ? parsedValor : null,
         observacoes: observacoes.trim() || null,
         sdr_responsavel: sdrResp,
@@ -230,6 +235,18 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
             </Field>
             <Field label="Segmento da confecção">
               <SegmentoSelect value={segmento} onChange={(v) => { setSegmento(v); setDirty(true); }} />
+            </Field>
+            <Field label="Origem">
+              <select
+                value={fonte ?? ""}
+                onChange={(e) => { setFonte((e.target.value || null) as LeadFonte | null); setDirty(true); }}
+                className="ds-input [color-scheme:dark]"
+              >
+                <option value="">Selecionar…</option>
+                {FONTE_OPTIONS.map((f) => (
+                  <option key={f} value={f}>{FONTE_LABELS[f]}</option>
+                ))}
+              </select>
             </Field>
             <Field label="Valor">
               <input value={valor} onChange={(e) => { setValor(e.target.value); setDirty(true); }} className="ds-input" placeholder="R$ 0,00" inputMode="decimal" />
