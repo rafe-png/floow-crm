@@ -530,7 +530,7 @@ function matchFromChat() {
 }
 
 function startChatWatch() {
-  setInterval(() => {
+  chatTimer = setInterval(() => {
     const key = (readActiveChatPhone() || "") + "|" + (readActiveChatTitle() || "");
     if (key === lastKey) return;
     lastKey = key;
@@ -542,9 +542,30 @@ function startChatWatch() {
 // ============================================================
 // Boot
 // ============================================================
+// Quando a extensão é atualizada, a aba antiga continua rodando este script com
+// o contexto invalidado (chrome.runtime.id some). Isso fazia o auto-refresh do
+// Supabase logar "Extension context invalidated" sem parar. O vigia desliga tudo
+// assim que detecta — silenciando o script órfão até a aba ser recarregada.
+function contextAlive(): boolean {
+  try { return !!chrome.runtime?.id; } catch { return false; }
+}
+
+function startContextWatch() {
+  const w = setInterval(() => {
+    if (contextAlive()) return;
+    clearInterval(w);
+    try { supabase.auth.stopAutoRefresh(); } catch { /* contexto morto */ }
+    try { supabase.removeAllChannels(); } catch { /* contexto morto */ }
+    if (chatTimer) clearInterval(chatTimer);
+  }, 4000);
+}
+
+let chatTimer: ReturnType<typeof setInterval> | null = null;
+
 async function boot() {
   mount();
   startChatWatch();
+  startContextWatch();
   const { data } = await supabase.auth.getSession();
   if (data.session) await afterAuth();
   else { authed = false; render(); }

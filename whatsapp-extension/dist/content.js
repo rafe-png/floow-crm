@@ -21802,7 +21802,7 @@ ${suffix}`;
     if (!l) matchInfo = "";
   }
   function startChatWatch() {
-    setInterval(() => {
+    chatTimer = setInterval(() => {
       const key = (readActiveChatPhone() || "") + "|" + (readActiveChatTitle() || "");
       if (key === lastKey) return;
       lastKey = key;
@@ -21810,9 +21810,33 @@ ${suffix}`;
       if (authed && !searchMode && !collapsed && !document.querySelector(".floow-modal")) render();
     }, 1e3);
   }
+  function contextAlive() {
+    try {
+      return !!chrome.runtime?.id;
+    } catch {
+      return false;
+    }
+  }
+  function startContextWatch() {
+    const w = setInterval(() => {
+      if (contextAlive()) return;
+      clearInterval(w);
+      try {
+        supabase.auth.stopAutoRefresh();
+      } catch {
+      }
+      try {
+        supabase.removeAllChannels();
+      } catch {
+      }
+      if (chatTimer) clearInterval(chatTimer);
+    }, 4e3);
+  }
+  var chatTimer = null;
   async function boot() {
     mount();
     startChatWatch();
+    startContextWatch();
     const { data } = await supabase.auth.getSession();
     if (data.session) await afterAuth();
     else {
