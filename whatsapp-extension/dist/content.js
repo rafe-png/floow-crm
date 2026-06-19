@@ -21066,10 +21066,17 @@ ${suffix}`;
   var ADMIN_EMAIL = "rafe@floowdigital.com";
 
   // src/supabaseClient.ts
+  async function safe(fn, fallback) {
+    try {
+      return await fn();
+    } catch {
+      return fallback;
+    }
+  }
   var chromeStorage = {
-    getItem: (key) => chrome.storage.local.get(key).then((r) => r[key] ?? null),
-    setItem: (key, value) => chrome.storage.local.set({ [key]: value }),
-    removeItem: (key) => chrome.storage.local.remove(key)
+    getItem: (key) => safe(() => chrome.storage.local.get(key).then((r) => r[key] ?? null), null),
+    setItem: (key, value) => safe(() => chrome.storage.local.set({ [key]: value }), void 0),
+    removeItem: (key) => safe(() => chrome.storage.local.remove(key), void 0)
   };
   var supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
