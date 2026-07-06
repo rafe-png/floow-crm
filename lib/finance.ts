@@ -1,5 +1,5 @@
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
-import type { AdInvestment } from "@/lib/types";
+import type { AdInvestment, MetaAdSpendDay } from "@/lib/types";
 
 /** "yyyy-MM-dd" de uma Date. */
 export function dayKey(d: Date): string {
@@ -70,6 +70,38 @@ export function coveredDays(investments: AdInvestment[]): Set<string> {
     }
   }
   return set;
+}
+
+// ============================================================
+// Gasto vindo da Meta (meta_ad_spend_daily) — granularidade diária, soma exata.
+// ============================================================
+
+/** Soma um campo das linhas diárias cujo dia cai em [start, end] (inclusivo). start null = tudo. */
+function sumMetaInWindow(
+  days: MetaAdSpendDay[],
+  start: Date | null,
+  end: Date,
+  pick: (d: MetaAdSpendDay) => number,
+): number {
+  const startKey = start ? dayKey(start) : null;
+  const endKey = dayKey(end);
+  let total = 0;
+  for (const d of days) {
+    if (startKey && d.day < startKey) continue;
+    if (d.day > endKey) continue;
+    total += pick(d);
+  }
+  return total;
+}
+
+/** Gasto (R$) da Meta na janela [start, end]. start null = todo o histórico. */
+export function metaSpendInWindow(days: MetaAdSpendDay[], start: Date | null, end: Date): number {
+  return sumMetaInWindow(days, start, end, (d) => Number(d.spend) || 0);
+}
+
+/** Leads (conversas/mensagens) dos anúncios da Meta na janela [start, end]. */
+export function metaLeadsInWindow(days: MetaAdSpendDay[], start: Date | null, end: Date): number {
+  return sumMetaInWindow(days, start, end, (d) => Number(d.leads) || 0);
 }
 
 /** CAC = investimento ÷ nº de clientes ganhos. null se não houve ganho. */

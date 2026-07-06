@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 // /api/ext/* autentica por bearer token (extensão do WhatsApp), não por cookie.
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/webhooks", "/api/cron", "/api/ext"];
+// /api/meta/sync autentica por CRON_SECRET (cron) ou sessão de admin (checada
+// dentro da rota) — fica fora do redirect de login.
+const PUBLIC_PATHS = ["/login", "/api/auth", "/api/webhooks", "/api/cron", "/api/ext", "/api/meta"];
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request });

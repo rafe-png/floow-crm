@@ -63,6 +63,97 @@ export function filterLeadsByPeriod(leads: Lead[], period: Period): Lead[] {
 }
 
 // ============================================================
+// Seleção de período (novo modelo) — presets rápidos + intervalo personalizado.
+// Usado pelo <PeriodPicker> global (Dashboard, Financeiro, Relatórios).
+// ============================================================
+
+export type PeriodPreset = "hoje" | "ontem" | "7d" | "14d" | "30d" | "tudo";
+
+export type PeriodSelection =
+  | { kind: "preset"; preset: PeriodPreset }
+  | { kind: "custom"; start: string; end: string }; // datas "YYYY-MM-DD" inclusivas
+
+export const PERIOD_PRESETS: PeriodPreset[] = ["hoje", "ontem", "7d", "14d", "30d", "tudo"];
+
+export const PERIOD_PRESET_LABELS: Record<PeriodPreset, string> = {
+  hoje: "Hoje",
+  ontem: "Ontem",
+  "7d": "Últimos 7 dias",
+  "14d": "Últimos 14 dias",
+  "30d": "Últimos 30 dias",
+  tudo: "Tempo todo",
+};
+
+export const DEFAULT_PERIOD: PeriodSelection = { kind: "preset", preset: "30d" };
+
+export type ResolvedRange = { start: Date | null; end: Date };
+
+function endOfDay(d: Date) { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; }
+function daysAgo(n: number) { const x = new Date(); x.setDate(x.getDate() - n); return x; }
+
+/** Converte a seleção em um intervalo concreto [start, end]. start null = desde sempre. */
+export function resolveRange(sel: PeriodSelection): ResolvedRange {
+  const now = new Date();
+  if (sel.kind === "custom") {
+    return {
+      start: startOfDay(new Date(`${sel.start}T00:00:00`)),
+      end: endOfDay(new Date(`${sel.end}T00:00:00`)),
+    };
+  }
+  switch (sel.preset) {
+    case "hoje":  return { start: startOfDay(now), end: now };
+    case "ontem": { const y = daysAgo(1); return { start: startOfDay(y), end: endOfDay(y) }; }
+    case "7d":    return { start: startOfDay(daysAgo(6)), end: now };
+    case "14d":   return { start: startOfDay(daysAgo(13)), end: now };
+    case "30d":   return { start: startOfDay(daysAgo(29)), end: now };
+    case "tudo":  return { start: null, end: now };
+  }
+}
+
+/** Rótulo curto da seleção (pros títulos/subtítulos). */
+export function periodLabel(sel: PeriodSelection): string {
+  if (sel.kind === "custom") {
+    const f = (s: string) => format(new Date(`${s}T00:00:00`), "d MMM", { locale: ptBR });
+    return `${f(sel.start)} – ${f(sel.end)}`;
+  }
+  return PERIOD_PRESET_LABELS[sel.preset];
+}
+
+/** Filtra leads cuja ENTRADA (created_at) caiu no intervalo. */
+export function filterLeadsByRange(leads: Lead[], range: ResolvedRange): Lead[] {
+  return leads.filter((l) => {
+    const t = new Date(l.created_at);
+    if (range.start && t < range.start) return false;
+    return t <= range.end;
+  });
+}
+
+/** Soma o valor dos negócios GANHOS (ganho_em) dentro do intervalo = faturamento do período. */
+export function faturamentoInRange(leads: Lead[], range: ResolvedRange): number {
+  let total = 0;
+  for (const l of leads) {
+    if (!l.ganho_em || !l.valor) continue;
+    const t = new Date(l.ganho_em);
+    if (range.start && t < range.start) continue;
+    if (t > range.end) continue;
+    total += Number(l.valor);
+  }
+  return total;
+}
+
+/** Nº de negócios ganhos (ganho_em) dentro do intervalo. */
+export function ganhosInRange(leads: Lead[], range: ResolvedRange): number {
+  let n = 0;
+  for (const l of leads) {
+    if (!l.ganho_em) continue;
+    const t = new Date(l.ganho_em);
+    if (range.start && t < range.start) continue;
+    if (t <= range.end) n++;
+  }
+  return n;
+}
+
+// ============================================================
 // Reports
 // ============================================================
 

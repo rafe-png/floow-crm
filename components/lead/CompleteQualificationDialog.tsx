@@ -14,6 +14,8 @@ import {
   ESTRUTURA_LABELS,
   EXPERIENCIA_LABELS,
   HISTORICO_LABELS,
+  PRODUTO_LABELS,
+  PRODUTO_VALORES,
   SITUACAO_LABELS,
   STATUS_LABELS,
   type BantAuthority,
@@ -26,6 +28,7 @@ import {
   type Experiencia,
   type HistoricoTrafego,
   type Lead,
+  type LeadProduto,
   type LeadStatus,
   type SegmentoConfeccao,
   type Situacao,
@@ -39,6 +42,7 @@ type Props = {
 };
 
 export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onConfirm }: Props) {
+  const [produto, setProduto] = useState<LeadProduto | null>(lead.produto);
   const [experiencia, setExperiencia] = useState<Experiencia | null>(lead.experiencia);
   const [situacao, setSituacao] = useState<Situacao | null>(lead.situacao);
   const [canalVendas, setCanalVendas] = useState<CanalVendas | null>(lead.canal_vendas);
@@ -55,6 +59,10 @@ export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onCo
   const [error, setError] = useState<string | null>(null);
 
   async function handleConfirm() {
+    if (!produto) {
+      setError("Selecione o produto ofertado.");
+      return;
+    }
     if (!experiencia || !situacao || !canalVendas || !estoque || !historico || !estrutura) {
       setError("Preencha toda a qualificação (experiência, situação, canal, estoque, histórico, estrutura).");
       return;
@@ -67,6 +75,7 @@ export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onCo
     setError(null);
     try {
       await onConfirm({
+        produto,
         experiencia,
         situacao,
         canal_vendas: canalVendas,
@@ -79,6 +88,9 @@ export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onCo
         bant_timing: bantTiming,
         segmento,
         status: targetStatus,
+        // Pré-preenche o valor sugerido do produto se o lead ainda não tem valor
+        // (não sobrescreve um valor já editado à mão).
+        ...(lead.valor == null ? { valor: PRODUTO_VALORES[produto] } : {}),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar.");
@@ -111,6 +123,9 @@ export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onCo
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Qualificação</h3>
+            <PillRow label="🏷️ Produto ofertado" value={produto}
+              options={Object.entries(PRODUTO_LABELS).map(([v, l]) => ({ value: v as LeadProduto, label: l }))}
+              onChange={setProduto} />
             <PillRow label="Experiência (tempo de mercado)" value={experiencia}
               options={Object.entries(EXPERIENCIA_LABELS).map(([v, l]) => ({ value: v as Experiencia, label: l }))}
               onChange={setExperiencia} />

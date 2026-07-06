@@ -7,8 +7,11 @@ import { Funnel } from "@/components/dashboard/Funnel";
 import { UpcomingMeetings } from "@/components/dashboard/UpcomingMeetings";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useGoalsContext } from "@/lib/contexts/GoalsContext";
-import { useAdInvestmentsContext } from "@/lib/contexts/AdInvestmentsContext";
-import { adLeadsInWindow, cac, custoPorLead, spendInWindow } from "@/lib/finance";
+import { useMetaSpendContext } from "@/lib/contexts/MetaSpendContext";
+import { usePeriodContext } from "@/lib/contexts/PeriodContext";
+import { PeriodPicker } from "@/components/ui/PeriodPicker";
+import { cac, custoPorLead, metaLeadsInWindow, metaSpendInWindow } from "@/lib/finance";
+import { faturamentoInRange, ganhosInRange, periodLabel, resolveRange } from "@/lib/reports";
 import { PIPELINE_STATUSES, type Lead, type Owner } from "@/lib/types";
 
 function startOfIsoWeek(d: Date) {
@@ -52,36 +55,27 @@ function pipelineValue(leads: Lead[]) {
   return total;
 }
 
-function wonValueMonth(leads: Lead[]) {
-  const month = startOfMonth(new Date());
-  let total = 0;
-  for (const l of leads) {
-    if (!l.ganho_em) continue;
-    if (new Date(l.ganho_em) < month) continue;
-    if (l.valor) total += Number(l.valor);
-  }
-  return total;
-}
-
 export default function DashboardPage() {
   const { leads } = useLeadsContext();
   const { goals } = useGoalsContext();
-  const { investments } = useAdInvestmentsContext();
+  const { period } = usePeriodContext();
+  const { days: metaDays } = useMetaSpendContext();
+
+  const range = useMemo(() => resolveRange(period), [period]);
 
   const sdr = useMemo(() => countWeekMonth(leads, "SDR"), [leads]);
   const closer = useMemo(() => countWeekMonth(leads, "Closer"), [leads]);
   const pipeline = useMemo(() => pipelineValue(leads), [leads]);
-  const wonMonth = useMemo(() => wonValueMonth(leads), [leads]);
+  // Faturamento no período selecionado (negócios ganhos dentro do intervalo).
+  const faturamento = useMemo(() => faturamentoInRange(leads, range), [leads, range]);
 
-  // Custo de aquisição no mês corrente (investimento de ads ÷ resultados).
+  // Custo de aquisição no período selecionado (gasto Meta ÷ resultados).
   const aquisicao = useMemo(() => {
-    const monthStart = startOfMonth(new Date());
-    const now = new Date();
-    const spend = spendInWindow(investments, monthStart, now);
-    const adLeads = adLeadsInWindow(investments, monthStart, now);
-    const ganhosMes = leads.filter((l) => l.ganho_em && new Date(l.ganho_em) >= monthStart).length;
-    return { spend, cpl: custoPorLead(spend, adLeads), cacVal: cac(spend, ganhosMes) };
-  }, [investments, leads]);
+    const spend = metaSpendInWindow(metaDays, range.start, range.end);
+    const adLeads = metaLeadsInWindow(metaDays, range.start, range.end);
+    const ganhos = ganhosInRange(leads, range);
+    return { spend, cpl: custoPorLead(spend, adLeads), cacVal: cac(spend, ganhos) };
+  }, [metaDays, leads, range]);
 
   const sdrWeekly = goals.SDR?.weekly_goal ?? 0;
   const sdrMonthly = sdrWeekly * 4;
@@ -99,6 +93,14 @@ export default function DashboardPage() {
     <>
       <TopBar title="Dashboard" />
       <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+        {/* Seletor de período (vale pra faturamento e custo de aquisição) */}
+        <section className="mb-6">
+          <PeriodPicker />
+          <p className="mt-2 text-[11px] text-zinc-500">
+            Faturamento e ads: <span className="text-zinc-300">{periodLabel(period)}</span>
+          </p>
+        </section>
+
         {/* Metas SDR + Closer */}
         <section className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
           <OwnerCard
@@ -126,16 +128,16 @@ export default function DashboardPage() {
             accent="#f5c518"
           />
           <BigStat
-            label="Fechado este mês"
-            value={fmtBRL(wonMonth)}
-            hint="negócios ganhos no mês corrente"
+            label="Faturamento no período"
+            value={fmtBRL(faturamento)}
+            hint="negócios ganhos no período selecionado"
             accent="#34d399"
           />
         </section>
 
-        {/* Custo de aquisição (mês) */}
+        {/* Custo de aquisição (período) */}
         <section className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <BigStat label="Investido em ads" value={fmtBRL(aquisicao.spend)} hint="ads no mês corrente" accent="#f5c518" />
+          <BigStat label="Investido em ads" value={fmtBRL(aquisicao.spend)} hint="gasto na Meta no período" accent="#f5c518" />
           <BigStat
             label="Custo por lead"
             value={aquisicao.cpl != null ? fmtBRL(aquisicao.cpl) : "—"}

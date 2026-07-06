@@ -15,7 +15,7 @@ import { NewLeadDialog } from "@/components/lead/NewLeadDialog";
 import { Celebration, type CelebrationKind } from "@/components/ui/Celebration";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
-import { SEGMENTO_LABELS, type Lead, type LeadStatus, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
+import { PRODUTO_LABELS, PRODUTO_OPTIONS, SEGMENTO_LABELS, type Lead, type LeadProduto, type LeadStatus, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
 import { computeLeadScore, PRIORITY_SHORT, type LeadPriority } from "@/lib/lead-score";
 
 // Etapas que NÃO exigem qualificação: Entrada (lead só chegou) e as saídas
@@ -25,6 +25,7 @@ const NO_QUAL_STAGES: LeadStatus[] = ["qualificado", "negocio_perdido", "sem_res
 // Lead só avança além da zona inicial depois de toda a qualificação preenchida.
 function isQualComplete(l: Lead): boolean {
   return !!(
+    l.produto &&
     l.experiencia && l.situacao && l.canal_vendas && l.estoque && l.historico && l.estrutura &&
     l.bant_budget && l.bant_authority && l.bant_need && l.bant_timing
   );
@@ -73,6 +74,7 @@ function KanbanContent() {
   const [filterPriority, setFilterPriority] = useState<LeadPriority | null>(null);
   const [filterOrigem, setFilterOrigem] = useState<"whatsapp" | "manual" | null>(null);
   const [filterSegmento, setFilterSegmento] = useState<SegmentoConfeccao | null>(null);
+  const [filterProduto, setFilterProduto] = useState<LeadProduto | null>(null);
 
   function triggerCelebration(status: LeadStatus | undefined) {
     const kind = celebrationFor(status);
@@ -88,6 +90,7 @@ function KanbanContent() {
       if (filterOrigem === "whatsapp" && l.origem !== "whatsapp") return false;
       if (filterOrigem === "manual" && l.origem === "whatsapp") return false;
       if (filterSegmento && l.segmento !== filterSegmento) return false;
+      if (filterProduto && l.produto !== filterProduto) return false;
       if (filterPriority) {
         // Prioridade só vale da etapa "Qualificado" em diante (não na Entrada).
         if (l.status === "qualificado") return false;
@@ -96,7 +99,7 @@ function KanbanContent() {
       }
       return true;
     });
-  }, [leads, filterSdr, filterCloser, filterOrigem, filterSegmento, filterPriority]);
+  }, [leads, filterSdr, filterCloser, filterOrigem, filterSegmento, filterProduto, filterPriority]);
   const [pendingLost, setPendingLost] = useState<{
     id: string;
     name: string;
@@ -297,7 +300,14 @@ function KanbanContent() {
             ))}
           </FilterSelect>
 
-          {(filterSdr || filterCloser || filterPriority || filterOrigem || filterSegmento) && (
+          <FilterSelect label="Produto" value={filterProduto ?? ""} onChange={(v) => setFilterProduto((v || null) as LeadProduto | null)}>
+            <option value="">Todos</option>
+            {PRODUTO_OPTIONS.map((p) => (
+              <option key={p} value={p}>{PRODUTO_LABELS[p]}</option>
+            ))}
+          </FilterSelect>
+
+          {(filterSdr || filterCloser || filterPriority || filterOrigem || filterSegmento || filterProduto) && (
             <>
               <span className="text-[11px] text-zinc-400">
                 {visibleLeads.length} {visibleLeads.length === 1 ? "lead" : "leads"}
@@ -305,7 +315,7 @@ function KanbanContent() {
               <button
                 onClick={() => {
                   setFilterSdr(null); setFilterCloser(null); setFilterPriority(null);
-                  setFilterOrigem(null); setFilterSegmento(null);
+                  setFilterOrigem(null); setFilterSegmento(null); setFilterProduto(null);
                 }}
                 className="text-[11px] text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline"
               >

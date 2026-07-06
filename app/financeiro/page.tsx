@@ -1,51 +1,58 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { DollarSign, Pencil, Plus, Target, Trash2, TrendingUp, Users } from "lucide-react";
+import { DollarSign, Megaphone, Percent, PiggyBank, RefreshCw, Target, TrendingUp, Trophy, Users } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { InvestmentDialog } from "@/components/financeiro/InvestmentDialog";
-import { useAdInvestmentsContext } from "@/lib/contexts/AdInvestmentsContext";
+import { PeriodPicker } from "@/components/ui/PeriodPicker";
+import { useMetaSpendContext } from "@/lib/contexts/MetaSpendContext";
+import { usePeriodContext } from "@/lib/contexts/PeriodContext";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
-import { adLeadsInWindow, cac, coveredDays, custoPorLead, periodDays, spendInWindow, totalAdLeads, totalSpend } from "@/lib/finance";
-import { PERIOD_LABELS, startOfPeriod, type Period } from "@/lib/reports";
-import type { AdInvestment } from "@/lib/types";
-
-const PERIODS: Period[] = ["hoje", "semana", "mes", "trimestre", "ano", "tudo"];
+import { cac, custoPorLead, metaLeadsInWindow, metaSpendInWindow } from "@/lib/finance";
+import { faturamentoInRange, ganhosInRange, periodLabel, resolveRange } from "@/lib/reports";
+import { PIPELINE_STATUSES } from "@/lib/types";
 
 const fmtBRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(n);
-// Com centavos — usado nos valores que o usuário soma (tabela e totais), pra bater exato.
 const fmtBRL2 = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 }).format(n);
 
 export default function FinanceiroPage() {
   const { isAdmin, isTraffic } = useTeamContext();
   const { leads } = useLeadsContext();
-  const { investments, createInvestment, updateInvestment, deleteInvestment } = useAdInvestmentsContext();
-  // null = fechado · "new" = lançar · AdInvestment = editar
-  const [dialog, setDialog] = useState<AdInvestment | "new" | null>(null);
-  const [period, setPeriod] = useState<Period>("mes");
+  const { period } = usePeriodContext();
+  const { days: metaDays, sync, syncing, syncError, lastSync } = useMetaSpendContext();
 
   const canManage = isAdmin || isTraffic;
 
-  // No modo edição, os dias do próprio lançamento não travam ele mesmo.
-  const covered = useMemo(
-    () => coveredDays(dialog && dialog !== "new" ? investments.filter((i) => i.id !== dialog.id) : investments),
-    [investments, dialog],
-  );
-
   const view = useMemo(() => {
-    const start = startOfPeriod(period); // null = tudo
-    const now = new Date();
-    const spend = start ? spendInWindow(investments, start, now) : totalSpend(investments);
-    const adLeads = start ? adLeadsInWindow(investments, start, now) : totalAdLeads(investments);
-    const ganhos = leads.filter((l) => l.ganho_em && (!start || new Date(l.ganho_em) >= start)).length;
-    return { spend, adLeads, ganhos, cpl: custoPorLead(spend, adLeads), cacVal: cac(spend, ganhos) };
-  }, [investments, leads, period]);
+    const range = resolveRange(period);
+    const spend = metaSpendInWindow(metaDays, range.start, range.end);
+    const adLeads = metaLeadsInWindow(metaDays, range.start, range.end);
+    const faturamento = faturamentoInRange(leads, range);
+    const ganhos = ganhosInRange(leads, range);
+    const lucro = faturamento - spend;
+    const roas = spend > 0 ? faturamento / spend : null; // retorno por R$ investido
+    const ticket = ganhos > 0 ? faturamento / ganhos : 0;
+    const pipeline = leads
+      .filter((l) => PIPELINE_STATUSES.includes(l.status) && l.valor)
+      .reduce((acc, l) => acc + Number(l.valor), 0);
+    // Dias com gasto no intervalo (pra tabela dia a dia).
+    const endKey = range.end.toISOString().slice(0, 10);
+    const startKey = range.start ? range.start.toISOString().slice(0, 10) : null;
+    const dias = metaDays
+      .filter((d) => (!startKey || d.day >= startKey) && d.day <= endKey && (d.spend > 0 || d.leads > 0))
+      .sort((a, b) => b.day.localeCompare(a.day));
+    return {
+      spend, adLeads, faturamento, ganhos, lucro, roas, ticket, pipeline,
+      cpl: custoPorLead(spend, adLeads),
+      cacVal: cac(spend, ganhos),
+      dias,
+    };
+  }, [metaDays, leads, period]);
 
   if (!canManage) {
     return (
@@ -66,116 +73,86 @@ export default function FinanceiroPage() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="mx-auto max-w-5xl space-y-6">
-          {/* Ação principal */}
-          <div className="flex items-center justify-between gap-3">
+          {/* Período + sincronização */}
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold text-zinc-200">Investimento em ads</h2>
-              <p className="text-xs text-zinc-500">Lance o gasto por período. Os dias já lançados ficam travados.</p>
+              <PeriodPicker />
+              <p className="mt-2 text-[11px] text-zinc-500">
+                Mostrando <span className="text-zinc-300">{periodLabel(period)}</span>
+                {lastSync && (
+                  <> · dados da Meta atualizados {format(parseISO(lastSync), "d MMM 'às' HH:mm", { locale: ptBR })}</>
+                )}
+              </p>
             </div>
             <button
-              onClick={() => setDialog("new")}
-              className="flex items-center gap-1.5 rounded-md bg-[#f5c518] px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-[#ffd633]"
+              onClick={() => sync(365)}
+              disabled={syncing}
+              className="flex items-center gap-1.5 rounded-md bg-[#f5c518] px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-[#ffd633] disabled:opacity-60"
             >
-              <Plus size={14} strokeWidth={2.5} />
-              Lançar investimento da semana
+              <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
+              {syncing ? "Sincronizando…" : "Sincronizar com a Meta"}
             </button>
           </div>
 
-          {/* Visão por período */}
-          <div>
-            <div className="mb-2 flex flex-wrap gap-1">
-              {PERIODS.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
-                    period === p
-                      ? "border-[#f5c518]/40 bg-[#f5c518]/10 text-[#f5c518]"
-                      : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
-                  }`}
-                >
-                  {PERIOD_LABELS[p]}
-                </button>
-              ))}
+          {syncError && (
+            <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+              {syncError}
             </div>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <KpiCard icon={DollarSign} label="Investido" value={fmtBRL2(view.spend)} accent="yellow" />
-              <KpiCard icon={Users} label="Leads dos anúncios" value={view.adLeads} accent="sky" />
-              <KpiCard
-                icon={TrendingUp}
-                label="Custo por lead"
-                value={view.cpl != null ? fmtBRL(view.cpl) : "—"}
-                sub="investido ÷ leads dos anúncios"
-                accent="neutral"
-              />
-              <KpiCard
-                icon={Target}
-                label="CAC"
-                value={view.cacVal != null ? fmtBRL(view.cacVal) : "—"}
-                sub={`${view.ganhos} ganho${view.ganhos === 1 ? "" : "s"} no período`}
-                accent="emerald"
-              />
-            </div>
-          </div>
+          )}
 
-          {/* Histórico de lançamentos */}
+          {/* Resultado do período */}
+          <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <KpiCard icon={Megaphone} label="Investido em ads" value={fmtBRL2(view.spend)} sub="gasto na Meta (automático)" accent="yellow" />
+            <KpiCard icon={Trophy} label="Faturamento" value={fmtBRL2(view.faturamento)} sub={`${view.ganhos} negócio${view.ganhos === 1 ? "" : "s"} ganho${view.ganhos === 1 ? "" : "s"}`} accent="emerald" />
+            <KpiCard icon={PiggyBank} label="Lucro (fat. − ads)" value={fmtBRL2(view.lucro)} sub="faturamento menos investimento" accent={view.lucro >= 0 ? "emerald" : "neutral"} />
+            <KpiCard icon={Percent} label="ROAS" value={view.roas != null ? `${view.roas.toFixed(2)}x` : "—"} sub="retorno por R$ investido" accent="sky" />
+          </section>
+
+          {/* Eficiência de aquisição */}
+          <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <KpiCard icon={Users} label="Leads dos anúncios" value={view.adLeads} sub="conversas iniciadas (Meta)" accent="sky" />
+            <KpiCard icon={TrendingUp} label="Custo por lead" value={view.cpl != null ? fmtBRL(view.cpl) : "—"} sub="investido ÷ leads" accent="neutral" />
+            <KpiCard icon={Target} label="CAC" value={view.cacVal != null ? fmtBRL(view.cacVal) : "—"} sub="investido ÷ clientes ganhos" accent="neutral" />
+            <KpiCard icon={DollarSign} label="Ticket médio" value={fmtBRL(view.ticket)} sub="faturamento ÷ ganhos" accent="emerald" />
+          </section>
+
+          {/* Pipeline em aberto (foto do momento, não depende do período) */}
+          <section className="grid grid-cols-1 gap-3">
+            <KpiCard icon={DollarSign} label="Pipeline ativo (agora)" value={fmtBRL(view.pipeline)} sub="valor dos leads em andamento — foto do momento" accent="yellow" />
+          </section>
+
+          {/* Gasto dia a dia */}
           <div>
             <div className="mb-2 flex items-center justify-between">
               <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                Lançamentos
+                Gasto por dia (Meta)
               </div>
-              <div className="text-[11px] text-zinc-500">
-                {totalAdLeads(investments)} leads · {fmtBRL2(totalSpend(investments))}
-              </div>
+              <div className="text-[11px] text-zinc-500">{view.dias.length} dia{view.dias.length === 1 ? "" : "s"} com gasto</div>
             </div>
             <div className="overflow-hidden rounded-xl border border-zinc-900">
-              {investments.length === 0 ? (
+              {view.dias.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-zinc-600">
-                  Nenhum investimento lançado ainda.
+                  Sem gasto de anúncios nesse período. Clique em <strong>Sincronizar com a Meta</strong> se achar que falta dado.
                 </div>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-zinc-900 text-left text-[11px] uppercase tracking-wider text-zinc-500">
-                      <th className="px-4 py-2 font-medium">Período</th>
-                      <th className="px-4 py-2 font-medium">Dias</th>
+                      <th className="px-4 py-2 font-medium">Dia</th>
                       <th className="px-4 py-2 text-right font-medium">Leads</th>
-                      <th className="px-4 py-2 font-medium">Canal</th>
-                      <th className="px-4 py-2 text-right font-medium">Valor</th>
-                      <th className="px-4 py-2"></th>
+                      <th className="px-4 py-2 text-right font-medium">Cliques</th>
+                      <th className="px-4 py-2 text-right font-medium">Gasto</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {investments.map((inv) => (
-                      <tr key={inv.id} className="border-b border-zinc-900/60 last:border-0">
+                    {view.dias.map((d) => (
+                      <tr key={d.day} className="border-b border-zinc-900/60 last:border-0">
                         <td className="px-4 py-2.5 text-zinc-200">
-                          {format(parseISO(inv.periodo_inicio), "d MMM", { locale: ptBR })} –{" "}
-                          {format(parseISO(inv.periodo_fim), "d MMM yyyy", { locale: ptBR })}
+                          {format(parseISO(d.day), "EEE, d MMM", { locale: ptBR })}
                         </td>
-                        <td className="px-4 py-2.5 text-zinc-400">{periodDays(inv.periodo_inicio, inv.periodo_fim)}</td>
-                        <td className="px-4 py-2.5 text-right text-zinc-300">{inv.leads_ads}</td>
-                        <td className="px-4 py-2.5 text-zinc-400">{inv.canal ?? "—"}</td>
-                        <td className="px-4 py-2.5 text-right font-medium text-zinc-100">{fmtBRL2(inv.valor)}</td>
-                        <td className="px-4 py-2.5 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => setDialog(inv)}
-                              className="text-zinc-600 hover:text-zinc-200"
-                              aria-label="Editar"
-                            >
-                              <Pencil size={14} />
-                            </button>
-                            <button
-                              onClick={async () => {
-                                if (confirm("Remover este lançamento?")) await deleteInvestment(inv.id);
-                              }}
-                              className="text-zinc-600 hover:text-rose-400"
-                              aria-label="Remover"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
+                        <td className="px-4 py-2.5 text-right text-zinc-300">{d.leads}</td>
+                        <td className="px-4 py-2.5 text-right text-zinc-400">{d.clicks}</td>
+                        <td className="px-4 py-2.5 text-right font-medium text-zinc-100">{fmtBRL2(Number(d.spend))}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -185,16 +162,6 @@ export default function FinanceiroPage() {
           </div>
         </div>
       </main>
-
-      {dialog && (
-        <InvestmentDialog
-          open
-          covered={covered}
-          initial={dialog === "new" ? null : dialog}
-          onClose={() => setDialog(null)}
-          onSubmit={(input) => (dialog === "new" ? createInvestment(input) : updateInvestment(dialog.id, input))}
-        />
-      )}
     </>
   );
 }

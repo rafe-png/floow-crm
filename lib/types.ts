@@ -181,6 +181,10 @@ export type Lead = {
   // Fonte de marketing do lead (exibida/selecionável no card). Leads que entram
   // pela automação do WhatsApp já nascem como 'meta_ads'.
   fonte: LeadFonte | null;
+
+  // Produto ofertado ao lead. Obrigatório junto da qualificação. Define o valor
+  // sugerido do negócio (PRODUTO_VALORES), que pré-preenche `valor` (editável).
+  produto: LeadProduto | null;
 };
 
 // De onde o lead veio (canal de marketing).
@@ -194,6 +198,25 @@ export const FONTE_LABELS: Record<LeadFonte, string> = {
 };
 
 export const FONTE_OPTIONS = Object.keys(FONTE_LABELS) as LeadFonte[];
+
+// Produto ofertado (parte da qualificação). Ao selecionar, o "Valor do negócio"
+// é pré-preenchido com PRODUTO_VALORES[produto] — mas continua editável.
+export type LeadProduto = "aceleracao" | "floow_insta" | "floow_catalogo";
+
+export const PRODUTO_LABELS: Record<LeadProduto, string> = {
+  aceleracao: "Programa de Aceleração",
+  floow_insta: "Floow Insta",
+  floow_catalogo: "Floow Catálogo",
+};
+
+// Valor sugerido (R$) por produto — pré-preenche o campo Valor ao selecionar.
+export const PRODUTO_VALORES: Record<LeadProduto, number> = {
+  aceleracao: 1397,
+  floow_insta: 397,
+  floow_catalogo: 97,
+};
+
+export const PRODUTO_OPTIONS = Object.keys(PRODUTO_LABELS) as LeadProduto[];
 
 export type LeadEventType = "created" | "status_change" | "note";
 
@@ -272,6 +295,17 @@ export type NewAdInvestmentInput = {
   valor: number;
   leads_ads: number;
   canal?: string | null;
+};
+
+// Gasto diário de anúncios puxado automaticamente da Meta (uma linha por dia).
+// Preenchido pela rota /api/meta/sync. O app só lê. Ver migração 033.
+export type MetaAdSpendDay = {
+  day: string; // "YYYY-MM-DD"
+  spend: number;
+  leads: number;
+  impressions: number;
+  clicks: number;
+  updated_at: string;
 };
 
 // ============================================================

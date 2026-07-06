@@ -28,6 +28,9 @@ import {
   HISTORICO_LABELS,
   LOCAL_ICONS,
   LOCAL_LABELS,
+  PRODUTO_LABELS,
+  PRODUTO_OPTIONS,
+  PRODUTO_VALORES,
   STATUS_COLORS,
   STATUS_LABELS,
   STATUS_ORDER,
@@ -40,6 +43,7 @@ import {
   type HistoricoTrafego,
   type Lead,
   type LeadFonte,
+  type LeadProduto,
   type LeadStatus,
   type LocalReuniao,
   type Owner,
@@ -68,7 +72,16 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
   const [instagram, setInstagram] = useState(lead.instagram ?? "");
   const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(lead.segmento);
   const [fonte, setFonte] = useState<LeadFonte | null>(lead.fonte);
+  const [produto, setProduto] = useState<LeadProduto | null>(lead.produto);
   const [valor, setValor] = useState(lead.valor != null ? String(lead.valor) : "");
+
+  // Ao trocar o produto, pré-preenche o valor sugerido se o campo estiver vazio
+  // (não sobrescreve um valor já digitado).
+  function handleProduto(p: LeadProduto | null) {
+    setProduto(p);
+    setDirty(true);
+    if (p && !valor.trim()) setValor(String(PRODUTO_VALORES[p]));
+  }
   const [observacoes, setObservacoes] = useState(lead.observacoes ?? "");
   const [sdrResp, setSdrResp] = useState<string | null>(lead.sdr_responsavel);
   const [closerResp, setCloserResp] = useState<string | null>(lead.closer_responsavel);
@@ -113,6 +126,7 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
         instagram: instagram.trim().replace(/^@/, "") || null,
         segmento,
         fonte,
+        produto,
         valor: parsedValor != null && !Number.isNaN(parsedValor) ? parsedValor : null,
         observacoes: observacoes.trim() || null,
         sdr_responsavel: sdrResp,
@@ -248,6 +262,18 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
                 ))}
               </select>
             </Field>
+            <Field label="Produto">
+              <select
+                value={produto ?? ""}
+                onChange={(e) => handleProduto((e.target.value || null) as LeadProduto | null)}
+                className="ds-input [color-scheme:dark]"
+              >
+                <option value="">Selecionar…</option>
+                {PRODUTO_OPTIONS.map((p) => (
+                  <option key={p} value={p}>{PRODUTO_LABELS[p]}</option>
+                ))}
+              </select>
+            </Field>
             <Field label="Valor">
               <input value={valor} onChange={(e) => { setValor(e.target.value); setDirty(true); }} className="ds-input" placeholder="R$ 0,00" inputMode="decimal" />
             </Field>
@@ -348,7 +374,12 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
           {/* Datas-chave + rastreio de criativo */}
           <Section title="Datas e rastreio">
             <dl className="space-y-1.5 text-xs">
-              <DateRow label="Entrou no funil" iso={lead.created_at} hint="automático" />
+              <EditableDateRow
+                label="Entrou no funil"
+                iso={lead.created_at}
+                allowClear={false}
+                onSave={(v) => onUpdate(lead.id, { created_at: v ?? lead.created_at })}
+              />
               <EditableDateRow
                 label="Reunião realizada"
                 iso={lead.reuniao_realizada_em}
@@ -658,28 +689,16 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function DateRow({ label, iso, accent, hint }: { label: string; iso: string; accent?: boolean; hint?: string }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <dt className="text-zinc-500">
-        {label}
-        {hint && <span className="ml-1 text-[10px] text-zinc-600">· {hint}</span>}
-      </dt>
-      <dd className={`flex items-center gap-1.5 font-medium ${accent ? "text-emerald-300" : "text-zinc-300"}`}>
-        <Calendar size={11} className="text-zinc-500" />
-        {format(new Date(iso), "d 'de' MMM yyyy 'às' HH:mm", { locale: ptBR })}
-      </dd>
-    </div>
-  );
-}
-
-// Data de rastreio editável manualmente (reunião realizada / negócio ganho).
+// Data de rastreio editável manualmente (reunião realizada / negócio ganho /
+// entrada no funil). `allowClear=false` esconde o "Limpar" (ex.: created_at, que
+// é obrigatório no banco).
 function EditableDateRow({
-  label, iso, accent, onSave,
+  label, iso, accent, allowClear = true, onSave,
 }: {
   label: string;
   iso: string | null;
   accent?: boolean;
+  allowClear?: boolean;
   onSave: (iso: string | null) => Promise<void>;
 }) {
   const init = (() => {
@@ -719,7 +738,7 @@ function EditableDateRow({
           >
             {saving ? "…" : "Salvar"}
           </button>
-          {iso && (
+          {allowClear && iso && (
             <button onClick={() => save(null)} disabled={saving} className="text-[11px] text-zinc-500 hover:text-rose-400">
               Limpar
             </button>

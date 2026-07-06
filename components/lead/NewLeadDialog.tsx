@@ -20,11 +20,14 @@ import {
   ESTRUTURA_LABELS,
   EXPERIENCIA_LABELS,
   HISTORICO_LABELS,
+  PRODUTO_LABELS,
+  PRODUTO_VALORES,
   SITUACAO_LABELS,
   findDuplicateLead,
   STATUS_COLORS,
   STATUS_LABELS,
   type Lead,
+  type LeadProduto,
   type BantAuthority,
   type BantBudget,
   type BantNeed,
@@ -84,7 +87,14 @@ function NewLeadDialogBody({
   const [empresa, setEmpresa] = useState("");
   const [instagram, setInstagram] = useState("");
   const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(null);
+  const [produto, setProduto] = useState<LeadProduto | null>(null);
   const [valor, setValor] = useState("");
+
+  // Ao escolher o produto, pré-preenche o valor sugerido (editável depois).
+  function handleProduto(p: LeadProduto | null) {
+    setProduto(p);
+    if (p) setValor(String(PRODUTO_VALORES[p]));
+  }
   // SDR responsável = usuário logado (quem está cadastrando). Closer só é
   // definido depois, ao agendar a reunião (não pré-atribui aqui).
   const [sdrResp, setSdrResp] = useState<string | null>(() => currentMember?.name ?? null);
@@ -120,6 +130,7 @@ function NewLeadDialogBody({
   function reset() {
     setNome(""); setTelefone(""); setCargo(null); setEmpresa(""); setInstagram("");
     setSegmento(null);
+    setProduto(null);
     setValor("");
     setSdrResp(currentMember?.name ?? null);
     setCloserResp(null);
@@ -151,6 +162,10 @@ function NewLeadDialogBody({
       return;
     }
     if (!quick) {
+      if (!produto) {
+        setError("Selecione o produto ofertado.");
+        return;
+      }
       if (!experiencia || !situacao || !canalVendas || !estoque || !historico || !estrutura) {
         setError("Preencha toda a qualificação (experiência, situação, canal, estoque, histórico, estrutura).");
         return;
@@ -174,6 +189,7 @@ function NewLeadDialogBody({
         empresa: empresa.trim() || null,
         instagram: instagram.trim().replace(/^@/, "") || null,
         segmento: quick ? null : segmento,
+        produto: quick ? null : produto,
         valor: quick ? null : (parsedValor != null && !Number.isNaN(parsedValor) ? parsedValor : null),
         sdr_responsavel: sdrResp,
         closer_responsavel: closerResp,
@@ -309,6 +325,12 @@ function NewLeadDialogBody({
           {/* Qualificação */}
           <Section title="Qualificação *" hint="Toque rápido nas opções">
             <div className="space-y-3">
+              <PillRow
+                label="🏷️ Produto ofertado"
+                value={produto}
+                options={Object.entries(PRODUTO_LABELS).map(([v, l]) => ({ value: v as LeadProduto, label: l }))}
+                onChange={handleProduto}
+              />
               <PillRow
                 label="Experiência (tempo de mercado)"
                 value={experiencia}

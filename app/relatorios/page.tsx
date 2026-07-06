@@ -1,14 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Download } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { CreativeBars, MonthlyBars, WeekdayBars } from "@/components/relatorios/ReportCharts";
-import { useAdInvestmentsContext } from "@/lib/contexts/AdInvestmentsContext";
+import { PeriodPicker } from "@/components/ui/PeriodPicker";
+import { useMetaSpendContext } from "@/lib/contexts/MetaSpendContext";
+import { usePeriodContext } from "@/lib/contexts/PeriodContext";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
-import { adLeadsInWindow, cac, custoPorLead, spendInWindow, totalAdLeads, totalSpend } from "@/lib/finance";
+import { cac, custoPorLead, metaLeadsInWindow, metaSpendInWindow } from "@/lib/finance";
 import {
-  PERIOD_LABELS,
   buildCoreKpis,
   buildCreativeStats,
   buildDisqualReasons,
@@ -20,20 +21,19 @@ import {
   buildSourceStats,
   buildWeekdayStats,
   downloadCsv,
-  filterLeadsByPeriod,
-  startOfPeriod,
-  type Period,
+  filterLeadsByRange,
+  periodLabel,
+  resolveRange,
 } from "@/lib/reports";
 import { STATUS_COLORS } from "@/lib/types";
 
-const PERIODS: Period[] = ["hoje", "semana", "mes", "trimestre", "ano", "tudo"];
-
 export default function RelatoriosPage() {
   const { leads } = useLeadsContext();
-  const { investments } = useAdInvestmentsContext();
-  const [period, setPeriod] = useState<Period>("mes");
+  const { period } = usePeriodContext();
+  const { days: metaDays } = useMetaSpendContext();
 
-  const filtered = useMemo(() => filterLeadsByPeriod(leads, period), [leads, period]);
+  const range = useMemo(() => resolveRange(period), [period]);
+  const filtered = useMemo(() => filterLeadsByRange(leads, range), [leads, range]);
   const kpis = useMemo(() => buildCoreKpis(filtered), [filtered]);
   const funnel = useMemo(() => buildFunnel(filtered), [filtered]);
   const lossReasons = useMemo(() => buildLossReasons(filtered), [filtered]);
@@ -45,23 +45,22 @@ export default function RelatoriosPage() {
   const weekday = useMemo(() => buildWeekdayStats(filtered), [filtered]);
   const creatives = useMemo(() => buildCreativeStats(filtered), [filtered]);
 
-  // Investimento + custo de aquisição no período selecionado.
+  // Investimento (Meta) + custo de aquisição no período selecionado.
   const finance = useMemo(() => {
-    const start = startOfPeriod(period);
-    const spend = start ? spendInWindow(investments, start, new Date()) : totalSpend(investments);
-    const adLeads = start ? adLeadsInWindow(investments, start, new Date()) : totalAdLeads(investments);
+    const spend = metaSpendInWindow(metaDays, range.start, range.end);
+    const adLeads = metaLeadsInWindow(metaDays, range.start, range.end);
     return {
       spend,
       adLeads,
       cpl: custoPorLead(spend, adLeads),
       cacVal: cac(spend, kpis.ganhos),
     };
-  }, [investments, period, kpis.ganhos]);
+  }, [metaDays, range, kpis.ganhos]);
 
   function exportCsv() {
     const csv = buildLeadsCsv(filtered);
     const date = new Date().toISOString().slice(0, 10);
-    downloadCsv(`floow_leads_${period}_${date}.csv`, csv);
+    downloadCsv(`floow_leads_${date}.csv`, csv);
   }
 
   const fmtBRL = (n: number) =>
@@ -72,21 +71,12 @@ export default function RelatoriosPage() {
     <>
       <TopBar title="Relatórios" />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-900 px-4 py-2.5 sm:px-6">
-        <div className="flex flex-wrap gap-1">
-          {PERIODS.map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
-                period === p
-                  ? "border-[#f5c518]/40 bg-[#f5c518]/10 text-[#f5c518]"
-                  : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
-              }`}
-            >
-              {PERIOD_LABELS[p]}
-            </button>
-          ))}
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-900 px-4 py-2.5 sm:px-6">
+        <div>
+          <PeriodPicker />
+          <p className="mt-2 text-[11px] text-zinc-500">
+            Mostrando <span className="text-zinc-300">{periodLabel(period)}</span> · {filtered.length} leads
+          </p>
         </div>
 
         <button

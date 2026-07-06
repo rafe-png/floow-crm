@@ -29,7 +29,9 @@ export type NewLeadInput = Omit<
   | "last_no_show_em"
 >;
 
-type UpdateLeadInput = Partial<Omit<Lead, "id" | "created_at" | "updated_at">>;
+// Permite editar `created_at` (data de entrada no funil, editável no painel do
+// lead). `updated_at` continua fora (é mantido pelo banco).
+type UpdateLeadInput = Partial<Omit<Lead, "id" | "updated_at">>;
 
 export function useLeads() {
   const { user } = useAuth();
