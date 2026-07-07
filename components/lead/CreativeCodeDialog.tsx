@@ -13,7 +13,8 @@ const STEP = 10; // "mostre 10 por vez"
 
 type PickerProps = {
   value: number | null;
-  onChange: (v: number) => void;
+  // null = remover a seleção (clicar no código já selecionado desmarca).
+  onChange: (v: number | null) => void;
 };
 
 /** Grade de códigos: começa em 10, carrega +10, ou digita pra pular pra altos. */
@@ -41,7 +42,8 @@ export function CreativeCodePicker({ value, onChange }: PickerProps) {
             <button
               key={n}
               type="button"
-              onClick={() => onChange(n)}
+              title={selected ? "Clique pra remover a seleção" : undefined}
+              onClick={() => onChange(selected ? null : n)}
               className={`rounded-md border px-0 py-2 text-xs font-semibold tabular-nums transition-colors ${
                 selected
                   ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-200"
@@ -62,6 +64,15 @@ export function CreativeCodePicker({ value, onChange }: PickerProps) {
         >
           Mostrar mais 10
         </button>
+        {value != null && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs text-rose-300 hover:border-rose-500/50"
+          >
+            Remover seleção
+          </button>
+        )}
         <div className="ml-auto flex items-center gap-1.5">
           <input
             value={jump}
