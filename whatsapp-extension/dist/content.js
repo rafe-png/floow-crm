@@ -21089,7 +21089,7 @@ ${suffix}`;
   });
 
   // src/crm.ts
-  var LEAD_COLUMNS = "id,nome,empresa,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
+  var LEAD_COLUMNS = "id,nome,empresa,instagram,segmento,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
   var STATUS_LABELS = {
     qualificado: "Entrada",
     pre_qualificado: "Pr\xE9 qualificado",
@@ -21228,6 +21228,38 @@ ${suffix}`;
     "sem_resposta"
   ];
   var NO_QUAL_STAGES = ["qualificado", "pre_qualificado", "negocio_perdido", "sem_resposta", "desqualificado"];
+  var SEGMENTO_LABELS = {
+    moda_feminina: "Moda feminina",
+    moda_masculina: "Moda masculina",
+    moda_infantil: "Moda infantil",
+    moda_fitness: "Moda fitness",
+    moda_praia: "Moda praia",
+    moda_lingerie: "Moda lingerie",
+    moda_jeans: "Moda jeans",
+    moda_intima: "Moda \xEDntima",
+    moda_plus_size: "Moda plus size",
+    moda_evangelica: "Moda evang\xE9lica",
+    moda_modestia: "Moda mod\xE9stia",
+    pijamas: "Pijamas",
+    outro: "Outro"
+  };
+  var SEGMENTO_OPTIONS = Object.keys(SEGMENTO_LABELS);
+  var BUSINESS_STAGES = [
+    "pre_qualificado",
+    "em_agendamento",
+    "agendando",
+    "reuniao_agendada",
+    "no_show",
+    "follow_up",
+    "carteira",
+    "negocio_ganho"
+  ];
+  function isPreQualComplete(l) {
+    return !!(l.nome && l.empresa && l.instagram && l.segmento);
+  }
+  function needsBusinessInfo(lead, target) {
+    return lead.status !== target && BUSINESS_STAGES.includes(target) && !isPreQualComplete(lead);
+  }
   function isQualComplete(l) {
     return !!(l.experiencia && l.situacao && l.canal_vendas && l.estoque && l.historico && l.estrutura && l.bant_budget && l.bant_authority && l.bant_need && l.bant_timing);
   }
@@ -21610,6 +21642,46 @@ ${suffix}`;
       return wrap;
     });
   }
+  function askBusinessInfo(lead) {
+    return openModal("Informa\xE7\xF5es do neg\xF3cio", (api) => {
+      const wrap = h("div", {});
+      wrap.append(h("div", { class: "floow-hint", style: "margin-bottom:8px" }, ["Obrigat\xF3rio pra sair da Entrada."]));
+      const nome = h("input", { class: "floow-input", placeholder: "Nome do decisor" });
+      nome.value = lead.nome || "";
+      const empresa = h("input", { class: "floow-input", placeholder: "Empresa" });
+      empresa.value = lead.empresa || "";
+      const insta = h("input", { class: "floow-input", placeholder: "Instagram (sem @)" });
+      insta.value = lead.instagram || "";
+      const seg = h("select", { class: "floow-input" });
+      seg.append(h("option", { value: "" }, ["Segmento\u2026"]));
+      for (const s of SEGMENTO_OPTIONS) {
+        const opt = h("option", { value: s }, [SEGMENTO_LABELS[s]]);
+        if (lead.segmento === s) opt.setAttribute("selected", "true");
+        seg.append(opt);
+      }
+      const confirm = h("button", { class: "floow-btn floow-btn-primary", style: "margin-top:10px" }, ["Confirmar"]);
+      confirm.addEventListener("click", () => {
+        const n = nome.value.trim(), e = empresa.value.trim(), i = insta.value.trim().replace(/^@/, ""), sg = seg.value;
+        if (!n || !e || !i || !sg) {
+          api.setError("Preencha decisor, empresa, Instagram e segmento.");
+          return;
+        }
+        api.done({ nome: n, empresa: e, instagram: i, segmento: sg });
+      });
+      wrap.append(
+        h("div", { class: "floow-qlabel" }, ["Decisor"]),
+        nome,
+        h("div", { class: "floow-qlabel" }, ["Empresa"]),
+        empresa,
+        h("div", { class: "floow-qlabel" }, ["Instagram"]),
+        insta,
+        h("div", { class: "floow-qlabel" }, ["Segmento"]),
+        seg,
+        confirm
+      );
+      return wrap;
+    });
+  }
   function askReason(title, labels) {
     return openModal(title, (api) => {
       const wrap = h("div", { class: "floow-pills" });
@@ -21703,6 +21775,11 @@ ${suffix}`;
     }
     const prevEventId = lead.google_event_id;
     const patch = patchForStatus(target);
+    if (needsBusinessInfo(lead, target) && !isPreQualComplete({ ...lead, ...patch })) {
+      const biz = await askBusinessInfo(lead);
+      if (!biz) return;
+      Object.assign(patch, biz);
+    }
     if (needsQualification(lead, target)) {
       const q = await askQualification(lead);
       if (!q) return;
@@ -21834,6 +21911,11 @@ ${suffix}`;
       origem: "manual",
       sdr_responsavel: member.name
     };
+    if (BUSINESS_STAGES.includes(stage) && !isPreQualComplete(draft)) {
+      const biz = await askBusinessInfo(draft);
+      if (!biz) return;
+      Object.assign(draft, biz);
+    }
     if (!NO_QUAL_STAGES.includes(stage)) {
       const q = await askQualification(draft);
       if (!q) return;

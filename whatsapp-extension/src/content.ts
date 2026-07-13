@@ -10,10 +10,15 @@ import {
   FONTE_LABELS,
   FONTE_OPTIONS,
   QUAL_FIELDS,
+  SEGMENTO_LABELS,
+  SEGMENTO_OPTIONS,
   MOTIVO_PERDA_LABELS,
   MOTIVO_DESQUALIFICACAO_LABELS,
   NO_QUAL_STAGES,
+  BUSINESS_STAGES,
   canMoveTo,
+  isPreQualComplete,
+  needsBusinessInfo,
   needsQualification,
   patchForStatus,
   normalizePhone,
@@ -334,6 +339,45 @@ function askQualification(lead: Lead): Promise<Record<string, string> | null> {
   });
 }
 
+// Info do negócio (Pré qualificado): decisor, empresa, instagram, segmento.
+function askBusinessInfo(lead: Lead): Promise<Record<string, string> | null> {
+  return openModal("Informações do negócio", (api) => {
+    const wrap = h("div", {});
+    wrap.append(h("div", { class: "floow-hint", style: "margin-bottom:8px" }, ["Obrigatório pra sair da Entrada."]));
+
+    const nome = h("input", { class: "floow-input", placeholder: "Nome do decisor" }) as HTMLInputElement;
+    nome.value = lead.nome || "";
+    const empresa = h("input", { class: "floow-input", placeholder: "Empresa" }) as HTMLInputElement;
+    empresa.value = lead.empresa || "";
+    const insta = h("input", { class: "floow-input", placeholder: "Instagram (sem @)" }) as HTMLInputElement;
+    insta.value = lead.instagram || "";
+
+    const seg = h("select", { class: "floow-input" }) as HTMLSelectElement;
+    seg.append(h("option", { value: "" }, ["Segmento…"]));
+    for (const s of SEGMENTO_OPTIONS) {
+      const opt = h("option", { value: s }, [SEGMENTO_LABELS[s]]);
+      if (lead.segmento === s) opt.setAttribute("selected", "true");
+      seg.append(opt);
+    }
+
+    const confirm = h("button", { class: "floow-btn floow-btn-primary", style: "margin-top:10px" }, ["Confirmar"]);
+    confirm.addEventListener("click", () => {
+      const n = nome.value.trim(), e = empresa.value.trim(), i = insta.value.trim().replace(/^@/, ""), sg = seg.value;
+      if (!n || !e || !i || !sg) { api.setError("Preencha decisor, empresa, Instagram e segmento."); return; }
+      api.done({ nome: n, empresa: e, instagram: i, segmento: sg });
+    });
+
+    wrap.append(
+      h("div", { class: "floow-qlabel" }, ["Decisor"]), nome,
+      h("div", { class: "floow-qlabel" }, ["Empresa"]), empresa,
+      h("div", { class: "floow-qlabel" }, ["Instagram"]), insta,
+      h("div", { class: "floow-qlabel" }, ["Segmento"]), seg,
+      confirm,
+    );
+    return wrap;
+  });
+}
+
 function askReason(title: string, labels: Record<string, string>): Promise<string | null> {
   return openModal(title, (api) => {
     const wrap = h("div", { class: "floow-pills" });
@@ -417,6 +461,13 @@ async function beginMove(lead: Lead, target: LeadStatus) {
   const prevEventId = lead.google_event_id;
   const patch = patchForStatus(target);
 
+  // Trava 1: info do negócio (Pré qualificado em diante).
+  if (needsBusinessInfo(lead, target) && !isPreQualComplete({ ...lead, ...patch } as Lead)) {
+    const biz = await askBusinessInfo(lead);
+    if (!biz) return;
+    Object.assign(patch, biz);
+  }
+  // Trava 2: qualificação/BANT (Qualificado em diante).
   if (needsQualification(lead, target)) {
     const q = await askQualification(lead);
     if (!q) return;
@@ -544,6 +595,11 @@ async function beginCreate() {
   };
 
   // Info extra conforme a etapa (mesmas regras do funil).
+  // Trava 1: info do negócio (Pré qualificado em diante).
+  if (BUSINESS_STAGES.includes(stage) && !isPreQualComplete(draft as Lead)) {
+    const biz = await askBusinessInfo(draft as Lead); if (!biz) return; Object.assign(draft, biz);
+  }
+  // Trava 2: qualificação/BANT (Qualificado em diante).
   if (!NO_QUAL_STAGES.includes(stage)) {
     const q = await askQualification(draft); if (!q) return; Object.assign(draft, q);
   }

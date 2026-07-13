@@ -19,6 +19,8 @@ export type Lead = {
   id: string;
   nome: string;
   empresa: string | null;
+  instagram: string | null;
+  segmento: string | null;
   telefone: string;
   status: LeadStatus;
   observacoes: string | null;
@@ -44,7 +46,7 @@ export type Lead = {
 
 // Colunas que a extensão lê do banco.
 export const LEAD_COLUMNS =
-  "id,nome,empresa,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
+  "id,nome,empresa,instagram,segmento,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
 
 export const STATUS_LABELS: Record<LeadStatus, string> = {
   qualificado: "Entrada",
@@ -145,8 +147,31 @@ export const SDR_STAGES: LeadStatus[] = [
 ];
 
 // Etapas que NÃO exigem qualificação completa (igual NO_QUAL_STAGES do app).
-// Pré qualificado exige info do negócio (não o BANT) — tratado no painel do app.
+// Pré qualificado exige info do negócio (não o BANT).
 export const NO_QUAL_STAGES: LeadStatus[] = ["qualificado", "pre_qualificado", "negocio_perdido", "sem_resposta", "desqualificado"];
+
+// Segmentos da confecção (igual SEGMENTO_LABELS do app).
+export const SEGMENTO_LABELS: Record<string, string> = {
+  moda_feminina: "Moda feminina", moda_masculina: "Moda masculina", moda_infantil: "Moda infantil",
+  moda_fitness: "Moda fitness", moda_praia: "Moda praia", moda_lingerie: "Moda lingerie",
+  moda_jeans: "Moda jeans", moda_intima: "Moda íntima", moda_plus_size: "Moda plus size",
+  moda_evangelica: "Moda evangélica", moda_modestia: "Moda modéstia", pijamas: "Pijamas", outro: "Outro",
+};
+export const SEGMENTO_OPTIONS = Object.keys(SEGMENTO_LABELS);
+
+// Info do negócio (empresa, instagram, decisor, segmento) — obrigatória de
+// "Pré qualificado" em diante (igual BUSINESS_STAGES do app).
+export const BUSINESS_STAGES: LeadStatus[] = [
+  "pre_qualificado", "em_agendamento", "agendando", "reuniao_agendada", "no_show", "follow_up", "carteira", "negocio_ganho",
+];
+
+export function isPreQualComplete(l: Lead): boolean {
+  return !!(l.nome && l.empresa && l.instagram && l.segmento);
+}
+
+export function needsBusinessInfo(lead: Lead, target: LeadStatus): boolean {
+  return lead.status !== target && BUSINESS_STAGES.includes(target) && !isPreQualComplete(lead);
+}
 
 export function isQualComplete(l: Lead): boolean {
   return !!(
