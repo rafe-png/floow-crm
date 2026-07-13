@@ -6,6 +6,7 @@ import { Board } from "@/components/kanban/Board";
 import { LeadSearch } from "@/components/kanban/LeadSearch";
 import { TopBar } from "@/components/layout/TopBar";
 import { CloserSelectDialog } from "@/components/lead/CloserSelectDialog";
+import { CompletePreQualDialog } from "@/components/lead/CompletePreQualDialog";
 import { CompleteQualificationDialog } from "@/components/lead/CompleteQualificationDialog";
 import { CreativeCodeDialog } from "@/components/lead/CreativeCodeDialog";
 import { DisqualifyDialog } from "@/components/lead/DisqualifyDialog";
@@ -18,27 +19,28 @@ import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { PRODUTO_LABELS, PRODUTO_OPTIONS, SEGMENTO_LABELS, type Lead, type LeadProduto, type LeadStatus, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
 import { computeLeadScore, PRIORITY_SHORT, type LeadPriority } from "@/lib/lead-score";
 
-// Etapas que NÃO exigem qualificação: Entrada (lead só chegou) e as saídas
-// (perdido, sem resposta, desqualificado). Qualquer outra exige a qualificação.
-const NO_QUAL_STAGES: LeadStatus[] = ["qualificado", "negocio_perdido", "sem_resposta", "desqualificado"];
+// Info do negócio (empresa, instagram, decisor, segmento) — obrigatória de
+// "Pré qualificado" em diante. Entrada e as saídas (perdido/sem resposta/
+// desqualificado) não exigem.
+const BUSINESS_STAGES: LeadStatus[] = [
+  "pre_qualificado", "em_agendamento", "agendando", "reuniao_agendada", "no_show", "follow_up", "carteira", "negocio_ganho",
+];
+// Qualificação + BANT — obrigatória de "Qualificado" (em_agendamento) em diante.
+const QUAL_STAGES: LeadStatus[] = [
+  "em_agendamento", "agendando", "reuniao_agendada", "no_show", "follow_up", "carteira", "negocio_ganho",
+];
 
-// Lead só avança além da zona inicial depois de toda a qualificação preenchida.
+// Pré qualificado: dados do negócio preenchidos.
+function isPreQualComplete(l: Lead): boolean {
+  return !!(l.nome && l.empresa && l.instagram && l.segmento);
+}
+
+// Qualificado+: produto + qualificação + BANT completos.
 function isQualComplete(l: Lead): boolean {
   return !!(
     l.produto &&
     l.experiencia && l.situacao && l.canal_vendas && l.estoque && l.historico && l.estrutura &&
     l.bant_budget && l.bant_authority && l.bant_need && l.bant_timing
-  );
-}
-
-// Exige qualificação completa ao entrar em "Qualificado" (em_agendamento) e nas
-// etapas seguintes até o ganho. Entrada e as saídas (perdido/sem resposta/
-// desqualificado) não exigem.
-function needsCompletion(lead: Lead, newStatus: LeadStatus): boolean {
-  return (
-    lead.status !== newStatus &&
-    !NO_QUAL_STAGES.includes(newStatus) &&
-    !isQualComplete(lead)
   );
 }
 
@@ -62,7 +64,7 @@ function KanbanContent() {
   const searchParams = useSearchParams();
   const leadParam = searchParams.get("lead");
 
-  const { leads, createLead, updateLead, moveLead, deleteLead } = useLeadsContext();
+  const { leads, createLead, updateLead, deleteLead } = useLeadsContext();
   const { isAdmin, currentMember, sdrs, closers } = useTeamContext();
   const [newOpen, setNewOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<LeadStatus | undefined>(undefined);
@@ -113,6 +115,13 @@ function KanbanContent() {
   const [pendingComplete, setPendingComplete] = useState<{
     lead: Lead;
     targetStatus: LeadStatus;
+    basePatch: Partial<Lead>;
+  } | null>(null);
+  // Info do negócio obrigatória ao entrar em "Pré qualificado".
+  const [pendingPreQual, setPendingPreQual] = useState<{
+    lead: Lead;
+    targetStatus: LeadStatus;
+    basePatch: Partial<Lead>;
   } | null>(null);
   // Antes de comemorar o ganho, pede o código do criativo que trouxe o cliente.
   const [pendingWin, setPendingWin] = useState<{
@@ -177,76 +186,57 @@ function KanbanContent() {
     if (leadParam) router.replace("/kanban", { scroll: false });
   }
 
+  // Orquestra o avanço de etapa aplicando as travas em ordem:
+  // 1) info do negócio (Pré qualificado) → 2) qualificação/BANT (Qualificado) →
+  // 3) dados extras da etapa (motivo/criativo/closer). Quando tudo ok, salva.
+  async function runMove(lead: Lead, target: LeadStatus, basePatch: Partial<Lead>) {
+    const merged = { ...lead, ...basePatch } as Lead;
+    const name = merged.empresa || merged.nome || "este lead";
+
+    if (BUSINESS_STAGES.includes(target) && !isPreQualComplete(merged)) {
+      setPendingPreQual({ lead, targetStatus: target, basePatch });
+      return;
+    }
+    if (QUAL_STAGES.includes(target) && !isQualComplete(merged)) {
+      setPendingComplete({ lead, targetStatus: target, basePatch });
+      return;
+    }
+    if (target === "negocio_perdido" && lead.status !== "negocio_perdido") {
+      setPendingLost({ id: lead.id, name, extraPatch: { ...basePatch, status: target } });
+      return;
+    }
+    if (target === "negocio_ganho" && lead.status !== "negocio_ganho") {
+      askCreative(lead.id, name, { ...basePatch, status: target });
+      return;
+    }
+    if (target === "desqualificado" && lead.status !== "desqualificado") {
+      setPendingDisqualify({ id: lead.id, name, extraPatch: { ...basePatch, status: target } });
+      return;
+    }
+    if (target === "reuniao_agendada" && lead.status !== "reuniao_agendada") {
+      askCloser(lead.id, name, { ...basePatch, status: target }, lead.closer_responsavel ?? null, lead.data_agendamento ?? null);
+      return;
+    }
+    await updateLead(lead.id, { ...basePatch, status: target });
+    triggerCelebration(target);
+  }
+
   async function handleMove(id: string, newStatus: LeadStatus) {
     const lead = leads.find((l) => l.id === id);
-    if (lead && needsCompletion(lead, newStatus)) {
-      setPendingComplete({ lead, targetStatus: newStatus });
-      return;
-    }
-    if (newStatus === "negocio_perdido" && lead?.status !== "negocio_perdido") {
-      setPendingLost({
-        id,
-        name: lead?.empresa || lead?.nome || "este lead",
-        extraPatch: { status: "negocio_perdido" },
-      });
-      return;
-    }
-    if (newStatus === "negocio_ganho" && lead?.status !== "negocio_ganho") {
-      askCreative(id, lead?.empresa || lead?.nome || "este lead", { status: "negocio_ganho" });
-      return;
-    }
-    if (newStatus === "desqualificado" && lead?.status !== "desqualificado") {
-      setPendingDisqualify({
-        id,
-        name: lead?.empresa || lead?.nome || "este lead",
-        extraPatch: { status: "desqualificado" },
-      });
-      return;
-    }
-    if (newStatus === "reuniao_agendada" && lead?.status !== "reuniao_agendada") {
-      askCloser(id, lead?.empresa || lead?.nome || "este lead", { status: "reuniao_agendada" }, lead?.closer_responsavel ?? null, lead?.data_agendamento ?? null);
-      return;
-    }
-    await moveLead(id, newStatus);
-    triggerCelebration(newStatus);
+    if (!lead) return;
+    await runMove(lead, newStatus, {});
   }
 
   async function handleUpdate(id: string, patch: Partial<Lead>) {
     const lead = leads.find((l) => l.id === id);
-    if (lead && patch.status && needsCompletion(lead, patch.status)) {
-      setPendingComplete({ lead, targetStatus: patch.status });
-      return;
+    if (!lead) return;
+    // Mudança de etapa passa pelas travas; edição sem mudar etapa salva direto.
+    if (patch.status && patch.status !== lead.status) {
+      const { status, ...rest } = patch;
+      await runMove(lead, status, rest);
+    } else {
+      await updateLead(id, patch);
     }
-    if (
-      patch.status === "negocio_perdido" &&
-      lead?.status !== "negocio_perdido"
-    ) {
-      setPendingLost({
-        id,
-        name: lead?.empresa || lead?.nome || "este lead",
-        extraPatch: patch,
-      });
-      return;
-    }
-    if (patch.status === "negocio_ganho" && lead?.status !== "negocio_ganho") {
-      askCreative(id, lead?.empresa || lead?.nome || "este lead", patch);
-      return;
-    }
-    if (patch.status === "desqualificado" && lead?.status !== "desqualificado") {
-      setPendingDisqualify({
-        id,
-        name: lead?.empresa || lead?.nome || "este lead",
-        extraPatch: patch,
-      });
-      return;
-    }
-    if (patch.status === "reuniao_agendada" && lead?.status !== "reuniao_agendada") {
-      askCloser(id, lead?.empresa || lead?.nome || "este lead", patch, lead?.closer_responsavel ?? null, lead?.data_agendamento ?? null);
-      return;
-    }
-    const statusChanged = patch.status && patch.status !== lead?.status;
-    await updateLead(id, patch);
-    if (statusChanged) triggerCelebration(patch.status);
   }
 
   async function handleConfirmLost(motivo: MotivoPerda) {
@@ -378,26 +368,28 @@ function KanbanContent() {
         onConfirm={handleConfirmDisqualify}
       />
 
+      {pendingPreQual && (
+        <CompletePreQualDialog
+          lead={pendingPreQual.lead}
+          targetStatus={pendingPreQual.targetStatus}
+          onCancel={() => setPendingPreQual(null)}
+          onConfirm={async (patch) => {
+            const { lead, targetStatus, basePatch } = pendingPreQual;
+            setPendingPreQual(null);
+            await runMove(lead, targetStatus, { ...basePatch, ...patch });
+          }}
+        />
+      )}
+
       {pendingComplete && (
         <CompleteQualificationDialog
           lead={pendingComplete.lead}
           targetStatus={pendingComplete.targetStatus}
           onCancel={() => setPendingComplete(null)}
           onConfirm={async (patch) => {
-            const { lead, targetStatus } = pendingComplete;
+            const { lead, targetStatus, basePatch } = pendingComplete;
             setPendingComplete(null);
-            // Qualificou e já foi direto pra ganho: ainda pede o criativo.
-            if (targetStatus === "negocio_ganho") {
-              askCreative(lead.id, lead.empresa || lead.nome || "este lead", patch);
-              return;
-            }
-            // Qualificou e agendou: pede o Closer responsável + data.
-            if (targetStatus === "reuniao_agendada") {
-              askCloser(lead.id, lead.empresa || lead.nome || "este lead", patch, lead.closer_responsavel ?? null, lead.data_agendamento ?? null);
-              return;
-            }
-            await updateLead(lead.id, patch);
-            triggerCelebration(targetStatus);
+            await runMove(lead, targetStatus, { ...basePatch, ...patch });
           }}
         />
       )}

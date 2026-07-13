@@ -178,6 +178,7 @@ export type FunnelStat = { status: LeadStatus; label: string; count: number; pct
 export function buildFunnel(leads: Lead[]): FunnelStat[] {
   const order: LeadStatus[] = [
     "qualificado",
+    "pre_qualificado",
     "em_agendamento",
     "agendando",
     "reuniao_agendada",
@@ -190,7 +191,7 @@ export function buildFunnel(leads: Lead[]): FunnelStat[] {
     "desqualificado",
   ];
   const counts: Record<LeadStatus, number> = {
-    qualificado: 0, em_agendamento: 0, agendando: 0, reuniao_agendada: 0, no_show: 0, follow_up: 0, carteira: 0, negocio_ganho: 0, negocio_perdido: 0, sem_resposta: 0, desqualificado: 0,
+    qualificado: 0, pre_qualificado: 0, em_agendamento: 0, agendando: 0, reuniao_agendada: 0, no_show: 0, follow_up: 0, carteira: 0, negocio_ganho: 0, negocio_perdido: 0, sem_resposta: 0, desqualificado: 0,
   };
   for (const l of leads) counts[l.status]++;
   const total = leads.length || 1;
@@ -469,7 +470,6 @@ export function buildLeadsCsv(leads: Lead[]): string {
     "Criado em",
     "Empresa",
     "Decisor",
-    "Cargo",
     "Telefone",
     "Instagram",
     "Status",
@@ -496,7 +496,6 @@ export function buildLeadsCsv(leads: Lead[]): string {
     new Date(l.created_at).toISOString(),
     l.empresa ?? "",
     l.nome,
-    l.cargo ?? "",
     l.telefone,
     l.instagram ?? "",
     STATUS_LABELS[l.status],

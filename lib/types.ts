@@ -1,5 +1,6 @@
 export type LeadStatus =
   | "qualificado"
+  | "pre_qualificado"
   | "em_agendamento"
   | "agendando"
   | "reuniao_agendada"
@@ -39,7 +40,7 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 // em diante o Closer "pega o bastão": etapas mais escuras e bloqueadas pro SDR.
 // Etapas que o SDR pode mover. Inclui "desqualificado"/"sem_resposta" (saída de
 // qualificação) e "carteira" (o SDR pode levar leads pra carteira).
-export const SDR_STAGES: LeadStatus[] = ["qualificado", "em_agendamento", "agendando", "reuniao_agendada", "carteira", "desqualificado", "sem_resposta"];
+export const SDR_STAGES: LeadStatus[] = ["qualificado", "pre_qualificado", "em_agendamento", "agendando", "reuniao_agendada", "carteira", "desqualificado", "sem_resposta"];
 
 export function canMoveTo(
   status: LeadStatus,
@@ -127,7 +128,6 @@ export type Lead = {
   observacoes: string | null;
 
   // Decisor / Empresa
-  cargo: string | null;
   empresa: string | null;
   instagram: string | null;
   segmento: SegmentoConfeccao | null;
@@ -313,6 +313,7 @@ export type MetaAdSpendDay = {
 // ============================================================
 export const STATUS_ORDER: LeadStatus[] = [
   "qualificado",
+  "pre_qualificado",
   "em_agendamento",
   "agendando",
   "reuniao_agendada",
@@ -342,6 +343,7 @@ export const PIPELINE_STATUSES: LeadStatus[] = [
 // então funil, kanban e relatórios seguem corretos.
 export const STATUS_LABELS: Record<LeadStatus, string> = {
   qualificado: "Entrada",
+  pre_qualificado: "Pré qualificado",
   em_agendamento: "Qualificado",
   agendando: "Em agendamento",
   reuniao_agendada: "Reunião agendada",
@@ -356,6 +358,7 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
 
 export const STATUS_COLORS: Record<LeadStatus, { bg: string; text: string; border: string; dot: string }> = {
   qualificado:      { bg: "bg-indigo-500/10",  text: "text-indigo-300",  border: "border-indigo-500/30",  dot: "bg-indigo-400" },
+  pre_qualificado:  { bg: "bg-purple-500/10",  text: "text-purple-300",  border: "border-purple-500/30",  dot: "bg-purple-400" },
   em_agendamento:   { bg: "bg-teal-500/10",    text: "text-teal-300",    border: "border-teal-500/30",    dot: "bg-teal-400" },
   agendando:        { bg: "bg-sky-500/10",     text: "text-sky-300",     border: "border-sky-500/30",     dot: "bg-sky-400" },
   reuniao_agendada: { bg: "bg-blue-500/10",    text: "text-blue-300",    border: "border-blue-500/30",    dot: "bg-blue-400" },
@@ -481,16 +484,6 @@ export const MOTIVO_DESQUALIFICACAO_LABELS: Record<MotivoDesqualificacao, string
   regiao_fora: "Região/segmento fora do foco",
   outro: "Outro",
 };
-
-// Cargos comuns em confecções atacadistas (B2B)
-export const CARGO_OPTIONS = [
-  "Sócio(a)",
-  "Dono(a)",
-  "Diretor(a)",
-  "Gerente comercial",
-  "Comprador(a)",
-] as const;
-export type Cargo = (typeof CARGO_OPTIONS)[number];
 
 // Normaliza um telefone pra comparar/deduplicar: só dígitos, com código do país.
 // "(11) 91234-5678" e "55 11 91234 5678" viram a mesma string.

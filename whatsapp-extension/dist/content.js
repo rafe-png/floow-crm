@@ -21092,6 +21092,7 @@ ${suffix}`;
   var LEAD_COLUMNS = "id,nome,empresa,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
   var STATUS_LABELS = {
     qualificado: "Entrada",
+    pre_qualificado: "Pr\xE9 qualificado",
     em_agendamento: "Qualificado",
     agendando: "Em agendamento",
     reuniao_agendada: "Reuni\xE3o agendada",
@@ -21105,6 +21106,7 @@ ${suffix}`;
   };
   var STATUS_ORDER = [
     "qualificado",
+    "pre_qualificado",
     "em_agendamento",
     "agendando",
     "reuniao_agendada",
@@ -21118,6 +21120,7 @@ ${suffix}`;
   ];
   var STATUS_DOT = {
     qualificado: "#818cf8",
+    pre_qualificado: "#c084fc",
     em_agendamento: "#2dd4bf",
     agendando: "#38bdf8",
     reuniao_agendada: "#60a5fa",
@@ -21216,6 +21219,7 @@ ${suffix}`;
   ];
   var SDR_STAGES = [
     "qualificado",
+    "pre_qualificado",
     "em_agendamento",
     "agendando",
     "reuniao_agendada",
@@ -21223,7 +21227,7 @@ ${suffix}`;
     "desqualificado",
     "sem_resposta"
   ];
-  var NO_QUAL_STAGES = ["qualificado", "negocio_perdido", "sem_resposta", "desqualificado"];
+  var NO_QUAL_STAGES = ["qualificado", "pre_qualificado", "negocio_perdido", "sem_resposta", "desqualificado"];
   function isQualComplete(l) {
     return !!(l.experiencia && l.situacao && l.canal_vendas && l.estoque && l.historico && l.estrutura && l.bant_budget && l.bant_authority && l.bant_need && l.bant_timing);
   }
@@ -21238,7 +21242,7 @@ ${suffix}`;
   }
   function patchForStatus(status) {
     const patch = { status };
-    if (["qualificado", "em_agendamento", "agendando", "no_show"].includes(status)) {
+    if (["qualificado", "pre_qualificado", "em_agendamento", "agendando", "no_show"].includes(status)) {
       patch.data_agendamento = null;
     }
     return patch;

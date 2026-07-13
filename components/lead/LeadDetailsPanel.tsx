@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowRight, Calendar, Check, Lock, Pencil, Trash2, X } from "lucide-react";
 import { InstagramIcon, WhatsAppIcon } from "@/components/icons/BrandIcons";
-import { CargoSelect } from "@/components/ui/CargoSelect";
 import { DateTimePicker, busyStartsForDate, joinIso, splitIso } from "@/components/ui/DateTimePicker";
 import { LocalSelect } from "@/components/ui/LocalSelect";
 import { PersonSelect } from "@/components/ui/PersonSelect";
@@ -67,7 +66,6 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
 
   const [nome, setNome] = useState(lead.nome);
   const [telefone, setTelefone] = useState(lead.telefone);
-  const [cargo, setCargo] = useState<string | null>(lead.cargo);
   const [empresa, setEmpresa] = useState(lead.empresa ?? "");
   const [instagram, setInstagram] = useState(lead.instagram ?? "");
   const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(lead.segmento);
@@ -121,7 +119,6 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
       await onUpdate(lead.id, {
         nome: nome.trim(),
         telefone: telefone.trim(),
-        cargo: cargo,
         empresa: empresa.trim() || null,
         instagram: instagram.trim().replace(/^@/, "") || null,
         segmento,
@@ -223,16 +220,13 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
             bantTiming={bantTiming}        onBantTiming={markDirty(setBantTiming)}
           />
 
-          {/* Decisor + Empresa */}
-          <Section title="Decisor & Empresa">
-            <Field label="Nome">
+          {/* Informações do negócio (Pré qualificado) */}
+          <Section title="Informações do negócio">
+            <Field label="Nome do decisor">
               <input value={nome} onChange={(e) => { setNome(e.target.value); setDirty(true); }} className="ds-input" />
             </Field>
             <Field label="WhatsApp">
               <input value={telefone} onChange={(e) => { setTelefone(e.target.value); setDirty(true); }} className="ds-input" inputMode="tel" />
-            </Field>
-            <Field label="Cargo">
-              <CargoSelect value={cargo} onChange={(v) => { setCargo(v); setDirty(true); }} />
             </Field>
             <Field label="Empresa">
               <input value={empresa} onChange={(e) => { setEmpresa(e.target.value); setDirty(true); }} className="ds-input" />

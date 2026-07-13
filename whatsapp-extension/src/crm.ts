@@ -3,6 +3,7 @@
 
 export type LeadStatus =
   | "qualificado"
+  | "pre_qualificado"
   | "em_agendamento"
   | "agendando"
   | "reuniao_agendada"
@@ -47,6 +48,7 @@ export const LEAD_COLUMNS =
 
 export const STATUS_LABELS: Record<LeadStatus, string> = {
   qualificado: "Entrada",
+  pre_qualificado: "Pré qualificado",
   em_agendamento: "Qualificado",
   agendando: "Em agendamento",
   reuniao_agendada: "Reunião agendada",
@@ -61,12 +63,13 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
 
 // Ordem do funil (igual STATUS_ORDER do app).
 export const STATUS_ORDER: LeadStatus[] = [
-  "qualificado", "em_agendamento", "agendando", "reuniao_agendada", "no_show",
+  "qualificado", "pre_qualificado", "em_agendamento", "agendando", "reuniao_agendada", "no_show",
   "follow_up", "carteira", "negocio_ganho", "negocio_perdido", "sem_resposta", "desqualificado",
 ];
 
 export const STATUS_DOT: Record<LeadStatus, string> = {
   qualificado: "#818cf8",
+  pre_qualificado: "#c084fc",
   em_agendamento: "#2dd4bf",
   agendando: "#38bdf8",
   reuniao_agendada: "#60a5fa",
@@ -138,11 +141,12 @@ export const QUAL_FIELDS: { key: keyof Lead; label: string; options: Record<stri
 
 // Etapas que o SDR pode mover (igual SDR_STAGES do app).
 export const SDR_STAGES: LeadStatus[] = [
-  "qualificado", "em_agendamento", "agendando", "reuniao_agendada", "carteira", "desqualificado", "sem_resposta",
+  "qualificado", "pre_qualificado", "em_agendamento", "agendando", "reuniao_agendada", "carteira", "desqualificado", "sem_resposta",
 ];
 
 // Etapas que NÃO exigem qualificação completa (igual NO_QUAL_STAGES do app).
-export const NO_QUAL_STAGES: LeadStatus[] = ["qualificado", "negocio_perdido", "sem_resposta", "desqualificado"];
+// Pré qualificado exige info do negócio (não o BANT) — tratado no painel do app.
+export const NO_QUAL_STAGES: LeadStatus[] = ["qualificado", "pre_qualificado", "negocio_perdido", "sem_resposta", "desqualificado"];
 
 export function isQualComplete(l: Lead): boolean {
   return !!(
@@ -168,7 +172,7 @@ export function canMoveTo(
 // Mover pra antes da reunião / no-show limpa o agendamento (espelha useLeads).
 export function patchForStatus(status: LeadStatus): Record<string, unknown> {
   const patch: Record<string, unknown> = { status };
-  if (["qualificado", "em_agendamento", "agendando", "no_show"].includes(status)) {
+  if (["qualificado", "pre_qualificado", "em_agendamento", "agendando", "no_show"].includes(status)) {
     patch.data_agendamento = null;
   }
   return patch;

@@ -35,6 +35,7 @@ export function Board({ leads, onMove, onCardClick, onCreate, viewerRole, isAdmi
   const byStatus = useMemo(() => {
     const map: Record<LeadStatus, Lead[]> = {
       qualificado: [],
+      pre_qualificado: [],
       em_agendamento: [],
       agendando: [],
       reuniao_agendada: [],

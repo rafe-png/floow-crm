@@ -130,6 +130,7 @@ export function useLeads() {
     // Calendar + limpa google_event_id/meet_link, tirando da agenda.
     if (
       patch.status === "qualificado" ||
+      patch.status === "pre_qualificado" ||
       patch.status === "em_agendamento" ||
       patch.status === "agendando" ||
       patch.status === "no_show"

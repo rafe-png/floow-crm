@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { PillRow } from "@/components/ui/Pills";
-import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
 import {
   BANT_AUTHORITY_LABELS,
   BANT_BUDGET_LABELS,
@@ -30,7 +29,6 @@ import {
   type Lead,
   type LeadProduto,
   type LeadStatus,
-  type SegmentoConfeccao,
   type Situacao,
 } from "@/lib/types";
 
@@ -53,7 +51,6 @@ export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onCo
   const [bantAuthority, setBantAuthority] = useState<BantAuthority | null>(lead.bant_authority);
   const [bantNeed, setBantNeed] = useState<BantNeed | null>(lead.bant_need);
   const [bantTiming, setBantTiming] = useState<BantTiming | null>(lead.bant_timing);
-  const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(lead.segmento);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,8 +83,6 @@ export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onCo
         bant_authority: bantAuthority,
         bant_need: bantNeed,
         bant_timing: bantTiming,
-        segmento,
-        status: targetStatus,
         // Pré-preenche o valor sugerido do produto se o lead ainda não tem valor
         // (não sobrescreve um valor já editado à mão).
         ...(lead.valor == null ? { valor: PRODUTO_VALORES[produto] } : {}),
@@ -160,11 +155,6 @@ export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onCo
             <PillRow label="⏱️ Timing" value={bantTiming}
               options={Object.entries(BANT_TIMING_LABELS).map(([v, l]) => ({ value: v as BantTiming, label: l }))}
               onChange={setBantTiming} />
-          </section>
-
-          <section className="space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Segmento da confecção</h3>
-            <SegmentoSelect value={segmento} onChange={setSegmento} />
           </section>
 
           {error && (

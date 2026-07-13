@@ -23,21 +23,40 @@ export async function GET(request: Request) {
   }
 
   const days = parseInt(process.env.STALE_LEAD_DAYS || "7", 10);
+  const preDays = parseInt(process.env.PRE_QUAL_STALE_DAYS || "30", 10);
   const cutoff = new Date(Date.now() - days * 86_400_000).toISOString();
+  const preCutoff = new Date(Date.now() - preDays * 86_400_000).toISOString();
 
   const admin = getAdminSupabase();
-  const { data, error } = await admin
+
+  // 1) Entrada parada há > `days` dias (pela ENTRADA no CRM = created_at).
+  const entrada = await admin
     .from("leads")
     .update({ status: "sem_resposta" })
-    .eq("status", "qualificado") // ainda na Entrada
-    .lt("created_at", cutoff) // entrou há mais de X dias
+    .eq("status", "qualificado")
+    .lt("created_at", cutoff)
     .select("id");
 
+  // 2) Pré qualificado parado há > `preDays` dias (pela última atividade = updated_at,
+  //    já que o lead só chega aqui depois de a Entrada — created_at não serve).
+  const preQual = await admin
+    .from("leads")
+    .update({ status: "sem_resposta" })
+    .eq("status", "pre_qualificado")
+    .lt("updated_at", preCutoff)
+    .select("id");
+
+  const error = entrada.error || preQual.error;
   if (error) {
     console.error("[cron stale-leads] erro:", error.message);
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
-  const moved = data?.length ?? 0;
-  return NextResponse.json({ ok: true, moved, days });
+  const movedEntrada = entrada.data?.length ?? 0;
+  const movedPreQual = preQual.data?.length ?? 0;
+  return NextResponse.json({
+    ok: true,
+    moved: movedEntrada + movedPreQual,
+    movedEntrada, movedPreQual, days, preDays,
+  });
 }

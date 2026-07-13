@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
-import { CargoSelect } from "@/components/ui/CargoSelect";
 import { DateTimePicker, busyStartsForDate, joinIso } from "@/components/ui/DateTimePicker";
 import { LocalSelect } from "@/components/ui/LocalSelect";
 import { PersonSelect } from "@/components/ui/PersonSelect";
@@ -83,7 +82,6 @@ function NewLeadDialogBody({
 
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
-  const [cargo, setCargo] = useState<string | null>(null);
   const [empresa, setEmpresa] = useState("");
   const [instagram, setInstagram] = useState("");
   const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(null);
@@ -128,7 +126,7 @@ function NewLeadDialogBody({
   const [error, setError] = useState<string | null>(null);
 
   function reset() {
-    setNome(""); setTelefone(""); setCargo(null); setEmpresa(""); setInstagram("");
+    setNome(""); setTelefone(""); setEmpresa(""); setInstagram("");
     setSegmento(null);
     setProduto(null);
     setValor("");
@@ -185,7 +183,6 @@ function NewLeadDialogBody({
       await onSubmit({
         nome: nome.trim(),
         telefone: telefone.trim(),
-        cargo: cargo,
         empresa: empresa.trim() || null,
         instagram: instagram.trim().replace(/^@/, "") || null,
         segmento: quick ? null : segmento,
@@ -277,11 +274,6 @@ function NewLeadDialogBody({
               <Field label="WhatsApp *">
                 <input value={telefone} onChange={(e) => setTelefone(e.target.value)} className="ds-input" placeholder="(11) 91234-5678" inputMode="tel" />
               </Field>
-              {!quick && (
-                <Field label="Cargo">
-                  <CargoSelect value={cargo} onChange={setCargo} />
-                </Field>
-              )}
             </div>
           </Section>
 

@@ -17,7 +17,6 @@ import {
   X,
 } from "lucide-react";
 import { InstagramIcon, WhatsAppIcon } from "@/components/icons/BrandIcons";
-import { CargoSelect } from "@/components/ui/CargoSelect";
 import { DateTimePicker, busyStartsForDate, joinIso, splitIso } from "@/components/ui/DateTimePicker";
 import { LocalSelect } from "@/components/ui/LocalSelect";
 import { PersonSelect } from "@/components/ui/PersonSelect";
@@ -63,7 +62,6 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
   // Edit state
   const [nome, setNome] = useState(lead.nome);
   const [telefone, setTelefone] = useState(lead.telefone);
-  const [cargo, setCargo] = useState<string | null>(lead.cargo);
   const [empresa, setEmpresa] = useState(lead.empresa ?? "");
   const [instagram, setInstagram] = useState(lead.instagram ?? "");
   const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(lead.segmento);
@@ -89,7 +87,6 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
       await onUpdate(lead.id, {
         nome: nome.trim(),
         telefone: telefone.trim(),
-        cargo,
         empresa: empresa.trim() || null,
         instagram: instagram.trim().replace(/^@/, "") || null,
         segmento,
@@ -111,7 +108,6 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
     setEditing(false);
     setNome(lead.nome);
     setTelefone(lead.telefone);
-    setCargo(lead.cargo);
     setEmpresa(lead.empresa ?? "");
     setInstagram(lead.instagram ?? "");
     setSegmento(lead.segmento);
@@ -244,7 +240,6 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
               meetLink={meetLink} setMeetLink={setMeetLink}
               nome={nome} setNome={setNome}
               telefone={telefone} setTelefone={setTelefone}
-              cargo={cargo} setCargo={setCargo}
               empresa={empresa} setEmpresa={setEmpresa}
               instagram={instagram} setInstagram={setInstagram}
               segmento={segmento} setSegmento={setSegmento}
@@ -312,7 +307,6 @@ function SummaryView({ lead }: { lead: Lead }) {
       <div className="rounded-lg border border-zinc-900 bg-zinc-950/40 p-3 space-y-1">
         <div className="flex flex-wrap items-baseline gap-2">
           <span className="text-base font-semibold text-zinc-100">{lead.nome}</span>
-          {lead.cargo && <span className="text-xs text-zinc-500">· {lead.cargo}</span>}
         </div>
         {lead.empresa && (
           <div className="text-sm text-zinc-300">{lead.empresa}</div>
@@ -410,7 +404,6 @@ type EditProps = {
   meetLink: string; setMeetLink: (v: string) => void;
   nome: string; setNome: (v: string) => void;
   telefone: string; setTelefone: (v: string) => void;
-  cargo: string | null; setCargo: (v: string | null) => void;
   empresa: string; setEmpresa: (v: string) => void;
   instagram: string; setInstagram: (v: string) => void;
   segmento: SegmentoConfeccao | null; setSegmento: (v: SegmentoConfeccao | null) => void;
@@ -457,9 +450,6 @@ function EditView(props: EditProps) {
             <input value={props.telefone} onChange={(e) => props.setTelefone(e.target.value)} className="ds-input2" inputMode="tel" />
           </Field>
         </div>
-        <Field label="Cargo">
-          <CargoSelect value={props.cargo} onChange={props.setCargo} />
-        </Field>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Empresa">
             <input value={props.empresa} onChange={(e) => props.setEmpresa(e.target.value)} className="ds-input2" />

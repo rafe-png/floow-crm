@@ -20,7 +20,7 @@ function buildSummary(lead: Pick<Lead, "empresa" | "nome">) {
 function buildDescription(lead: Lead): string {
   const parts: string[] = [];
   if (lead.empresa) parts.push(`Empresa: ${lead.empresa}`);
-  if (lead.nome) parts.push(`Decisor: ${lead.nome}${lead.cargo ? ` (${lead.cargo})` : ""}`);
+  if (lead.nome) parts.push(`Decisor: ${lead.nome}`);
   if (lead.telefone) parts.push(`WhatsApp: ${lead.telefone}`);
   if (lead.instagram) parts.push(`Instagram: @${lead.instagram}`);
   if (lead.sdr_responsavel) parts.push(`SDR: ${lead.sdr_responsavel}`);
