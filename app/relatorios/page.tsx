@@ -23,6 +23,7 @@ import {
   downloadCsv,
   filterLeadsByRange,
   periodLabel,
+  realAdLeadsInRange,
   resolveRange,
 } from "@/lib/reports";
 import { STATUS_COLORS } from "@/lib/types";
@@ -48,14 +49,18 @@ export default function RelatoriosPage() {
   // Investimento (Meta) + custo de aquisição no período selecionado.
   const finance = useMemo(() => {
     const spend = metaSpendInWindow(metaDays, range.start, range.end);
-    const adLeads = metaLeadsInWindow(metaDays, range.start, range.end);
+    const adLeads = metaLeadsInWindow(metaDays, range.start, range.end); // conversas iniciadas (Meta)
+    const realLeads = realAdLeadsInRange(leads, range);                  // leads reais no CRM
     return {
       spend,
       adLeads,
-      cpl: custoPorLead(spend, adLeads),
+      realLeads,
+      convRate: adLeads > 0 ? (realLeads / adLeads) * 100 : null,
+      cplConversa: custoPorLead(spend, adLeads),
+      cplReal: custoPorLead(spend, realLeads),
       cacVal: cac(spend, kpis.ganhos),
     };
-  }, [metaDays, range, kpis.ganhos]);
+  }, [metaDays, range, leads, kpis.ganhos]);
 
   function exportCsv() {
     const csv = buildLeadsCsv(filtered);
@@ -112,11 +117,18 @@ export default function RelatoriosPage() {
             <Kpi label="Ticket médio"          value={fmtBRL(kpis.ticketMedio)} hint="entre ganhos" />
           </section>
 
-          {/* Custo de aquisição (vem do Financeiro) */}
+          {/* Alcance real: conversas iniciadas (Meta) × leads reais (CRM) */}
           <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Kpi label="Investido em ads"  value={fmtBRL(finance.spend)} hint={`${finance.adLeads} leads dos anúncios`} accent="yellow" />
-            <Kpi label="Custo por lead"    value={finance.cpl != null ? fmtBRL(finance.cpl) : "—"} hint="investido ÷ leads dos anúncios" />
-            <Kpi label="CAC"               value={finance.cacVal != null ? fmtBRL(finance.cacVal) : "—"} hint="investido ÷ clientes ganhos" accent="emerald" />
+            <Kpi label="Investido em ads" value={fmtBRL(finance.spend)} hint="gasto na Meta no período" accent="yellow" />
+            <Kpi label="Conversas iniciadas (Meta)" value={finance.adLeads.toString()} hint="o que o anúncio reportou" accent="sky" />
+            <Kpi label="Leads reais (CRM)" value={finance.realLeads.toString()} hint={finance.convRate != null ? `${finance.convRate.toFixed(0)}% mandaram mensagem` : "quem mandou mensagem"} />
+          </section>
+
+          {/* Custo de aquisição — os dois CPLs + CAC */}
+          <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Kpi label="CPL por conversa" value={finance.cplConversa != null ? fmtBRL(finance.cplConversa) : "—"} hint="investido ÷ conversas (Meta)" />
+            <Kpi label="CPL por lead real" value={finance.cplReal != null ? fmtBRL(finance.cplReal) : "—"} hint="investido ÷ leads reais (CRM)" accent="sky" />
+            <Kpi label="CAC" value={finance.cacVal != null ? fmtBRL(finance.cacVal) : "—"} hint="investido ÷ clientes ganhos" accent="emerald" />
           </section>
 
           {/* Gráficos inteligentes */}
@@ -254,12 +266,13 @@ function Kpi({
   label: string;
   value: string;
   hint?: string;
-  accent?: "yellow" | "emerald" | "rose" | "neutral";
+  accent?: "yellow" | "emerald" | "rose" | "sky" | "neutral";
 }) {
   const color =
     accent === "yellow" ? "text-[#f5c518]"
     : accent === "emerald" ? "text-emerald-300"
     : accent === "rose" ? "text-rose-300"
+    : accent === "sky" ? "text-sky-300"
     : "text-zinc-100";
   return (
     <div className="rounded-xl border border-zinc-900 bg-zinc-950/60 p-4">

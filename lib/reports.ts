@@ -153,6 +153,22 @@ export function ganhosInRange(leads: Lead[], range: ResolvedRange): number {
   return n;
 }
 
+/**
+ * Nº de leads REAIS do Meta Ads que ENTRARAM (created_at) no intervalo — ou seja,
+ * quem de fato mandou mensagem/virou lead trabalhável (fonte='meta_ads'). Serve pra
+ * comparar com as "conversas iniciadas" da Meta, que incluem quem só abriu e sumiu.
+ */
+export function realAdLeadsInRange(leads: Lead[], range: ResolvedRange): number {
+  let n = 0;
+  for (const l of leads) {
+    if (l.fonte !== "meta_ads") continue;
+    const t = new Date(l.created_at);
+    if (range.start && t < range.start) continue;
+    if (t <= range.end) n++;
+  }
+  return n;
+}
+
 // ============================================================
 // Reports
 // ============================================================

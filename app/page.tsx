@@ -11,7 +11,7 @@ import { useMetaSpendContext } from "@/lib/contexts/MetaSpendContext";
 import { usePeriodContext } from "@/lib/contexts/PeriodContext";
 import { PeriodPicker } from "@/components/ui/PeriodPicker";
 import { cac, custoPorLead, metaLeadsInWindow, metaSpendInWindow } from "@/lib/finance";
-import { faturamentoInRange, ganhosInRange, periodLabel, resolveRange } from "@/lib/reports";
+import { faturamentoInRange, ganhosInRange, periodLabel, realAdLeadsInRange, resolveRange } from "@/lib/reports";
 import { PIPELINE_STATUSES, type Lead, type Owner } from "@/lib/types";
 
 function startOfIsoWeek(d: Date) {
@@ -72,9 +72,16 @@ export default function DashboardPage() {
   // Custo de aquisição no período selecionado (gasto Meta ÷ resultados).
   const aquisicao = useMemo(() => {
     const spend = metaSpendInWindow(metaDays, range.start, range.end);
-    const adLeads = metaLeadsInWindow(metaDays, range.start, range.end);
+    const adLeads = metaLeadsInWindow(metaDays, range.start, range.end); // conversas iniciadas (Meta)
+    const realLeads = realAdLeadsInRange(leads, range);                  // leads reais no CRM
     const ganhos = ganhosInRange(leads, range);
-    return { spend, cpl: custoPorLead(spend, adLeads), cacVal: cac(spend, ganhos) };
+    return {
+      spend, adLeads, realLeads,
+      convRate: adLeads > 0 ? (realLeads / adLeads) * 100 : null,
+      cplConversa: custoPorLead(spend, adLeads),
+      cplReal: custoPorLead(spend, realLeads),
+      cacVal: cac(spend, ganhos),
+    };
   }, [metaDays, leads, range]);
 
   const sdrWeekly = goals.SDR?.weekly_goal ?? 0;
@@ -135,13 +142,35 @@ export default function DashboardPage() {
           />
         </section>
 
-        {/* Custo de aquisição (período) */}
+        {/* Alcance real: conversas iniciadas (Meta) × leads reais (CRM) */}
         <section className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <BigStat label="Investido em ads" value={fmtBRL(aquisicao.spend)} hint="gasto na Meta no período" accent="#f5c518" />
           <BigStat
-            label="Custo por lead"
-            value={aquisicao.cpl != null ? fmtBRL(aquisicao.cpl) : "—"}
-            hint="investido ÷ leads dos anúncios"
+            label="Conversas iniciadas (Meta)"
+            value={aquisicao.adLeads.toString()}
+            hint="o que o anúncio reportou"
+            accent="#38bdf8"
+          />
+          <BigStat
+            label="Leads reais (CRM)"
+            value={aquisicao.realLeads.toString()}
+            hint={aquisicao.convRate != null ? `${aquisicao.convRate.toFixed(0)}% mandaram mensagem` : "quem mandou mensagem"}
+            accent="#f5c518"
+          />
+        </section>
+
+        {/* Custo de aquisição (período) — os dois CPLs + CAC */}
+        <section className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <BigStat
+            label="CPL por conversa"
+            value={aquisicao.cplConversa != null ? fmtBRL(aquisicao.cplConversa) : "—"}
+            hint="investido ÷ conversas (Meta)"
+            accent="#38bdf8"
+          />
+          <BigStat
+            label="CPL por lead real"
+            value={aquisicao.cplReal != null ? fmtBRL(aquisicao.cplReal) : "—"}
+            hint="investido ÷ leads reais (CRM)"
             accent="#38bdf8"
           />
           <BigStat

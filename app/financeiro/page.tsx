@@ -12,7 +12,7 @@ import { usePeriodContext } from "@/lib/contexts/PeriodContext";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { cac, custoPorLead, metaLeadsInWindow, metaSpendInWindow } from "@/lib/finance";
-import { faturamentoInRange, ganhosInRange, periodLabel, resolveRange } from "@/lib/reports";
+import { faturamentoInRange, ganhosInRange, periodLabel, realAdLeadsInRange, resolveRange } from "@/lib/reports";
 import { PIPELINE_STATUSES } from "@/lib/types";
 
 const fmtBRL = (n: number) =>
@@ -31,7 +31,9 @@ export default function FinanceiroPage() {
   const view = useMemo(() => {
     const range = resolveRange(period);
     const spend = metaSpendInWindow(metaDays, range.start, range.end);
-    const adLeads = metaLeadsInWindow(metaDays, range.start, range.end);
+    const adLeads = metaLeadsInWindow(metaDays, range.start, range.end); // conversas iniciadas (Meta)
+    const realLeads = realAdLeadsInRange(leads, range);                  // leads reais no CRM (Meta Ads)
+    const convRate = adLeads > 0 ? (realLeads / adLeads) * 100 : null;   // % que virou lead trabalhável
     const faturamento = faturamentoInRange(leads, range);
     const ganhos = ganhosInRange(leads, range);
     const lucro = faturamento - spend;
@@ -47,8 +49,9 @@ export default function FinanceiroPage() {
       .filter((d) => (!startKey || d.day >= startKey) && d.day <= endKey && (d.spend > 0 || d.leads > 0))
       .sort((a, b) => b.day.localeCompare(a.day));
     return {
-      spend, adLeads, faturamento, ganhos, lucro, roas, ticket, pipeline,
-      cpl: custoPorLead(spend, adLeads),
+      spend, adLeads, realLeads, convRate, faturamento, ganhos, lucro, roas, ticket, pipeline,
+      cplConversa: custoPorLead(spend, adLeads),  // investido ÷ conversas iniciadas
+      cplReal: custoPorLead(spend, realLeads),    // investido ÷ leads reais
       cacVal: cac(spend, ganhos),
       dias,
     };
@@ -108,10 +111,17 @@ export default function FinanceiroPage() {
             <KpiCard icon={Percent} label="ROAS" value={view.roas != null ? `${view.roas.toFixed(2)}x` : "—"} sub="retorno por R$ investido" accent="sky" />
           </section>
 
-          {/* Eficiência de aquisição */}
+          {/* Alcance real: conversas iniciadas (Meta) × leads reais (CRM) */}
+          <section className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <KpiCard icon={Megaphone} label="Conversas iniciadas (Meta)" value={view.adLeads} sub="o que o anúncio reportou" accent="sky" />
+            <KpiCard icon={Users} label="Leads reais (CRM)" value={view.realLeads} sub={view.convRate != null ? `${view.convRate.toFixed(0)}% mandaram mensagem` : "quem mandou mensagem"} accent="yellow" />
+            <KpiCard icon={Trophy} label="Clientes ganhos" value={view.ganhos} sub="fecharam no período" accent="emerald" />
+          </section>
+
+          {/* Eficiência de aquisição — os dois CPLs + CAC + ticket */}
           <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <KpiCard icon={Users} label="Leads dos anúncios" value={view.adLeads} sub="conversas iniciadas (Meta)" accent="sky" />
-            <KpiCard icon={TrendingUp} label="Custo por lead" value={view.cpl != null ? fmtBRL(view.cpl) : "—"} sub="investido ÷ leads" accent="neutral" />
+            <KpiCard icon={TrendingUp} label="CPL por conversa" value={view.cplConversa != null ? fmtBRL(view.cplConversa) : "—"} sub="investido ÷ conversas (Meta)" accent="neutral" />
+            <KpiCard icon={TrendingUp} label="CPL por lead real" value={view.cplReal != null ? fmtBRL(view.cplReal) : "—"} sub="investido ÷ leads reais (CRM)" accent="sky" />
             <KpiCard icon={Target} label="CAC" value={view.cacVal != null ? fmtBRL(view.cacVal) : "—"} sub="investido ÷ clientes ganhos" accent="neutral" />
             <KpiCard icon={DollarSign} label="Ticket médio" value={fmtBRL(view.ticket)} sub="faturamento ÷ ganhos" accent="emerald" />
           </section>
@@ -139,7 +149,7 @@ export default function FinanceiroPage() {
                   <thead>
                     <tr className="border-b border-zinc-900 text-left text-[11px] uppercase tracking-wider text-zinc-500">
                       <th className="px-4 py-2 font-medium">Dia</th>
-                      <th className="px-4 py-2 text-right font-medium">Leads</th>
+                      <th className="px-4 py-2 text-right font-medium">Conversas</th>
                       <th className="px-4 py-2 text-right font-medium">Cliques</th>
                       <th className="px-4 py-2 text-right font-medium">Gasto</th>
                     </tr>

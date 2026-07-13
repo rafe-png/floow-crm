@@ -103,7 +103,15 @@
       "Bash(npx --yes vercel@latest ls --prod)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); from collections import Counter; print\\(Counter\\(x['origem'] for x in d\\)\\)\")",
       "Bash(python3 -c \"import sys,json; from collections import Counter; print\\(Counter\\(x['fonte'] for x in json.load\\(sys.stdin\\)\\)\\)\")",
-      "Bash(cd *)"
+      "Bash(cd *)",
+      "Bash(open -R /Users/rafesilva2025/Documents/floow-crm/whatsapp-extension/floow-whatsapp-extension.zip)",
+      "Bash(./node_modules/.bin/vercel ls *)",
+      "Bash(curl -s 'https://graph.facebook.com/v21.0/act_1381035606708538/insights?fields=spend,impressions,clicks&date_preset=last_30d&access_token=EAAOZAftKVsJoBRwJCRqXTgBwdA3dCxmTY15wt9U5dE02y4xZAcAz8zHRHjmrVUxciVMyp0ZBOYMB3ZBm6BMWj17oqTWxUvaivz5zi33ZCykFhESli8yGq0FWFW769dISaFM7CWKVZBJUlA5H7XQl2bkuQJgBWoXdgJuX8BZADachfhVelW2tPoZCBaztXsau7AZDZD')",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2, ensure_ascii=False\\)[:800]\\)\")",
+      "Bash(curl -s 'https://graph.facebook.com/v21.0/me?fields=id,name&access_token=EAAOZAftKVsJoBRwJCRqXTgBwdA3dCxmTY15wt9U5dE02y4xZAcAz8zHRHjmrVUxciVMyp0ZBOYMB3ZBm6BMWj17oqTWxUvaivz5zi33ZCykFhESli8yGq0FWFW769dISaFM7CWKVZBJUlA5H7XQl2bkuQJgBWoXdgJuX8BZADachfhVelW2tPoZCBaztXsau7AZDZD')",
+      "Bash(python3 -c \"import sys,json;print\\(json.dumps\\(json.load\\(sys.stdin\\),indent=2,ensure_ascii=False\\)\\)\")",
+      "Bash(python3 -c \"import sys,json;print\\(json.dumps\\(json.load\\(sys.stdin\\),indent=2,ensure_ascii=False\\)[:600]\\)\")",
+      "Bash(NEW=\"EAAOZAftKVsJoBRwJCRqXTgBwdA3dCxmTY15wt9U5dE02y4xZAcAz8zHRHjmrVUxciVMyp0ZBOYMB3ZBm6BMWj17oqTWxUvaivz5zi33ZCykFhESli8yGq0FWFW769dISaFM7CWKVZBJUlA5H7XQl2bkuQJgBWoXdgJuX8BZADachfhVelW2tPoZCBaztXsau7AZDZD\" python3 -)"
     ]
   }
 }
