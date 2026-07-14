@@ -2,6 +2,7 @@
 
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CalendarDays, ChevronDown, X } from "lucide-react";
 import { Board } from "@/components/kanban/Board";
 import { LeadSearch } from "@/components/kanban/LeadSearch";
 import { TopBar } from "@/components/layout/TopBar";
@@ -99,6 +100,17 @@ function KanbanContent() {
   function triggerCelebration(status: LeadStatus | undefined) {
     const kind = celebrationFor(status);
     if (kind) setCelebration(kind);
+  }
+
+  // Quantos filtros estão ativos (pro contador e o botão "Limpar").
+  const activeFilters = [
+    filterSdr, filterCloser, filterPriority, filterOrigem, filterSegmento, filterProduto, filterEntrada,
+  ].filter(Boolean).length;
+
+  function clearFilters() {
+    setFilterSdr(null); setFilterCloser(null); setFilterPriority(null);
+    setFilterOrigem(null); setFilterSegmento(null); setFilterProduto(null);
+    setFilterEntrada(null);
   }
 
   // Todos veem o funil completo e filtram (responsável, prioridade, origem,
@@ -301,74 +313,70 @@ function KanbanContent() {
     <>
       <TopBar title="Funis de vendas" onNewLead={() => { setNewStatus(undefined); setNewOpen(true); }} />
 
-      {/* Toolbar: busca + filtros (responsável, prioridade, origem, segmento) */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-zinc-900 bg-[#0a0a0a] px-4 py-2 sm:px-6">
+      {/* Toolbar: busca + filtros em chips (acendem quando ativos) */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-zinc-900 bg-[#0a0a0a] px-4 py-2.5 sm:px-6">
         <LeadSearch leads={visibleLeads} onSelect={(lead) => setSelected(lead)} />
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <FilterSelect label="SDR" value={filterSdr ?? ""} onChange={(v) => setFilterSdr(v || null)}>
-            <option value="">Todos</option>
-            {sdrs.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
-          </FilterSelect>
-
-          <FilterSelect label="Closer" value={filterCloser ?? ""} onChange={(v) => setFilterCloser(v || null)}>
-            <option value="">Todos</option>
-            {closers.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
-          </FilterSelect>
-
-          <FilterSelect label="Prioridade" value={filterPriority ?? ""} onChange={(v) => setFilterPriority((v || null) as LeadPriority | null)}>
-            <option value="">Todas</option>
-            <option value="alta">🔥 {PRIORITY_SHORT.alta}</option>
-            <option value="media">⏳ {PRIORITY_SHORT.media}</option>
-            <option value="baixa">🧊 {PRIORITY_SHORT.baixa}</option>
-          </FilterSelect>
-
-          <FilterSelect label="Origem" value={filterOrigem ?? ""} onChange={(v) => setFilterOrigem((v || null) as "whatsapp" | "manual" | null)}>
-            <option value="">Todas</option>
-            <option value="whatsapp">Anúncio (WhatsApp)</option>
-            <option value="manual">Manual</option>
-          </FilterSelect>
-
-          <FilterSelect label="Segmento" value={filterSegmento ?? ""} onChange={(v) => setFilterSegmento((v || null) as SegmentoConfeccao | null)}>
-            <option value="">Todos</option>
-            {(Object.keys(SEGMENTO_LABELS) as SegmentoConfeccao[]).map((s) => (
-              <option key={s} value={s}>{SEGMENTO_LABELS[s]}</option>
-            ))}
-          </FilterSelect>
-
-          <FilterSelect label="Produto" value={filterProduto ?? ""} onChange={(v) => setFilterProduto((v || null) as LeadProduto | null)}>
-            <option value="">Todos</option>
-            {PRODUTO_OPTIONS.map((p) => (
-              <option key={p} value={p}>{PRODUTO_LABELS[p]}</option>
-            ))}
-          </FilterSelect>
-
-          {/* Data de entrada do lead no funil */}
-          <FilterSelect label="Entrada" value={filterEntrada ?? ""} onChange={(v) => setFilterEntrada((v || null) as EntradaPreset | null)}>
-            <option value="">Qualquer data</option>
-            {ENTRADA_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </FilterSelect>
-
-          {(filterSdr || filterCloser || filterPriority || filterOrigem || filterSegmento || filterProduto || filterEntrada) && (
-            <>
-              <span className="text-[11px] text-zinc-400">
-                {visibleLeads.length} {visibleLeads.length === 1 ? "lead" : "leads"}
-              </span>
-              <button
-                onClick={() => {
-                  setFilterSdr(null); setFilterCloser(null); setFilterPriority(null);
-                  setFilterOrigem(null); setFilterSegmento(null); setFilterProduto(null);
-                  setFilterEntrada(null);
-                }}
-                className="text-[11px] text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline"
-              >
-                limpar
-              </button>
-            </>
-          )}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <FilterChip
+            label="SDR" allLabel="Todos"
+            value={filterSdr ?? ""} onChange={(v) => setFilterSdr(v || null)}
+            options={sdrs.map((m) => ({ value: m.name, label: m.name }))}
+          />
+          <FilterChip
+            label="Closer" allLabel="Todos"
+            value={filterCloser ?? ""} onChange={(v) => setFilterCloser(v || null)}
+            options={closers.map((m) => ({ value: m.name, label: m.name }))}
+          />
+          <FilterChip
+            label="Prioridade" allLabel="Todas"
+            value={filterPriority ?? ""} onChange={(v) => setFilterPriority((v || null) as LeadPriority | null)}
+            options={[
+              { value: "alta", label: `🔥 ${PRIORITY_SHORT.alta}` },
+              { value: "media", label: `⏳ ${PRIORITY_SHORT.media}` },
+              { value: "baixa", label: `🧊 ${PRIORITY_SHORT.baixa}` },
+            ]}
+          />
+          <FilterChip
+            label="Origem" allLabel="Todas"
+            value={filterOrigem ?? ""} onChange={(v) => setFilterOrigem((v || null) as "whatsapp" | "manual" | null)}
+            options={[
+              { value: "whatsapp", label: "Anúncio (WhatsApp)" },
+              { value: "manual", label: "Manual" },
+            ]}
+          />
+          <FilterChip
+            label="Segmento" allLabel="Todos"
+            value={filterSegmento ?? ""} onChange={(v) => setFilterSegmento((v || null) as SegmentoConfeccao | null)}
+            options={(Object.keys(SEGMENTO_LABELS) as SegmentoConfeccao[]).map((s) => ({ value: s, label: SEGMENTO_LABELS[s] }))}
+          />
+          <FilterChip
+            label="Produto" allLabel="Todos"
+            value={filterProduto ?? ""} onChange={(v) => setFilterProduto((v || null) as LeadProduto | null)}
+            options={PRODUTO_OPTIONS.map((p) => ({ value: p, label: PRODUTO_LABELS[p] }))}
+          />
+          <FilterChip
+            label="Entrada" allLabel="Qualquer data" icon={<CalendarDays size={12} />}
+            value={filterEntrada ?? ""} onChange={(v) => setFilterEntrada((v || null) as EntradaPreset | null)}
+            options={ENTRADA_OPTIONS}
+          />
         </div>
+
+        {activeFilters > 0 && (
+          <div className="ml-auto flex items-center gap-2">
+            <span className="rounded-md border border-zinc-800 bg-zinc-900/70 px-2 py-1 text-[11px] font-medium tabular-nums text-zinc-300">
+              {visibleLeads.length} {visibleLeads.length === 1 ? "lead" : "leads"}
+            </span>
+            <button
+              onClick={clearFilters}
+              className="flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/70 px-2.5 py-1.5 text-[11px] font-medium text-zinc-400 transition-colors hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-300"
+            >
+              <X size={12} />
+              Limpar
+              {activeFilters > 1 && <span className="tabular-nums opacity-60">({activeFilters})</span>}
+            </button>
+          </div>
+        )}
       </div>
 
       <main className="flex-1 overflow-hidden">
@@ -483,24 +491,51 @@ function KanbanContent() {
   );
 }
 
-function FilterSelect({
-  label, value, onChange, children,
+/**
+ * Chip de filtro: mostra só o rótulo quando inativo e "Rótulo · Valor" destacado
+ * em amarelo quando ativo — dá pra bater o olho e ver o que está filtrando.
+ * O <select> nativo fica por cima (invisível) pra manter o comportamento e a
+ * acessibilidade do dropdown do sistema.
+ */
+function FilterChip({
+  label, value, onChange, options, allLabel = "Todos", icon,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
-  children: React.ReactNode;
+  options: { value: string; label: string }[];
+  allLabel?: string;
+  icon?: React.ReactNode;
 }) {
+  const active = value !== "";
+  const current = options.find((o) => o.value === value)?.label ?? "";
+
   return (
-    <label className="flex items-center gap-1.5">
-      <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">{label}</span>
+    <div
+      className={`relative flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${
+        active
+          ? "border-[#f5c518]/40 bg-[#f5c518]/10 text-[#f5c518] hover:border-[#f5c518]/60"
+          : "border-zinc-800 bg-zinc-900/70 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+      }`}
+    >
+      {icon && <span className="shrink-0 opacity-70">{icon}</span>}
+      <span className={`shrink-0 font-medium ${active ? "opacity-60" : ""}`}>{label}</span>
+      {active && (
+        <span className="max-w-[120px] truncate font-semibold">{current}</span>
+      )}
+      <ChevronDown size={12} className="shrink-0 opacity-50" />
+
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 outline-none focus:border-[#f5c518]"
+        aria-label={`Filtrar por ${label}`}
+        className="absolute inset-0 cursor-pointer opacity-0 [color-scheme:dark]"
       >
-        {children}
+        <option value="">{allLabel}</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
       </select>
-    </label>
+    </div>
   );
 }
