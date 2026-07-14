@@ -19,6 +19,7 @@ import { Celebration, type CelebrationKind } from "@/components/ui/Celebration";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { useStickyState } from "@/lib/hooks/useStickyState";
+import { resolveRange, type PeriodPreset } from "@/lib/reports";
 import { PRODUTO_LABELS, PRODUTO_OPTIONS, SEGMENTO_LABELS, type Lead, type LeadProduto, type LeadStatus, type MotivoCarteira, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
 import { computeLeadScore, PRIORITY_SHORT, type LeadPriority } from "@/lib/lead-score";
 
@@ -48,6 +49,16 @@ function isQualComplete(l: Lead): boolean {
     l.bant_budget && l.bant_authority && l.bant_need && l.bant_timing
   );
 }
+
+// Filtro por data de ENTRADA do lead no funil (created_at). Sem "tudo": null = todos.
+type EntradaPreset = Exclude<PeriodPreset, "tudo">;
+const ENTRADA_OPTIONS: { value: EntradaPreset; label: string }[] = [
+  { value: "hoje", label: "Hoje" },
+  { value: "ontem", label: "Ontem" },
+  { value: "7d", label: "Últimos 7 dias" },
+  { value: "14d", label: "Últimos 14 dias" },
+  { value: "30d", label: "Últimos 30 dias" },
+];
 
 // Etapas que disparam celebração (dopamina).
 function celebrationFor(status: LeadStatus | undefined): CelebrationKind | null {
@@ -82,6 +93,8 @@ function KanbanContent() {
   const [filterOrigem, setFilterOrigem] = useStickyState<"whatsapp" | "manual" | null>("floow.kanban.origem", null);
   const [filterSegmento, setFilterSegmento] = useStickyState<SegmentoConfeccao | null>("floow.kanban.segmento", null);
   const [filterProduto, setFilterProduto] = useStickyState<LeadProduto | null>("floow.kanban.produto", null);
+  // Data de ENTRADA do lead no funil (created_at). null = todos.
+  const [filterEntrada, setFilterEntrada] = useStickyState<EntradaPreset | null>("floow.kanban.entrada", null);
 
   function triggerCelebration(status: LeadStatus | undefined) {
     const kind = celebrationFor(status);
@@ -89,8 +102,10 @@ function KanbanContent() {
   }
 
   // Todos veem o funil completo e filtram (responsável, prioridade, origem,
-  // segmento). Sem filtro = todos os leads.
+  // segmento, produto, data de entrada). Sem filtro = todos os leads.
   const visibleLeads = useMemo(() => {
+    // Intervalo da data de entrada (resolvido uma vez, não por lead).
+    const range = filterEntrada ? resolveRange({ kind: "preset", preset: filterEntrada }) : null;
     return leads.filter((l) => {
       if (filterSdr && l.sdr_responsavel !== filterSdr) return false;
       if (filterCloser && l.closer_responsavel !== filterCloser) return false;
@@ -98,6 +113,11 @@ function KanbanContent() {
       if (filterOrigem === "manual" && l.origem === "whatsapp") return false;
       if (filterSegmento && l.segmento !== filterSegmento) return false;
       if (filterProduto && l.produto !== filterProduto) return false;
+      if (range) {
+        const entrou = new Date(l.created_at);
+        if (range.start && entrou < range.start) return false;
+        if (entrou > range.end) return false;
+      }
       if (filterPriority) {
         // Prioridade só vale da etapa "Qualificado" em diante (não na Entrada).
         if (l.status === "qualificado") return false;
@@ -106,7 +126,7 @@ function KanbanContent() {
       }
       return true;
     });
-  }, [leads, filterSdr, filterCloser, filterOrigem, filterSegmento, filterProduto, filterPriority]);
+  }, [leads, filterSdr, filterCloser, filterOrigem, filterSegmento, filterProduto, filterPriority, filterEntrada]);
   const [pendingLost, setPendingLost] = useState<{
     id: string;
     name: string;
@@ -323,7 +343,15 @@ function KanbanContent() {
             ))}
           </FilterSelect>
 
-          {(filterSdr || filterCloser || filterPriority || filterOrigem || filterSegmento || filterProduto) && (
+          {/* Data de entrada do lead no funil */}
+          <FilterSelect label="Entrada" value={filterEntrada ?? ""} onChange={(v) => setFilterEntrada((v || null) as EntradaPreset | null)}>
+            <option value="">Qualquer data</option>
+            {ENTRADA_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </FilterSelect>
+
+          {(filterSdr || filterCloser || filterPriority || filterOrigem || filterSegmento || filterProduto || filterEntrada) && (
             <>
               <span className="text-[11px] text-zinc-400">
                 {visibleLeads.length} {visibleLeads.length === 1 ? "lead" : "leads"}
@@ -332,6 +360,7 @@ function KanbanContent() {
                 onClick={() => {
                   setFilterSdr(null); setFilterCloser(null); setFilterPriority(null);
                   setFilterOrigem(null); setFilterSegmento(null); setFilterProduto(null);
+                  setFilterEntrada(null);
                 }}
                 className="text-[11px] text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline"
               >
