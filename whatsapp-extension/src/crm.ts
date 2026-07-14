@@ -65,8 +65,8 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
 
 // Ordem do funil (igual STATUS_ORDER do app).
 export const STATUS_ORDER: LeadStatus[] = [
-  "qualificado", "pre_qualificado", "em_agendamento", "agendando", "carteira", "reuniao_agendada",
-  "no_show", "follow_up", "negocio_ganho", "negocio_perdido", "sem_resposta", "desqualificado",
+  "desqualificado", "qualificado", "sem_resposta", "pre_qualificado", "em_agendamento", "agendando",
+  "carteira", "reuniao_agendada", "no_show", "follow_up", "negocio_ganho", "negocio_perdido",
 ];
 
 export const STATUS_DOT: Record<LeadStatus, string> = {
@@ -143,7 +143,8 @@ export const QUAL_FIELDS: { key: keyof Lead; label: string; options: Record<stri
 
 // Etapas que o SDR pode mover (igual SDR_STAGES do app).
 export const SDR_STAGES: LeadStatus[] = [
-  "qualificado", "pre_qualificado", "em_agendamento", "agendando", "reuniao_agendada", "carteira", "desqualificado", "sem_resposta",
+  "qualificado", "pre_qualificado", "em_agendamento", "agendando",
+  "carteira", "reuniao_agendada", "no_show", "desqualificado", "sem_resposta",
 ];
 
 // Etapas que NÃO exigem qualificação completa (igual NO_QUAL_STAGES do app).

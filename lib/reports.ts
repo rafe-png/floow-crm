@@ -177,7 +177,9 @@ export type FunnelStat = { status: LeadStatus; label: string; count: number; pct
 
 export function buildFunnel(leads: Lead[]): FunnelStat[] {
   const order: LeadStatus[] = [
+    "desqualificado",
     "qualificado",
+    "sem_resposta",
     "pre_qualificado",
     "em_agendamento",
     "agendando",
@@ -187,8 +189,6 @@ export function buildFunnel(leads: Lead[]): FunnelStat[] {
     "follow_up",
     "negocio_ganho",
     "negocio_perdido",
-    "sem_resposta",
-    "desqualificado",
   ];
   const counts: Record<LeadStatus, number> = {
     qualificado: 0, pre_qualificado: 0, em_agendamento: 0, agendando: 0, reuniao_agendada: 0, no_show: 0, follow_up: 0, carteira: 0, negocio_ganho: 0, negocio_perdido: 0, sem_resposta: 0, desqualificado: 0,

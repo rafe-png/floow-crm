@@ -21105,7 +21105,9 @@ ${suffix}`;
     desqualificado: "Desqualificado"
   };
   var STATUS_ORDER = [
+    "desqualificado",
     "qualificado",
+    "sem_resposta",
     "pre_qualificado",
     "em_agendamento",
     "agendando",
@@ -21114,9 +21116,7 @@ ${suffix}`;
     "no_show",
     "follow_up",
     "negocio_ganho",
-    "negocio_perdido",
-    "sem_resposta",
-    "desqualificado"
+    "negocio_perdido"
   ];
   var STATUS_DOT = {
     qualificado: "#818cf8",
@@ -21222,8 +21222,9 @@ ${suffix}`;
     "pre_qualificado",
     "em_agendamento",
     "agendando",
-    "reuniao_agendada",
     "carteira",
+    "reuniao_agendada",
+    "no_show",
     "desqualificado",
     "sem_resposta"
   ];

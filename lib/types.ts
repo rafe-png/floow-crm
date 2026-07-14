@@ -40,7 +40,11 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 // em diante o Closer "pega o bastão": etapas mais escuras e bloqueadas pro SDR.
 // Etapas que o SDR pode mover. Inclui "desqualificado"/"sem_resposta" (saída de
 // qualificação) e "carteira" (o SDR pode levar leads pra carteira).
-export const SDR_STAGES: LeadStatus[] = ["qualificado", "pre_qualificado", "em_agendamento", "agendando", "reuniao_agendada", "carteira", "desqualificado", "sem_resposta"];
+// Etapas que o SDR pode mover. Precisa bater com a lista da RLS (migração 036).
+export const SDR_STAGES: LeadStatus[] = [
+  "qualificado", "pre_qualificado", "em_agendamento", "agendando",
+  "carteira", "reuniao_agendada", "no_show", "desqualificado", "sem_resposta",
+];
 
 export function canMoveTo(
   status: LeadStatus,
@@ -326,18 +330,18 @@ export type MetaAdSpendDay = {
 // Constantes de UI
 // ============================================================
 export const STATUS_ORDER: LeadStatus[] = [
-  "qualificado",
+  "desqualificado",
+  "qualificado",      // Entrada
+  "sem_resposta",
   "pre_qualificado",
-  "em_agendamento",
-  "agendando",
+  "em_agendamento",   // Qualificado
+  "agendando",        // Em agendamento
   "carteira",
   "reuniao_agendada",
   "no_show",
   "follow_up",
   "negocio_ganho",
   "negocio_perdido",
-  "sem_resposta",
-  "desqualificado",
 ];
 
 // Pipeline ativo = oportunidades em aberto, de "Qualificado" (em_agendamento)
