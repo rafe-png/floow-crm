@@ -16,6 +16,7 @@ import { NewLeadDialog } from "@/components/lead/NewLeadDialog";
 import { Celebration, type CelebrationKind } from "@/components/ui/Celebration";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
+import { useStickyState } from "@/lib/hooks/useStickyState";
 import { PRODUTO_LABELS, PRODUTO_OPTIONS, SEGMENTO_LABELS, type Lead, type LeadProduto, type LeadStatus, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
 import { computeLeadScore, PRIORITY_SHORT, type LeadPriority } from "@/lib/lead-score";
 
@@ -70,13 +71,13 @@ function KanbanContent() {
   const [newStatus, setNewStatus] = useState<LeadStatus | undefined>(undefined);
   const [selected, setSelected] = useState<Lead | null>(null);
   const [celebration, setCelebration] = useState<CelebrationKind | null>(null);
-  // Filtros do funil. null = todos.
-  const [filterSdr, setFilterSdr] = useState<string | null>(null);
-  const [filterCloser, setFilterCloser] = useState<string | null>(null);
-  const [filterPriority, setFilterPriority] = useState<LeadPriority | null>(null);
-  const [filterOrigem, setFilterOrigem] = useState<"whatsapp" | "manual" | null>(null);
-  const [filterSegmento, setFilterSegmento] = useState<SegmentoConfeccao | null>(null);
-  const [filterProduto, setFilterProduto] = useState<LeadProduto | null>(null);
+  // Filtros do funil. null = todos. Ficam salvos (localStorage) entre navegações.
+  const [filterSdr, setFilterSdr] = useStickyState<string | null>("floow.kanban.sdr", null);
+  const [filterCloser, setFilterCloser] = useStickyState<string | null>("floow.kanban.closer", null);
+  const [filterPriority, setFilterPriority] = useStickyState<LeadPriority | null>("floow.kanban.prioridade", null);
+  const [filterOrigem, setFilterOrigem] = useStickyState<"whatsapp" | "manual" | null>("floow.kanban.origem", null);
+  const [filterSegmento, setFilterSegmento] = useStickyState<SegmentoConfeccao | null>("floow.kanban.segmento", null);
+  const [filterProduto, setFilterProduto] = useStickyState<LeadProduto | null>("floow.kanban.produto", null);
 
   function triggerCelebration(status: LeadStatus | undefined) {
     const kind = celebrationFor(status);

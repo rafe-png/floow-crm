@@ -21,6 +21,8 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
+      // Carregar do storage depois do mount é intencional (evita mismatch de hidratação).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setPeriodState(JSON.parse(raw) as PeriodSelection);
     } catch {
       /* ignora storage indisponível/corrompido */

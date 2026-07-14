@@ -65,8 +65,8 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
 
 // Ordem do funil (igual STATUS_ORDER do app).
 export const STATUS_ORDER: LeadStatus[] = [
-  "qualificado", "pre_qualificado", "em_agendamento", "agendando", "reuniao_agendada", "no_show",
-  "follow_up", "carteira", "negocio_ganho", "negocio_perdido", "sem_resposta", "desqualificado",
+  "qualificado", "pre_qualificado", "em_agendamento", "agendando", "carteira", "reuniao_agendada",
+  "no_show", "follow_up", "negocio_ganho", "negocio_perdido", "sem_resposta", "desqualificado",
 ];
 
 export const STATUS_DOT: Record<LeadStatus, string> = {
