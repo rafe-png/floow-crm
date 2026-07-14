@@ -178,8 +178,8 @@ export type FunnelStat = { status: LeadStatus; label: string; count: number; pct
 export function buildFunnel(leads: Lead[]): FunnelStat[] {
   const order: LeadStatus[] = [
     "desqualificado",
-    "qualificado",
     "sem_resposta",
+    "qualificado",
     "pre_qualificado",
     "em_agendamento",
     "agendando",

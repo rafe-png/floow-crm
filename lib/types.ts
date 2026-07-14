@@ -331,8 +331,8 @@ export type MetaAdSpendDay = {
 // ============================================================
 export const STATUS_ORDER: LeadStatus[] = [
   "desqualificado",
-  "qualificado",      // Entrada
   "sem_resposta",
+  "qualificado",      // Entrada
   "pre_qualificado",
   "em_agendamento",   // Qualificado
   "agendando",        // Em agendamento

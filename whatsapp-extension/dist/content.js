@@ -21106,8 +21106,8 @@ ${suffix}`;
   };
   var STATUS_ORDER = [
     "desqualificado",
-    "qualificado",
     "sem_resposta",
+    "qualificado",
     "pre_qualificado",
     "em_agendamento",
     "agendando",
