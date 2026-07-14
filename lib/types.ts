@@ -100,6 +100,18 @@ export type MotivoPerda =
   | "preco_alto"
   | "outro";
 
+// Por que o lead foi pra CARTEIRA (estacionamento: não está pronto agora, mas
+// vale recontatar depois). Ao mover pra lá o CRM pede o motivo + uma tarefa.
+export type MotivoCarteira =
+  | "sem_estoque"
+  | "contrato_ativo"
+  | "sem_urgencia"
+  | "sem_verba_agora"
+  | "reestruturando"
+  | "aguardando_decisao"
+  | "sazonalidade"
+  | "outro";
+
 // Por que o lead foi DESqualificado (não vira oportunidade — sai cedo do funil).
 export type MotivoDesqualificacao =
   | "nao_e_confeccao"
@@ -160,6 +172,8 @@ export type Lead = {
   // Perda
   motivo_perda: MotivoPerda | null;
   motivo_desqualificacao: MotivoDesqualificacao | null;
+  // Por que foi pra Carteira (estacionamento)
+  motivo_carteira: MotivoCarteira | null;
 
   // Timestamps "fotográficos" (one-shot) usados pras contagens estáveis de meta
   agendado_em: string | null;          // momento que o lead entrou em reuniao_agendada
@@ -469,6 +483,17 @@ export const MOTIVO_PERDA_LABELS: Record<MotivoPerda, string> = {
   nao_decisor: "Não era decisor",
   sem_retorno: "Sumiu / sem retorno",
   preco_alto: "Preço alto",
+  outro: "Outro",
+};
+
+export const MOTIVO_CARTEIRA_LABELS: Record<MotivoCarteira, string> = {
+  sem_estoque: "Sem estoque",
+  contrato_ativo: "Com contrato ativo",
+  sem_urgencia: "Sem urgência",
+  sem_verba_agora: "Sem verba agora",
+  reestruturando: "Reestruturando a operação",
+  aguardando_decisao: "Aguardando decisão interna",
+  sazonalidade: "Fora de época (sazonalidade)",
   outro: "Outro",
 };
 

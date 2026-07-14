@@ -148,7 +148,19 @@ export const SDR_STAGES: LeadStatus[] = [
 
 // Etapas que NÃO exigem qualificação completa (igual NO_QUAL_STAGES do app).
 // Pré qualificado exige info do negócio (não o BANT).
-export const NO_QUAL_STAGES: LeadStatus[] = ["qualificado", "pre_qualificado", "negocio_perdido", "sem_resposta", "desqualificado"];
+// Carteira é "estacionamento": não exige qualificação, mas pede o motivo.
+export const NO_QUAL_STAGES: LeadStatus[] = ["qualificado", "pre_qualificado", "carteira", "negocio_perdido", "sem_resposta", "desqualificado"];
+
+export const MOTIVO_CARTEIRA_LABELS: Record<string, string> = {
+  sem_estoque: "Sem estoque",
+  contrato_ativo: "Com contrato ativo",
+  sem_urgencia: "Sem urgência",
+  sem_verba_agora: "Sem verba agora",
+  reestruturando: "Reestruturando a operação",
+  aguardando_decisao: "Aguardando decisão interna",
+  sazonalidade: "Fora de época (sazonalidade)",
+  outro: "Outro",
+};
 
 // Segmentos da confecção (igual SEGMENTO_LABELS do app).
 export const SEGMENTO_LABELS: Record<string, string> = {
@@ -162,7 +174,7 @@ export const SEGMENTO_OPTIONS = Object.keys(SEGMENTO_LABELS);
 // Info do negócio (empresa, instagram, decisor, segmento) — obrigatória de
 // "Pré qualificado" em diante (igual BUSINESS_STAGES do app).
 export const BUSINESS_STAGES: LeadStatus[] = [
-  "pre_qualificado", "em_agendamento", "agendando", "reuniao_agendada", "no_show", "follow_up", "carteira", "negocio_ganho",
+  "pre_qualificado", "em_agendamento", "agendando", "reuniao_agendada", "no_show", "follow_up", "negocio_ganho",
 ];
 
 export function isPreQualComplete(l: Lead): boolean {

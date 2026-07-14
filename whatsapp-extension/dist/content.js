@@ -21227,7 +21227,17 @@ ${suffix}`;
     "desqualificado",
     "sem_resposta"
   ];
-  var NO_QUAL_STAGES = ["qualificado", "pre_qualificado", "negocio_perdido", "sem_resposta", "desqualificado"];
+  var NO_QUAL_STAGES = ["qualificado", "pre_qualificado", "carteira", "negocio_perdido", "sem_resposta", "desqualificado"];
+  var MOTIVO_CARTEIRA_LABELS = {
+    sem_estoque: "Sem estoque",
+    contrato_ativo: "Com contrato ativo",
+    sem_urgencia: "Sem urg\xEAncia",
+    sem_verba_agora: "Sem verba agora",
+    reestruturando: "Reestruturando a opera\xE7\xE3o",
+    aguardando_decisao: "Aguardando decis\xE3o interna",
+    sazonalidade: "Fora de \xE9poca (sazonalidade)",
+    outro: "Outro"
+  };
   var SEGMENTO_LABELS = {
     moda_feminina: "Moda feminina",
     moda_masculina: "Moda masculina",
@@ -21251,7 +21261,6 @@ ${suffix}`;
     "reuniao_agendada",
     "no_show",
     "follow_up",
-    "carteira",
     "negocio_ganho"
   ];
   function isPreQualComplete(l) {
@@ -21793,6 +21802,10 @@ ${suffix}`;
       const m = await askReason("Motivo da desqualifica\xE7\xE3o", MOTIVO_DESQUALIFICACAO_LABELS);
       if (!m) return;
       patch.motivo_desqualificacao = m;
+    } else if (target === "carteira") {
+      const m = await askReason("Por que foi pra Carteira?", MOTIVO_CARTEIRA_LABELS);
+      if (!m) return;
+      patch.motivo_carteira = m;
     } else if (target === "negocio_ganho") {
       const c = await askCreative(lead);
       if (!c) return;
@@ -21929,6 +21942,10 @@ ${suffix}`;
       const m = await askReason("Motivo da desqualifica\xE7\xE3o", MOTIVO_DESQUALIFICACAO_LABELS);
       if (!m) return;
       draft.motivo_desqualificacao = m;
+    } else if (stage === "carteira") {
+      const m = await askReason("Por que foi pra Carteira?", MOTIVO_CARTEIRA_LABELS);
+      if (!m) return;
+      draft.motivo_carteira = m;
     } else if (stage === "negocio_ganho") {
       const c = await askCreative(draft);
       if (!c) return;

@@ -15,6 +15,7 @@ export type NewLeadInput = Omit<
   | "status"
   | "observacoes"
   | "motivo_desqualificacao"
+  | "motivo_carteira"
   | "google_event_id"
   | "google_calendar_id"
   | "meet_link"

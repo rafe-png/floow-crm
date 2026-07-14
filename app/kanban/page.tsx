@@ -6,7 +6,9 @@ import { Board } from "@/components/kanban/Board";
 import { LeadSearch } from "@/components/kanban/LeadSearch";
 import { TopBar } from "@/components/layout/TopBar";
 import { CloserSelectDialog } from "@/components/lead/CloserSelectDialog";
+import { CarteiraReasonDialog } from "@/components/lead/CarteiraReasonDialog";
 import { CompletePreQualDialog } from "@/components/lead/CompletePreQualDialog";
+import { NewTaskDialog } from "@/components/tasks/NewTaskDialog";
 import { CompleteQualificationDialog } from "@/components/lead/CompleteQualificationDialog";
 import { CreativeCodeDialog } from "@/components/lead/CreativeCodeDialog";
 import { DisqualifyDialog } from "@/components/lead/DisqualifyDialog";
@@ -17,18 +19,20 @@ import { Celebration, type CelebrationKind } from "@/components/ui/Celebration";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { useStickyState } from "@/lib/hooks/useStickyState";
-import { PRODUTO_LABELS, PRODUTO_OPTIONS, SEGMENTO_LABELS, type Lead, type LeadProduto, type LeadStatus, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
+import { PRODUTO_LABELS, PRODUTO_OPTIONS, SEGMENTO_LABELS, type Lead, type LeadProduto, type LeadStatus, type MotivoCarteira, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
 import { computeLeadScore, PRIORITY_SHORT, type LeadPriority } from "@/lib/lead-score";
 
 // Info do negócio (empresa, instagram, decisor, segmento) — obrigatória de
 // "Pré qualificado" em diante. Entrada e as saídas (perdido/sem resposta/
 // desqualificado) não exigem.
+// Carteira fica de fora de propósito: é o "estacionamento" (lead que não está
+// pronto agora) — não exige qualificação, mas pede motivo + tarefa de recontato.
 const BUSINESS_STAGES: LeadStatus[] = [
-  "pre_qualificado", "em_agendamento", "agendando", "reuniao_agendada", "no_show", "follow_up", "carteira", "negocio_ganho",
+  "pre_qualificado", "em_agendamento", "agendando", "reuniao_agendada", "no_show", "follow_up", "negocio_ganho",
 ];
 // Qualificação + BANT — obrigatória de "Qualificado" (em_agendamento) em diante.
 const QUAL_STAGES: LeadStatus[] = [
-  "em_agendamento", "agendando", "reuniao_agendada", "no_show", "follow_up", "carteira", "negocio_ganho",
+  "em_agendamento", "agendando", "reuniao_agendada", "no_show", "follow_up", "negocio_ganho",
 ];
 
 // Pré qualificado: dados do negócio preenchidos.
@@ -113,6 +117,13 @@ function KanbanContent() {
     name: string;
     extraPatch: Partial<Lead>;
   } | null>(null);
+  // Carteira: pede o motivo e, logo depois, abre a criação da tarefa de recontato.
+  const [pendingCarteira, setPendingCarteira] = useState<{
+    id: string;
+    name: string;
+    extraPatch: Partial<Lead>;
+  } | null>(null);
+  const [taskForLead, setTaskForLead] = useState<Lead | null>(null);
   const [pendingComplete, setPendingComplete] = useState<{
     lead: Lead;
     targetStatus: LeadStatus;
@@ -214,6 +225,10 @@ function KanbanContent() {
       setPendingDisqualify({ id: lead.id, name, extraPatch: { ...basePatch, status: target } });
       return;
     }
+    if (target === "carteira" && lead.status !== "carteira") {
+      setPendingCarteira({ id: lead.id, name, extraPatch: { ...basePatch, status: target } });
+      return;
+    }
     if (target === "reuniao_agendada" && lead.status !== "reuniao_agendada") {
       askCloser(lead.id, name, { ...basePatch, status: target }, lead.closer_responsavel ?? null, lead.data_agendamento ?? null);
       return;
@@ -250,6 +265,16 @@ function KanbanContent() {
     if (!pendingDisqualify) return;
     await updateLead(pendingDisqualify.id, { ...pendingDisqualify.extraPatch, motivo_desqualificacao: motivo });
     setPendingDisqualify(null);
+  }
+
+  // Carteira: salva o motivo, move o lead e emenda no popup de agendar a tarefa.
+  async function handleConfirmCarteira(motivo: MotivoCarteira) {
+    if (!pendingCarteira) return;
+    const { id, extraPatch } = pendingCarteira;
+    await updateLead(id, { ...extraPatch, motivo_carteira: motivo });
+    setPendingCarteira(null);
+    const moved = leads.find((l) => l.id === id);
+    if (moved) setTaskForLead(moved);
   }
 
   return (
@@ -367,6 +392,20 @@ function KanbanContent() {
         leadName={pendingDisqualify?.name ?? ""}
         onCancel={() => setPendingDisqualify(null)}
         onConfirm={handleConfirmDisqualify}
+      />
+
+      <CarteiraReasonDialog
+        open={pendingCarteira != null}
+        leadName={pendingCarteira?.name ?? ""}
+        onCancel={() => setPendingCarteira(null)}
+        onConfirm={handleConfirmCarteira}
+      />
+
+      {/* Emenda do fluxo da Carteira: agendar a tarefa de recontato do negócio. */}
+      <NewTaskDialog
+        open={taskForLead != null}
+        lead={taskForLead}
+        onClose={() => setTaskForLead(null)}
       />
 
       {pendingPreQual && (

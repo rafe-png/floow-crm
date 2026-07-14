@@ -14,6 +14,7 @@ import {
   SEGMENTO_OPTIONS,
   MOTIVO_PERDA_LABELS,
   MOTIVO_DESQUALIFICACAO_LABELS,
+  MOTIVO_CARTEIRA_LABELS,
   NO_QUAL_STAGES,
   BUSINESS_STAGES,
   canMoveTo,
@@ -479,6 +480,9 @@ async function beginMove(lead: Lead, target: LeadStatus) {
   } else if (target === "desqualificado") {
     const m = await askReason("Motivo da desqualificação", MOTIVO_DESQUALIFICACAO_LABELS);
     if (!m) return; patch.motivo_desqualificacao = m;
+  } else if (target === "carteira") {
+    const m = await askReason("Por que foi pra Carteira?", MOTIVO_CARTEIRA_LABELS);
+    if (!m) return; patch.motivo_carteira = m;
   } else if (target === "negocio_ganho") {
     const c = await askCreative(lead);
     if (!c) return; patch.criativo_codigo = c.code;
@@ -607,6 +611,8 @@ async function beginCreate() {
     const m = await askReason("Motivo da perda", MOTIVO_PERDA_LABELS); if (!m) return; draft.motivo_perda = m;
   } else if (stage === "desqualificado") {
     const m = await askReason("Motivo da desqualificação", MOTIVO_DESQUALIFICACAO_LABELS); if (!m) return; draft.motivo_desqualificacao = m;
+  } else if (stage === "carteira") {
+    const m = await askReason("Por que foi pra Carteira?", MOTIVO_CARTEIRA_LABELS); if (!m) return; draft.motivo_carteira = m;
   } else if (stage === "negocio_ganho") {
     const c = await askCreative(draft); if (!c) return; draft.criativo_codigo = c.code;
   } else if (stage === "reuniao_agendada") {
