@@ -21301,7 +21301,9 @@ ${suffix}`;
   }
   function samePhone(a, b) {
     const na = normalizePhone(a), nb = normalizePhone(b);
-    if (na && nb && na === nb) return true;
+    if (!na || !nb) return false;
+    if (na === nb) return true;
+    if (na.length > 13 || nb.length > 13) return false;
     const ta = phoneTail(a), tb = phoneTail(b);
     return ta.length >= 8 && ta === tb;
   }
@@ -21314,11 +21316,19 @@ ${suffix}`;
   function readActiveChatPhone() {
     const main = document.querySelector("#main");
     if (!main) return null;
-    const RE = /(\d{8,})@(?:c\.us|s\.whatsapp\.net)/;
+    const RE = /(\d{8,})@(?:c\.us|s\.whatsapp\.net|lid)/;
+    let lidFallback = null;
     for (const n of Array.from(main.querySelectorAll("[data-id]"))) {
-      const m = (n.getAttribute("data-id") || "").match(RE);
-      if (m) return m[1];
+      const id = n.getAttribute("data-id") || "";
+      const m = id.match(RE);
+      if (!m) continue;
+      if (id.includes("@lid")) {
+        lidFallback = lidFallback ?? m[1];
+        continue;
+      }
+      return m[1];
     }
+    if (lidFallback) return lidFallback;
     for (const el of Array.from(main.querySelectorAll("*"))) {
       for (const attr of Array.from(el.attributes)) {
         const m = attr.value.match(RE);

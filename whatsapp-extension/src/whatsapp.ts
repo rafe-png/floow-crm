@@ -2,18 +2,26 @@
 // isso tentamos várias fontes: o telefone vem do data-id das mensagens (JID
 // "<fromMe>_<telefone>@c.us_<msgId>"), com o título do header como apoio.
 
-// Telefone da conversa aberta (mais confiável: JID das mensagens DENTRO do #main).
+// Identificador da conversa aberta. Pega o JID das mensagens (dentro do #main):
+// pode ser telefone real (@c.us / @s.whatsapp.net) OU um @lid (ID interno que o
+// WhatsApp usa por privacidade). O webhook do Z-API salva o MESMO id no lead, então
+// casar @lid-com-@lid funciona igual telefone-com-telefone.
 export function readActiveChatPhone(): string | null {
   const main = document.querySelector("#main");
   if (!main) return null;
-  // JIDs de telefone real (NÃO @lid, que é um ID interno, não o número).
-  const RE = /(\d{8,})@(?:c\.us|s\.whatsapp\.net)/;
-  // 1) Mensagens (data-id tem o JID do contato).
+  const RE = /(\d{8,})@(?:c\.us|s\.whatsapp\.net|lid)/;
+  // 1) Mensagens (data-id tem o JID do contato). Prioriza telefone real; se só
+  //    houver @lid, usa o @lid.
+  let lidFallback: string | null = null;
   for (const n of Array.from(main.querySelectorAll("[data-id]"))) {
-    const m = (n.getAttribute("data-id") || "").match(RE);
-    if (m) return m[1];
+    const id = n.getAttribute("data-id") || "";
+    const m = id.match(RE);
+    if (!m) continue;
+    if (id.includes("@lid")) { lidFallback = lidFallback ?? m[1]; continue; }
+    return m[1]; // telefone real tem prioridade
   }
-  // 2) Qualquer atributo dentro do #main que tenha um JID de telefone.
+  if (lidFallback) return lidFallback;
+  // 2) Qualquer atributo dentro do #main que tenha um JID.
   for (const el of Array.from(main.querySelectorAll<HTMLElement>("*"))) {
     for (const attr of Array.from(el.attributes)) {
       const m = attr.value.match(RE);
