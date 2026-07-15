@@ -21134,6 +21134,7 @@ ${suffix}`;
   };
   var FONTE_LABELS = {
     meta_ads: "Meta Ads",
+    instagram: "Instagram",
     indicacao: "Indica\xE7\xE3o",
     outbound: "Outbound",
     outro: "Outro"

@@ -85,7 +85,7 @@ export const STATUS_DOT: Record<LeadStatus, string> = {
 };
 
 export const FONTE_LABELS: Record<string, string> = {
-  meta_ads: "Meta Ads", indicacao: "Indicação", outbound: "Outbound", outro: "Outro",
+  meta_ads: "Meta Ads", instagram: "Instagram", indicacao: "Indicação", outbound: "Outbound", outro: "Outro",
 };
 export const FONTE_OPTIONS = Object.keys(FONTE_LABELS);
 

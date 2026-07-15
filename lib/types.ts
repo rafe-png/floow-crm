@@ -207,10 +207,11 @@ export type Lead = {
 };
 
 // De onde o lead veio (canal de marketing).
-export type LeadFonte = "meta_ads" | "indicacao" | "outbound" | "outro";
+export type LeadFonte = "meta_ads" | "instagram" | "indicacao" | "outbound" | "outro";
 
 export const FONTE_LABELS: Record<LeadFonte, string> = {
   meta_ads: "Meta Ads",
+  instagram: "Instagram",
   indicacao: "Indicação",
   outbound: "Outbound",
   outro: "Outro",
