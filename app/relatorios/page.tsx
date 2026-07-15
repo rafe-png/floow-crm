@@ -35,12 +35,14 @@ export default function RelatoriosPage() {
 
   const range = useMemo(() => resolveRange(period), [period]);
   const filtered = useMemo(() => filterLeadsByRange(leads, range), [leads, range]);
-  const kpis = useMemo(() => buildCoreKpis(filtered), [filtered]);
+  // KPIs e performance contam eventos pela DATA DO EVENTO no período (não pela
+  // entrada do lead) → usam a lista completa `leads` + o intervalo `range`.
+  const kpis = useMemo(() => buildCoreKpis(leads, range), [leads, range]);
   const funnel = useMemo(() => buildFunnel(filtered), [filtered]);
   const lossReasons = useMemo(() => buildLossReasons(filtered), [filtered]);
   const disqualReasons = useMemo(() => buildDisqualReasons(filtered), [filtered]);
-  const sdrStats = useMemo(() => buildPersonStats(filtered, "SDR"), [filtered]);
-  const closerStats = useMemo(() => buildPersonStats(filtered, "Closer"), [filtered]);
+  const sdrStats = useMemo(() => buildPersonStats(leads, "SDR", range), [leads, range]);
+  const closerStats = useMemo(() => buildPersonStats(leads, "Closer", range), [leads, range]);
   const sourceStats = useMemo(() => buildSourceStats(filtered), [filtered]);
   const monthly = useMemo(() => buildMonthlyStats(leads, 6), [leads]);
   const weekday = useMemo(() => buildWeekdayStats(filtered), [filtered]);

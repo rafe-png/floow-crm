@@ -220,37 +220,45 @@ export type CoreKpis = {
   tempoMedioFechamentoDias: number | null;
 };
 
-export function buildCoreKpis(leads: Lead[]): CoreKpis {
-  const totalLeads = leads.length;
-  const agendamentos = leads.filter((l) => l.agendado_em).length;
-  const ganhos = leads.filter((l) => l.status === "negocio_ganho").length;
-  const perdidos = leads.filter((l) => l.status === "negocio_perdido").length;
-  const noShow = leads.filter((l) => l.status === "no_show").length;
-  // "reunião realizada" = timestamp gravado quando saiu de reunião agendada
-  const reunioesRealizadas = leads.filter((l) => l.reuniao_realizada_em).length;
+// Um carimbo de data (ISO) caiu dentro do intervalo?
+function inRange(iso: string | null, range: ResolvedRange): boolean {
+  if (!iso) return false;
+  const t = new Date(iso);
+  if (range.start && t < range.start) return false;
+  return t <= range.end;
+}
+
+/**
+ * KPIs do período. IMPORTANTE: cada atividade é contada pela DATA DO EVENTO
+ * (agendado_em, reuniao_realizada_em, ganho_em, perdido_em, last_no_show_em),
+ * não pela data de entrada do lead. Assim "reuniões realizadas hoje" conta uma
+ * reunião feita hoje mesmo que o lead tenha entrado semana passada.
+ * `leads` deve ser a lista COMPLETA (não pré-filtrada por período).
+ */
+export function buildCoreKpis(leads: Lead[], range: ResolvedRange): CoreKpis {
+  const totalLeads = leads.filter((l) => inRange(l.created_at, range)).length; // entraram no período
+  const agendamentos = leads.filter((l) => inRange(l.agendado_em, range)).length;
+  const reunioesRealizadas = leads.filter((l) => inRange(l.reuniao_realizada_em, range)).length;
+  const ganhos = leads.filter((l) => inRange(l.ganho_em, range)).length;
+  const perdidos = leads.filter((l) => inRange(l.perdido_em, range)).length;
+  const noShow = leads.filter((l) => inRange(l.last_no_show_em, range)).length;
 
   const winRate = ganhos + perdidos > 0 ? (ganhos / (ganhos + perdidos)) * 100 : 0;
   const conversionRate = agendamentos > 0 ? (ganhos / agendamentos) * 100 : 0;
   const noShowRate = agendamentos > 0 ? (noShow / agendamentos) * 100 : 0;
 
-  const pipelineValor = leads
-    .filter((l) => PIPELINE_STATUSES.includes(l.status) && l.valor)
-    .reduce((acc, l) => acc + Number(l.valor), 0);
-  const faturamentoGanho = leads
-    .filter((l) => l.status === "negocio_ganho" && l.valor)
-    .reduce((acc, l) => acc + Number(l.valor), 0);
+  // Faturamento = ganhos DO PERÍODO (por ganho_em).
+  const ganhosComValor = leads.filter((l) => inRange(l.ganho_em, range) && l.valor);
+  const faturamentoGanho = ganhosComValor.reduce((acc, l) => acc + Number(l.valor), 0);
+  const ticketMedio = ganhosComValor.length > 0 ? faturamentoGanho / ganhosComValor.length : 0;
 
-  const ganhosComValor = leads.filter((l) => l.status === "negocio_ganho" && l.valor);
-  const ticketMedio = ganhosComValor.length > 0
-    ? faturamentoGanho / ganhosComValor.length
-    : 0;
+  // Pipeline = FOTO DO MOMENTO (não depende do período): tudo que está ativo agora.
   const ativosComValor = leads.filter((l) => PIPELINE_STATUSES.includes(l.status) && l.valor);
-  const ticketMedioPipeline = ativosComValor.length > 0
-    ? pipelineValor / ativosComValor.length
-    : 0;
+  const pipelineValor = ativosComValor.reduce((acc, l) => acc + Number(l.valor), 0);
+  const ticketMedioPipeline = ativosComValor.length > 0 ? pipelineValor / ativosComValor.length : 0;
 
-  // Tempo médio de fechamento (em dias) — entre agendado_em e ganho_em
-  const ganhosComTempo = leads.filter((l) => l.agendado_em && l.ganho_em);
+  // Tempo médio de fechamento (em dias) — entre agendado_em e ganho_em, dos ganhos do período.
+  const ganhosComTempo = leads.filter((l) => l.agendado_em && inRange(l.ganho_em, range));
   let tempoMedio: number | null = null;
   if (ganhosComTempo.length > 0) {
     const totalDays = ganhosComTempo.reduce((acc, l) => {
@@ -321,14 +329,19 @@ export function buildDisqualReasons(leads: Lead[]): DisqualReasonStat[] {
 
 export type PersonStat = { name: string; agendamentos: number; ganhos: number; faturamento: number };
 
-export function buildPersonStats(leads: Lead[], role: "SDR" | "Closer"): PersonStat[] {
+// Performance por pessoa NO PERÍODO: agendou (agendado_em) e ganhou (ganho_em)
+// contados pela data do evento no intervalo. `leads` = lista completa.
+export function buildPersonStats(leads: Lead[], role: "SDR" | "Closer", range: ResolvedRange): PersonStat[] {
   const field = role === "SDR" ? "sdr_responsavel" : "closer_responsavel";
   const map = new Map<string, PersonStat>();
   for (const l of leads) {
+    const agendou = inRange(l.agendado_em, range);
+    const ganhou = inRange(l.ganho_em, range);
+    if (!agendou && !ganhou) continue;
     const name = (l[field] as string | null) ?? "Não atribuído";
     const cur = map.get(name) ?? { name, agendamentos: 0, ganhos: 0, faturamento: 0 };
-    if (l.agendado_em) cur.agendamentos++;
-    if (l.status === "negocio_ganho") {
+    if (agendou) cur.agendamentos++;
+    if (ganhou) {
       cur.ganhos++;
       if (l.valor) cur.faturamento += Number(l.valor);
     }

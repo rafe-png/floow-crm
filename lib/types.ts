@@ -183,6 +183,7 @@ export type Lead = {
   agendado_em: string | null;          // momento que o lead entrou em reuniao_agendada
   reuniao_realizada_em: string | null; // momento que saiu de reuniao_agendada p/ ganho/perdido/follow_up
   ganho_em: string | null;             // momento que o lead virou negocio_ganho
+  perdido_em: string | null;           // momento que o lead virou negocio_perdido
 
   // No-show: quantos no-shows SEGUIDOS (zera quando a reunião acontece) + data/hora
   // do último horário furado. Mantidos por trigger no banco.
