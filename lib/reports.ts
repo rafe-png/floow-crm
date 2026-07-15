@@ -353,6 +353,79 @@ export function buildPersonStats(leads: Lead[], role: "SDR" | "Closer", range: R
 }
 
 // ============================================================
+// Insights de performance por SDR e por Closer (tudo pela DATA DO EVENTO)
+// ============================================================
+
+// SDR: agendou (agendado_em), a reunião aconteceu (reuniao_realizada_em = saiu de
+// reunião agendada p/ follow-up/ganho/perdido) e no-show (last_no_show_em).
+export type SdrInsight = {
+  name: string;
+  agendadas: number;
+  realizadas: number;
+  noShow: number;
+  comparecimento: number; // realizadas ÷ agendadas (%)
+};
+
+export function buildSdrInsights(leads: Lead[], range: ResolvedRange): SdrInsight[] {
+  const map = new Map<string, { agendadas: number; realizadas: number; noShow: number }>();
+  const cell = (name: string | null) => {
+    const n = name ?? "Não atribuído";
+    const cur = map.get(n) ?? { agendadas: 0, realizadas: 0, noShow: 0 };
+    map.set(n, cur);
+    return cur;
+  };
+  for (const l of leads) {
+    if (inRange(l.agendado_em, range)) cell(l.sdr_responsavel).agendadas++;
+    if (inRange(l.reuniao_realizada_em, range)) cell(l.sdr_responsavel).realizadas++;
+    if (inRange(l.last_no_show_em, range)) cell(l.sdr_responsavel).noShow++;
+  }
+  return Array.from(map.entries())
+    .map(([name, v]) => ({
+      name, ...v,
+      comparecimento: v.agendadas > 0 ? (v.realizadas / v.agendadas) * 100 : 0,
+    }))
+    .sort((a, b) => b.agendadas - a.agendadas);
+}
+
+// Closer: reuniões que conduziu (realizadas), no-show, ganhos/perdidos, conversão
+// (ganho ÷ reuniões realizadas) e faturamento.
+export type CloserInsight = {
+  name: string;
+  realizadas: number;
+  noShow: number;
+  ganhos: number;
+  perdidos: number;
+  conversao: number; // ganhos ÷ realizadas (%)
+  faturamento: number;
+};
+
+export function buildCloserInsights(leads: Lead[], range: ResolvedRange): CloserInsight[] {
+  const map = new Map<string, { realizadas: number; noShow: number; ganhos: number; perdidos: number; faturamento: number }>();
+  const cell = (name: string | null) => {
+    const n = name ?? "Não atribuído";
+    const cur = map.get(n) ?? { realizadas: 0, noShow: 0, ganhos: 0, perdidos: 0, faturamento: 0 };
+    map.set(n, cur);
+    return cur;
+  };
+  for (const l of leads) {
+    if (inRange(l.reuniao_realizada_em, range)) cell(l.closer_responsavel).realizadas++;
+    if (inRange(l.last_no_show_em, range)) cell(l.closer_responsavel).noShow++;
+    if (inRange(l.perdido_em, range)) cell(l.closer_responsavel).perdidos++;
+    if (inRange(l.ganho_em, range)) {
+      const c = cell(l.closer_responsavel);
+      c.ganhos++;
+      if (l.valor) c.faturamento += Number(l.valor);
+    }
+  }
+  return Array.from(map.entries())
+    .map(([name, v]) => ({
+      name, ...v,
+      conversao: v.realizadas > 0 ? (v.ganhos / v.realizadas) * 100 : 0,
+    }))
+    .sort((a, b) => b.ganhos - a.ganhos);
+}
+
+// ============================================================
 // Por fonte de marketing (Meta Ads / Indicação / Outbound / Outro)
 // ============================================================
 
