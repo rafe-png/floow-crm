@@ -252,86 +252,84 @@ export default function RelatoriosPage() {
             </section>
           )}
 
-          {/* Insights do SDR */}
-          <section className="rounded-xl border border-zinc-900 bg-zinc-950/60 p-4">
-            <h3 className="mb-1 text-sm font-semibold text-zinc-200">Insights do SDR</h3>
-            <p className="mb-3 text-[11px] text-zinc-500">
-              Agendadas = marcou reunião · Realizadas = a reunião aconteceu (foi pra follow-up/ganho/perdido) · No-show = não compareceu
-            </p>
+          {/* Insights do SDR — cards visuais */}
+          <section>
+            <div className="mb-2 flex items-baseline justify-between">
+              <h3 className="text-sm font-semibold text-zinc-200">Insights do SDR</h3>
+              <span className="text-[11px] text-zinc-500">agendou → compareceu → no-show</span>
+            </div>
             {sdrInsights.length === 0 ? (
-              <p className="text-xs text-zinc-500">Sem atividade de SDR no período.</p>
+              <p className="rounded-xl border border-zinc-900 bg-zinc-950/60 p-4 text-xs text-zinc-500">Sem atividade de SDR no período.</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[440px] text-xs">
-                  <thead>
-                    <tr className="text-left text-[10px] uppercase tracking-wider text-zinc-500">
-                      <th className="pb-2 font-medium">SDR</th>
-                      <th className="pb-2 text-right font-medium">Agendadas</th>
-                      <th className="pb-2 text-right font-medium">Realizadas</th>
-                      <th className="pb-2 text-right font-medium">No-show</th>
-                      <th className="pb-2 text-right font-medium">Comparecimento</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sdrInsights.map((s) => (
-                      <tr key={s.name} className="border-t border-zinc-900">
-                        <td className="py-2">
-                          <span className="flex items-center gap-1.5">
-                            <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />{s.name}
-                          </span>
-                        </td>
-                        <td className="py-2 text-right text-zinc-200 tabular-nums">{s.agendadas}</td>
-                        <td className="py-2 text-right text-emerald-300 tabular-nums">{s.realizadas}</td>
-                        <td className="py-2 text-right text-amber-300 tabular-nums">{s.noShow}</td>
-                        <td className="py-2 text-right text-[#f5c518] tabular-nums">{fmtPct(s.comparecimento)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {sdrInsights.map((s) => {
+                  const pend = Math.max(0, s.agendadas - s.realizadas - s.noShow);
+                  return (
+                    <div key={s.name} className="rounded-xl border border-zinc-900 bg-zinc-950/60 p-4">
+                      <div className="mb-3 flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-sky-400" />
+                        <span className="text-sm font-semibold text-zinc-100">{s.name}</span>
+                      </div>
+                      <div className="mb-3 grid grid-cols-3 gap-2">
+                        <StatMini label="Agendadas" value={s.agendadas} color="text-zinc-100" />
+                        <StatMini label="Realizadas" value={s.realizadas} color="text-emerald-300" />
+                        <StatMini label="No-show" value={s.noShow} color="text-amber-300" />
+                      </div>
+                      <SegBar
+                        total={s.agendadas}
+                        segs={[
+                          { value: s.realizadas, cls: "bg-emerald-500", label: "Realizadas" },
+                          { value: s.noShow, cls: "bg-amber-500", label: "No-show" },
+                          { value: pend, cls: "bg-zinc-700", label: "Aguardando" },
+                        ]}
+                      />
+                      <Meter label="Comparecimento" pct={s.comparecimento} />
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
 
-          {/* Insights do Closer */}
-          <section className="rounded-xl border border-zinc-900 bg-zinc-950/60 p-4">
-            <h3 className="mb-1 text-sm font-semibold text-zinc-200">Insights do Closer</h3>
-            <p className="mb-3 text-[11px] text-zinc-500">
-              Conversão = ganhos ÷ reuniões realizadas (não conta no-show)
-            </p>
+          {/* Insights do Closer — cards visuais */}
+          <section>
+            <div className="mb-2 flex items-baseline justify-between">
+              <h3 className="text-sm font-semibold text-zinc-200">Insights do Closer</h3>
+              <span className="text-[11px] text-zinc-500">conversão = ganho ÷ reuniões realizadas</span>
+            </div>
             {closerInsights.length === 0 ? (
-              <p className="text-xs text-zinc-500">Sem atividade de Closer no período.</p>
+              <p className="rounded-xl border border-zinc-900 bg-zinc-950/60 p-4 text-xs text-zinc-500">Sem atividade de Closer no período.</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[540px] text-xs">
-                  <thead>
-                    <tr className="text-left text-[10px] uppercase tracking-wider text-zinc-500">
-                      <th className="pb-2 font-medium">Closer</th>
-                      <th className="pb-2 text-right font-medium">Realizadas</th>
-                      <th className="pb-2 text-right font-medium">No-show</th>
-                      <th className="pb-2 text-right font-medium">Ganhos</th>
-                      <th className="pb-2 text-right font-medium">Perdidos</th>
-                      <th className="pb-2 text-right font-medium">Conversão</th>
-                      <th className="pb-2 text-right font-medium">Faturamento</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {closerInsights.map((c) => (
-                      <tr key={c.name} className="border-t border-zinc-900">
-                        <td className="py-2">
-                          <span className="flex items-center gap-1.5">
-                            <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-400" />{c.name}
-                          </span>
-                        </td>
-                        <td className="py-2 text-right text-zinc-200 tabular-nums">{c.realizadas}</td>
-                        <td className="py-2 text-right text-amber-300 tabular-nums">{c.noShow}</td>
-                        <td className="py-2 text-right text-emerald-300 tabular-nums">{c.ganhos}</td>
-                        <td className="py-2 text-right text-rose-300 tabular-nums">{c.perdidos}</td>
-                        <td className="py-2 text-right text-[#f5c518] tabular-nums">{fmtPct(c.conversao)}</td>
-                        <td className="py-2 text-right text-emerald-300 tabular-nums">{fmtBRL(c.faturamento)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {closerInsights.map((c) => {
+                  const emAberto = Math.max(0, c.realizadas - c.ganhos - c.perdidos);
+                  return (
+                    <div key={c.name} className="rounded-xl border border-zinc-900 bg-zinc-950/60 p-4">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-fuchsia-400" />
+                          <span className="text-sm font-semibold text-zinc-100">{c.name}</span>
+                        </span>
+                        <span className="text-sm font-bold tabular-nums text-emerald-300">{fmtBRL(c.faturamento)}</span>
+                      </div>
+                      <div className="mb-3 grid grid-cols-4 gap-2">
+                        <StatMini label="Realizadas" value={c.realizadas} color="text-zinc-100" />
+                        <StatMini label="Ganhos" value={c.ganhos} color="text-emerald-300" />
+                        <StatMini label="Perdidos" value={c.perdidos} color="text-rose-300" />
+                        <StatMini label="No-show" value={c.noShow} color="text-amber-300" />
+                      </div>
+                      <SegBar
+                        total={c.realizadas}
+                        segs={[
+                          { value: c.ganhos, cls: "bg-emerald-500", label: "Ganhos" },
+                          { value: c.perdidos, cls: "bg-rose-500", label: "Perdidos" },
+                          { value: emAberto, cls: "bg-zinc-700", label: "Em aberto" },
+                        ]}
+                      />
+                      <Meter label="Conversão" pct={c.conversao} />
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -360,6 +358,58 @@ function Kpi({
       <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{label}</div>
       <div className={`mt-1 text-2xl font-bold ${color}`}>{value}</div>
       {hint && <div className="mt-0.5 text-[10px] text-zinc-600">{hint}</div>}
+    </div>
+  );
+}
+
+// Tile de número compacto (dentro dos cards de insight).
+function StatMini({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="rounded-lg border border-zinc-900 bg-zinc-900/40 px-1 py-2 text-center">
+      <div className={`text-xl font-bold tabular-nums ${color}`}>{value}</div>
+      <div className="mt-0.5 text-[9px] font-medium uppercase tracking-wide text-zinc-500">{label}</div>
+    </div>
+  );
+}
+
+// Barra segmentada (funil): mostra a composição de um total em fatias coloridas.
+function SegBar({ total, segs }: { total: number; segs: { value: number; cls: string; label: string }[] }) {
+  const t = total || 1;
+  const shown = segs.filter((s) => s.value > 0);
+  return (
+    <div>
+      <div className="flex h-2.5 w-full gap-px overflow-hidden rounded-full bg-zinc-900">
+        {segs.map((s, i) =>
+          s.value > 0 ? (
+            <div key={i} className={s.cls} style={{ width: `${(s.value / t) * 100}%` }} title={`${s.label}: ${s.value}`} />
+          ) : null,
+        )}
+      </div>
+      {shown.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+          {shown.map((s, i) => (
+            <span key={i} className="flex items-center gap-1 text-[10px] text-zinc-400">
+              <span className={`h-1.5 w-1.5 rounded-full ${s.cls}`} />
+              {s.label} <span className="tabular-nums text-zinc-300">{s.value}</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Medidor de porcentagem com barra de progresso.
+function Meter({ label, pct }: { label: string; pct: number }) {
+  return (
+    <div className="mt-3">
+      <div className="mb-1 flex items-baseline justify-between">
+        <span className="text-[11px] font-medium text-zinc-400">{label}</span>
+        <span className="text-sm font-bold tabular-nums text-[#f5c518]">{pct.toFixed(0)}%</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-900">
+        <div className="h-full rounded-full bg-[#f5c518]" style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
+      </div>
     </div>
   );
 }
