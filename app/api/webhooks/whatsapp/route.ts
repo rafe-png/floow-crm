@@ -25,23 +25,25 @@ function normPhone(p: string): string {
   return d;
 }
 
-// Responsável do lead conforme o número que recebeu a mensagem.
+// SDR do número que recebeu a mensagem.
 // WHATSAPP_NUMBER_MAP = JSON {"<numero>":"<Nome>"} (ex: {"5511988887777":"Rafe"}).
-// Sem match → WHATSAPP_DEFAULT_SDR (padrão "Mariana").
-function responsavelForNumber(connectedPhone: string | undefined): string {
-  const def = process.env.WHATSAPP_DEFAULT_SDR || "Mariana";
+// strict=false: sem match cai no WHATSAPP_DEFAULT_SDR (usado ao CRIAR um lead novo).
+// strict=true:  sem match retorna null (usado ao REATRIBUIR — não queremos jogar
+//               todo mundo no SDR padrão só porque o número não está mapeado).
+function sdrForNumber(connectedPhone: string | undefined, strict: boolean): string | null {
   const raw = process.env.WHATSAPP_NUMBER_MAP;
-  if (!raw || !connectedPhone) return def;
-  try {
-    const map = JSON.parse(raw) as Record<string, string>;
-    const key = normPhone(connectedPhone);
-    for (const [num, nome] of Object.entries(map)) {
-      if (normPhone(num) === key) return nome;
+  if (raw && connectedPhone) {
+    try {
+      const map = JSON.parse(raw) as Record<string, string>;
+      const key = normPhone(connectedPhone);
+      for (const [num, nome] of Object.entries(map)) {
+        if (normPhone(num) === key) return nome;
+      }
+    } catch {
+      // JSON inválido → cai no padrão (se não-strict)
     }
-  } catch {
-    // JSON inválido → cai no padrão
   }
-  return def;
+  return strict ? null : (process.env.WHATSAPP_DEFAULT_SDR || "Mariana");
 }
 
 // Confere se o segredo bate (vem na URL: ?token=...).
@@ -98,24 +100,38 @@ export async function POST(request: Request) {
     if (m) criativo = parseInt(m[1], 10);
   }
 
-  // Procura lead já existente por telefone.
+  // Procura lead já existente por telefone/LID (bloqueia duplicação).
   const target = normPhone(phoneRaw);
-  const { data: existing } = await admin.from("leads").select("id, telefone, criativo_codigo");
+  const { data: existing } = await admin
+    .from("leads")
+    .select("id, telefone, criativo_codigo, sdr_responsavel, status");
   const match = (existing ?? []).find((l) => l.telefone && normPhone(l.telefone as string) === target);
 
   if (match) {
-    // Lead já existe: se veio código e ele ainda não tem, vincula o criativo
-    // (o código pode chegar numa mensagem posterior, não só na primeira).
+    // Lead já existe → NÃO duplica. Só atualiza o que faz sentido:
+    const patch: Record<string, unknown> = {};
+
+    // (a) vincula o criativo se veio e ele ainda não tem (código pode chegar depois).
     if (criativo != null && (match.criativo_codigo as number | null) == null) {
-      const { error: upErr } = await admin
-        .from("leads")
-        .update({ criativo_codigo: criativo })
-        .eq("id", match.id);
+      patch.criativo_codigo = criativo;
+    }
+
+    // (b) reatribui pro ÚLTIMO SDR = dono do número que recebeu esta mensagem.
+    //     Só se o número está mapeado e o lead não está fechado (ganho/perdido/
+    //     desqualificado) — não faz sentido roubar crédito de negócio já encerrado.
+    const lastSdr = sdrForNumber(body.connectedPhone, true);
+    const CLOSED = ["negocio_ganho", "negocio_perdido", "desqualificado"];
+    if (lastSdr && match.sdr_responsavel !== lastSdr && !CLOSED.includes(match.status as string)) {
+      patch.sdr_responsavel = lastSdr;
+    }
+
+    if (Object.keys(patch).length > 0) {
+      const { error: upErr } = await admin.from("leads").update(patch).eq("id", match.id);
       if (upErr) {
-        console.error("[whatsapp webhook] erro ao vincular criativo:", upErr.message);
+        console.error("[whatsapp webhook] erro ao atualizar lead existente:", upErr.message);
         return NextResponse.json({ ok: false, error: upErr.message });
       }
-      return NextResponse.json({ ok: true, linkedCreative: criativo });
+      return NextResponse.json({ ok: true, updated: Object.keys(patch) });
     }
     return NextResponse.json({ ok: true, duplicate: true });
   }
@@ -126,7 +142,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, skipped: "sem código do anúncio" });
   }
 
-  const sdr = responsavelForNumber(body.connectedPhone);
+  const sdr = sdrForNumber(body.connectedPhone, false);
 
   const { error } = await admin.from("leads").insert({
     nome: name,
