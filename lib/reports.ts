@@ -211,7 +211,7 @@ export type CoreKpis = {
   perdidos: number;
   noShow: number;
   winRate: number;            // % entre fechados (ganho/(ganho+perdido))
-  conversionRate: number;     // % de leads agendados que viraram ganho
+  conversionRate: number;     // conversão do Closer = ganho ÷ reuniões realizadas
   noShowRate: number;         // % de no_show entre agendamentos
   pipelineValor: number;
   faturamentoGanho: number;
@@ -244,7 +244,9 @@ export function buildCoreKpis(leads: Lead[], range: ResolvedRange): CoreKpis {
   const noShow = leads.filter((l) => inRange(l.last_no_show_em, range)).length;
 
   const winRate = ganhos + perdidos > 0 ? (ganhos / (ganhos + perdidos)) * 100 : 0;
-  const conversionRate = agendamentos > 0 ? (ganhos / agendamentos) * 100 : 0;
+  // Conversão do Closer = vendas ÷ reuniões que REALMENTE aconteceram (não conta
+  // no-show, que não é responsabilidade de conversão do Closer).
+  const conversionRate = reunioesRealizadas > 0 ? (ganhos / reunioesRealizadas) * 100 : 0;
   const noShowRate = agendamentos > 0 ? (noShow / agendamentos) * 100 : 0;
 
   // Faturamento = ganhos DO PERÍODO (por ganho_em).

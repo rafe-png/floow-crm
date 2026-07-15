@@ -104,7 +104,7 @@ export default function RelatoriosPage() {
             <Kpi label="Reuniões realizadas"   value={kpis.reunioesRealizadas.toString()} />
             <Kpi label="Negócios ganhos"       value={kpis.ganhos.toString()} accent="emerald" />
             <Kpi label="Win rate"              value={fmtPct(kpis.winRate)} hint="ganho ÷ (ganho + perdido)" accent="yellow" />
-            <Kpi label="Conversão geral"       value={fmtPct(kpis.conversionRate)} hint="ganho ÷ agendamentos" accent="emerald" />
+            <Kpi label="Conversão do Closer"   value={fmtPct(kpis.conversionRate)} hint="ganho ÷ reuniões realizadas" accent="emerald" />
             <Kpi label="No show"               value={fmtPct(kpis.noShowRate)} hint="no_show ÷ agendamentos" accent="rose" />
             <Kpi label="Tempo médio fechar"
               value={kpis.tempoMedioFechamentoDias != null ? `${kpis.tempoMedioFechamentoDias.toFixed(1)}d` : "—"}
