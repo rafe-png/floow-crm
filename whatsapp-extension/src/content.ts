@@ -697,27 +697,30 @@ function normName(s: string): string {
     .trim();
 }
 
-// Match por nome tolerante: o nome salvo no WhatsApp costuma ter "extras"
-// (ex.: "Jailton Antonio | #75 Eridenim") e diferir do CRM ("Jailton Antonio
-// Silva" / empresa "Eri Denim"). Cruzamos por (a) empresa sem espaços contida no
-// título, e (b) 2+ palavras do nome em comum.
+// Match por nome — RÍGIDO pra não casar errado. O nome salvo no WhatsApp costuma
+// ter "extras" (ex.: "Jailton Antonio | #75 Eridenim") e diferir do CRM ("Jailton
+// Antonio Silva" / empresa "Eri Denim"). Regras (só casa por PALAVRA INTEIRA, nunca
+// por pedaço solto — senão um lead "M" casa com "conta coMercial"):
+//   (a) empresa sem espaços (>=4) contida no título;
+//   (b) nome (>=3) igual ao título OU é uma palavra inteira do título;
+//   (c) 2+ palavras (>=3 letras) do nome presentes como palavra inteira no título.
 function findByName(title: string): Lead | undefined {
   const t = normName(title);
+  if (t.length < 3) return undefined; // título curto demais pra confiar
+  const tWords = t.split(" ").filter(Boolean);
   const tNoSpace = t.replace(/\s/g, "");
-  if (!t) return undefined;
 
   for (const lead of leads) {
     const nome = normName(lead.nome);
     const empNoSpace = normName(lead.empresa || "").replace(/\s/g, "");
     if (empNoSpace.length >= 4 && tNoSpace.includes(empNoSpace)) return lead;
-    if (nome && (nome === t || nome.includes(t) || t.includes(nome))) return lead;
+    if (nome.length >= 3 && (nome === t || tWords.includes(nome))) return lead;
   }
-  // 2+ palavras significativas (>=3 letras) do nome presentes no título.
   for (const lead of leads) {
     const words = normName(lead.nome).split(" ").filter((w) => w.length >= 3);
-    if (!words.length) continue;
-    const hits = words.filter((w) => t.includes(w)).length;
-    if (hits >= Math.min(2, words.length)) return lead;
+    if (words.length < 2) continue; // precisa de 2+ palavras significativas
+    const hits = words.filter((w) => tWords.includes(w)).length;
+    if (hits >= 2) return lead;
   }
   return undefined;
 }

@@ -9,9 +9,9 @@
 export function readActiveChatPhone(): string | null {
   const main = document.querySelector("#main");
   if (!main) return null;
-  // ANCORADO no data-id de MENSAGEM: "<true|false>_<jid>_<msgid>". Assim pegamos
-  // só o contato da conversa aberta (não um JID solto/persistente de outro chat).
-  const RE = /^(?:true|false)_(\d{8,})@(?:c\.us|s\.whatsapp\.net|lid)_/;
+  // Só o data-id das MENSAGENS (contato da conversa aberta). NÃO varremos todos os
+  // atributos — isso pegava um JID solto/persistente e vinculava sempre o mesmo lead.
+  const RE = /(\d{8,})@(?:c\.us|s\.whatsapp\.net|lid)/;
   let lidFallback: string | null = null;
   for (const n of Array.from(main.querySelectorAll("[data-id]"))) {
     const id = n.getAttribute("data-id") || "";

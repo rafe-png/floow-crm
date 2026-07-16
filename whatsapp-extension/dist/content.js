@@ -21316,7 +21316,7 @@ ${suffix}`;
   function readActiveChatPhone() {
     const main = document.querySelector("#main");
     if (!main) return null;
-    const RE = /^(?:true|false)_(\d{8,})@(?:c\.us|s\.whatsapp\.net|lid)_/;
+    const RE = /(\d{8,})@(?:c\.us|s\.whatsapp\.net|lid)/;
     let lidFallback = null;
     for (const n of Array.from(main.querySelectorAll("[data-id]"))) {
       const id = n.getAttribute("data-id") || "";
@@ -22026,19 +22026,20 @@ ${suffix}`;
   }
   function findByName(title) {
     const t = normName(title);
+    if (t.length < 3) return void 0;
+    const tWords = t.split(" ").filter(Boolean);
     const tNoSpace = t.replace(/\s/g, "");
-    if (!t) return void 0;
     for (const lead of leads) {
       const nome = normName(lead.nome);
       const empNoSpace = normName(lead.empresa || "").replace(/\s/g, "");
       if (empNoSpace.length >= 4 && tNoSpace.includes(empNoSpace)) return lead;
-      if (nome && (nome === t || nome.includes(t) || t.includes(nome))) return lead;
+      if (nome.length >= 3 && (nome === t || tWords.includes(nome))) return lead;
     }
     for (const lead of leads) {
       const words = normName(lead.nome).split(" ").filter((w) => w.length >= 3);
-      if (!words.length) continue;
-      const hits = words.filter((w) => t.includes(w)).length;
-      if (hits >= Math.min(2, words.length)) return lead;
+      if (words.length < 2) continue;
+      const hits = words.filter((w) => tWords.includes(w)).length;
+      if (hits >= 2) return lead;
     }
     return void 0;
   }
