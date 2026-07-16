@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getSupabase } from "@/lib/supabase/client";
-import type { MetaAdSpendDay } from "@/lib/types";
+import type { MetaAdSpendDay, MetaCreativeSpendDay } from "@/lib/types";
 
 // Lê o gasto diário de anúncios (tabela meta_ad_spend_daily, preenchida pela
 // sincronização com a Meta). Realtime: quando a sync grava, a UI atualiza sozinha.
@@ -13,6 +13,7 @@ export function useMetaSpend() {
   const userId = user?.id ?? null;
 
   const [days, setDays] = useState<MetaAdSpendDay[]>([]);
+  const [creativeDays, setCreativeDays] = useState<MetaCreativeSpendDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -23,12 +24,13 @@ export function useMetaSpend() {
     let cancelled = false;
 
     (async () => {
-      const { data } = await supabase
-        .from("meta_ad_spend_daily")
-        .select("*")
-        .order("day", { ascending: false });
+      const [total, porCriativo] = await Promise.all([
+        supabase.from("meta_ad_spend_daily").select("*").order("day", { ascending: false }),
+        supabase.from("meta_creative_spend_daily").select("*").order("day", { ascending: false }),
+      ]);
       if (cancelled) return;
-      setDays((data ?? []) as MetaAdSpendDay[]);
+      setDays((total.data ?? []) as MetaAdSpendDay[]);
+      setCreativeDays((porCriativo.data ?? []) as MetaCreativeSpendDay[]);
       setLoading(false);
     })();
 
@@ -44,6 +46,22 @@ export function useMetaSpend() {
             }
             const row = payload.new as MetaAdSpendDay;
             const rest = prev.filter((d) => d.day !== row.day);
+            return [row, ...rest].sort((a, b) => b.day.localeCompare(a.day));
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "meta_creative_spend_daily" },
+        (payload) => {
+          setCreativeDays((prev) => {
+            const key = (d: MetaCreativeSpendDay) => `${d.day}|${d.criativo_codigo}`;
+            if (payload.eventType === "DELETE") {
+              const old = payload.old as MetaCreativeSpendDay;
+              return prev.filter((d) => key(d) !== key(old));
+            }
+            const row = payload.new as MetaCreativeSpendDay;
+            const rest = prev.filter((d) => key(d) !== key(row));
             return [row, ...rest].sort((a, b) => b.day.localeCompare(a.day));
           });
         },
@@ -82,5 +100,5 @@ export function useMetaSpend() {
   // Timestamp da sincronização mais recente (max updated_at).
   const lastSync = days.reduce<string | null>((acc, d) => (!acc || d.updated_at > acc ? d.updated_at : acc), null);
 
-  return { days, loading, sync, syncing, syncError, lastSync };
+  return { days, creativeDays, loading, sync, syncing, syncError, lastSync };
 }

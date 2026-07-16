@@ -44,7 +44,22 @@ type RawRow = {
   impressions?: string;
   clicks?: string;
   actions?: { action_type: string; value: string }[];
+  ad_name?: string;
 };
+
+/**
+ * Extrai o código do criativo do NOME do anúncio na Meta. Convenção usada na conta:
+ *   "add_video_08" → 8 · "add_video_AD_30" → 30 · "contratação" → null
+ * Regra: pega o ÚLTIMO número do nome (1 a 3 dígitos). Sem número → não é criativo
+ * rastreado (ex.: anúncio de contratação) e é ignorado.
+ */
+export function creativeCodeFromAdName(adName: string | undefined): number | null {
+  if (!adName) return null;
+  const nums = adName.match(/\d{1,3}/g);
+  if (!nums || nums.length === 0) return null;
+  const n = parseInt(nums[nums.length - 1], 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
 
 type InsightsResponse = {
   data?: RawRow[];
@@ -101,4 +116,53 @@ export async function fetchDailyInsights(since: string, until: string): Promise<
   }
 
   return out;
+}
+
+export type DailyCreativeInsight = DailyInsight & { criativo_codigo: number };
+
+/**
+ * Igual ao fetchDailyInsights, mas no NÍVEL ANÚNCIO — e agrega por (dia, criativo),
+ * lendo o código do nome do anúncio. Vários anúncios com o mesmo código (mesmo
+ * criativo em campanhas/conjuntos diferentes) somam no mesmo criativo.
+ * Anúncios sem número no nome são ignorados (não são criativos rastreados).
+ */
+export async function fetchDailyCreativeInsights(since: string, until: string): Promise<DailyCreativeInsight[]> {
+  const { token, accountId, version } = getMetaConfig();
+  const params = new URLSearchParams({
+    level: "ad",
+    time_increment: "1",
+    fields: "ad_name,spend,impressions,clicks,actions",
+    time_range: JSON.stringify({ since, until }),
+    limit: "500",
+    access_token: token,
+  });
+
+  let url: string | null = `${GRAPH}/${version}/${accountId}/insights?${params.toString()}`;
+  // chave "dia|codigo" → acumulado
+  const acc = new Map<string, DailyCreativeInsight>();
+
+  while (url) {
+    const res: Response = await fetch(url, { cache: "no-store" });
+    const json = (await res.json()) as InsightsResponse;
+    if (!res.ok) {
+      const msg = json?.error?.message || `Erro ${res.status} na Meta API`;
+      throw new Error(msg);
+    }
+    for (const row of json.data ?? []) {
+      const codigo = creativeCodeFromAdName(row.ad_name);
+      if (codigo == null) continue; // anúncio sem código → fora do relatório de criativos
+      const key = `${row.date_start}|${codigo}`;
+      const cur = acc.get(key) ?? {
+        day: row.date_start, criativo_codigo: codigo, spend: 0, leads: 0, impressions: 0, clicks: 0,
+      };
+      cur.spend += Number(row.spend) || 0;
+      cur.leads += parseLeads(row.actions);
+      cur.impressions += Number(row.impressions) || 0;
+      cur.clicks += Number(row.clicks) || 0;
+      acc.set(key, cur);
+    }
+    url = json.paging?.next ?? null;
+  }
+
+  return Array.from(acc.values());
 }

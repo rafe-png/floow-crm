@@ -328,6 +328,9 @@ export type MetaAdSpendDay = {
   updated_at: string;
 };
 
+// Gasto diário POR CRIATIVO (nível anúncio; código lido do nome do anúncio).
+export type MetaCreativeSpendDay = MetaAdSpendDay & { criativo_codigo: number };
+
 // ============================================================
 // Constantes de UI
 // ============================================================

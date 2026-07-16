@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { CreativeBars, MonthlyBars, WeekdayBars } from "@/components/relatorios/ReportCharts";
@@ -16,6 +16,7 @@ import {
   buildFunnel,
   buildLeadsCsv,
   buildCloserInsights,
+  buildCreativeReport,
   buildLossReasons,
   buildMonthlyStats,
   buildSdrInsights,
@@ -32,7 +33,8 @@ import { STATUS_COLORS } from "@/lib/types";
 export default function RelatoriosPage() {
   const { leads } = useLeadsContext();
   const { period } = usePeriodContext();
-  const { days: metaDays } = useMetaSpendContext();
+  const { days: metaDays, creativeDays } = useMetaSpendContext();
+  const [selectedCreative, setSelectedCreative] = useState<number | null>(null);
 
   const range = useMemo(() => resolveRange(period), [period]);
   const filtered = useMemo(() => filterLeadsByRange(leads, range), [leads, range]);
@@ -42,6 +44,7 @@ export default function RelatoriosPage() {
   const funnel = useMemo(() => buildFunnel(filtered), [filtered]);
   const lossReasons = useMemo(() => buildLossReasons(filtered), [filtered]);
   const disqualReasons = useMemo(() => buildDisqualReasons(filtered), [filtered]);
+  const creativeReport = useMemo(() => buildCreativeReport(leads, creativeDays, range), [leads, creativeDays, range]);
   const sdrInsights = useMemo(() => buildSdrInsights(leads, range), [leads, range]);
   const closerInsights = useMemo(() => buildCloserInsights(leads, range), [leads, range]);
   const sourceStats = useMemo(() => buildSourceStats(filtered), [filtered]);
@@ -252,6 +255,125 @@ export default function RelatoriosPage() {
             </section>
           )}
 
+          {/* Relatório de criativos — ranking + drill-down por criativo */}
+          <section>
+            <div className="mb-2 flex items-baseline justify-between">
+              <h3 className="text-sm font-semibold text-zinc-200">Relatório de criativos</h3>
+              <span className="text-[11px] text-zinc-500">gasto da Meta por anúncio × resultado no CRM</span>
+            </div>
+
+            {creativeReport.length === 0 ? (
+              <div className="rounded-xl border border-zinc-900 bg-zinc-950/60 p-4">
+                <p className="text-xs text-zinc-500">
+                  Sem dados de criativo no período. Clique em <strong>Sincronizar com a Meta</strong> no Financeiro
+                  pra puxar o gasto por anúncio.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Seletor de criativo */}
+                <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                  <button
+                    onClick={() => setSelectedCreative(null)}
+                    className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                      selectedCreative === null
+                        ? "border-[#f5c518]/40 bg-[#f5c518]/10 text-[#f5c518]"
+                        : "border-zinc-800 bg-zinc-900/70 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  {creativeReport.map((c) => (
+                    <button
+                      key={c.codigo}
+                      onClick={() => setSelectedCreative(c.codigo === selectedCreative ? null : c.codigo)}
+                      className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold tabular-nums transition-colors ${
+                        selectedCreative === c.codigo
+                          ? "border-[#f5c518]/40 bg-[#f5c518]/10 text-[#f5c518]"
+                          : "border-zinc-800 bg-zinc-900/70 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Drill-down do criativo selecionado */}
+                {selectedCreative !== null && (() => {
+                  const c = creativeReport.find((x) => x.codigo === selectedCreative);
+                  if (!c) return null;
+                  return (
+                    <div className="mb-3 rounded-xl border border-[#f5c518]/25 bg-[#f5c518]/[0.04] p-4">
+                      <div className="mb-3 flex items-baseline justify-between">
+                        <span className="text-base font-bold tabular-nums text-[#f5c518]">Criativo {c.label}</span>
+                        <span className="text-[11px] text-zinc-500">{periodLabel(period)}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <StatMini label="Investido" value={fmtBRL(c.investido)} color="text-[#f5c518]" />
+                        <StatMini label="Leads" value={c.leads} color="text-zinc-100" />
+                        <StatMini label="CPL" value={c.cpl != null ? fmtBRL(c.cpl) : "—"} color="text-sky-300" />
+                        <StatMini label="CAC" value={c.cac != null ? fmtBRL(c.cac) : "—"} color="text-sky-300" />
+                        <StatMini label="Ganhos" value={c.ganhos} color="text-emerald-300" />
+                        <StatMini label="Faturamento" value={fmtBRL(c.faturamento)} color="text-emerald-300" />
+                        <StatMini label="ROAS" value={c.roas != null ? `${c.roas.toFixed(2)}x` : "—"} color="text-emerald-300" />
+                        <StatMini label="Ticket" value={fmtBRL(c.ticket)} color="text-zinc-100" />
+                      </div>
+                      <div className="mt-3 grid grid-cols-3 gap-2">
+                        <StatMini label="Conversas (Meta)" value={c.conversas} color="text-zinc-300" />
+                        <StatMini label="Agendadas" value={c.agendadas} color="text-zinc-300" />
+                        <StatMini label="Realizadas" value={c.realizadas} color="text-zinc-300" />
+                      </div>
+                      <Meter label="Conversão (ganho ÷ leads)" pct={c.convLead} />
+                    </div>
+                  );
+                })()}
+
+                {/* Ranking: quem vendeu mais */}
+                <div className="overflow-x-auto rounded-xl border border-zinc-900 bg-zinc-950/60 p-4">
+                  <table className="w-full min-w-[620px] text-xs">
+                    <thead>
+                      <tr className="text-left text-[10px] uppercase tracking-wider text-zinc-500">
+                        <th className="pb-2 font-medium">Criativo</th>
+                        <th className="pb-2 text-right font-medium">Investido</th>
+                        <th className="pb-2 text-right font-medium">Leads</th>
+                        <th className="pb-2 text-right font-medium">CPL</th>
+                        <th className="pb-2 text-right font-medium">Ganhos</th>
+                        <th className="pb-2 text-right font-medium">CAC</th>
+                        <th className="pb-2 text-right font-medium">Faturamento</th>
+                        <th className="pb-2 text-right font-medium">ROAS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {creativeReport.map((c) => (
+                        <tr
+                          key={c.codigo}
+                          onClick={() => setSelectedCreative(c.codigo === selectedCreative ? null : c.codigo)}
+                          className={`cursor-pointer border-t border-zinc-900 transition-colors hover:bg-zinc-900/50 ${
+                            selectedCreative === c.codigo ? "bg-[#f5c518]/[0.06]" : ""
+                          }`}
+                        >
+                          <td className="py-2 font-semibold tabular-nums text-[#f5c518]">{c.label}</td>
+                          <td className="py-2 text-right tabular-nums text-zinc-300">{fmtBRL(c.investido)}</td>
+                          <td className="py-2 text-right tabular-nums text-zinc-300">{c.leads}</td>
+                          <td className="py-2 text-right tabular-nums text-sky-300">{c.cpl != null ? fmtBRL(c.cpl) : "—"}</td>
+                          <td className="py-2 text-right tabular-nums text-emerald-300">{c.ganhos}</td>
+                          <td className="py-2 text-right tabular-nums text-sky-300">{c.cac != null ? fmtBRL(c.cac) : "—"}</td>
+                          <td className="py-2 text-right tabular-nums text-emerald-300">{fmtBRL(c.faturamento)}</td>
+                          <td className={`py-2 text-right font-semibold tabular-nums ${c.roas != null && c.roas >= 1 ? "text-emerald-300" : "text-zinc-500"}`}>
+                            {c.roas != null ? `${c.roas.toFixed(2)}x` : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="mt-3 text-[10px] text-zinc-600">
+                    Clique num criativo pra ver os detalhes. Gasto vem do nome do anúncio na Meta (ex.: <code>add_video_08</code> → [08]).
+                  </p>
+                </div>
+              </>
+            )}
+          </section>
+
           {/* Insights do SDR — cards visuais */}
           <section>
             <div className="mb-2 flex items-baseline justify-between">
@@ -363,10 +485,10 @@ function Kpi({
 }
 
 // Tile de número compacto (dentro dos cards de insight).
-function StatMini({ label, value, color }: { label: string; value: number; color: string }) {
+function StatMini({ label, value, color }: { label: string; value: number | string; color: string }) {
   return (
     <div className="rounded-lg border border-zinc-900 bg-zinc-900/40 px-1 py-2 text-center">
-      <div className={`text-xl font-bold tabular-nums ${color}`}>{value}</div>
+      <div className={`text-lg font-bold tabular-nums ${color}`}>{value}</div>
       <div className="mt-0.5 text-[9px] font-medium uppercase tracking-wide text-zinc-500">{label}</div>
     </div>
   );

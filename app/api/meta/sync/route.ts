@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { format } from "date-fns";
-import { fetchDailyInsights } from "@/lib/meta/insights";
+import { fetchDailyCreativeInsights, fetchDailyInsights } from "@/lib/meta/insights";
 import { getAdminSupabase, getServerSupabase } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/types";
 
@@ -68,8 +68,34 @@ export async function GET(request: Request) {
       }
     }
 
+    // Gasto POR CRIATIVO (nível anúncio, código lido do nome do anúncio).
+    const creativeRows = await fetchDailyCreativeInsights(
+      format(since, "yyyy-MM-dd"),
+      format(until, "yyyy-MM-dd"),
+    );
+    const creativePayload = creativeRows.map((r) => ({
+      day: r.day,
+      criativo_codigo: r.criativo_codigo,
+      spend: r.spend,
+      leads: r.leads,
+      impressions: r.impressions,
+      clicks: r.clicks,
+      updated_at: nowIso,
+    }));
+    if (creativePayload.length > 0) {
+      const { error } = await admin
+        .from("meta_creative_spend_daily")
+        .upsert(creativePayload, { onConflict: "day,criativo_codigo" });
+      if (error) {
+        console.error("[meta sync] erro ao gravar criativos:", error.message);
+        return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      }
+    }
+
     const totalSpend = rows.reduce((s, r) => s + r.spend, 0);
-    return NextResponse.json({ ok: true, days, synced: payload.length, totalSpend });
+    return NextResponse.json({
+      ok: true, days, synced: payload.length, syncedCreatives: creativePayload.length, totalSpend,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erro ao sincronizar com a Meta.";
     console.error("[meta sync] erro:", message);

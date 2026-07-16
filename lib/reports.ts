@@ -9,6 +9,7 @@ import {
   type Lead,
   type LeadFonte,
   type LeadStatus,
+  type MetaCreativeSpendDay,
   type MotivoDesqualificacao,
   type MotivoPerda,
 } from "@/lib/types";
@@ -518,6 +519,80 @@ export function buildMonthlyStats(leads: Lead[], months = 6): MonthStat[] {
     if (l.status === "negocio_ganho") buckets[i].stat.ganhos++;
   }
   return buckets.map((b) => b.stat);
+}
+
+// ============================================================
+// Relatório inteligente por criativo: cruza o gasto da Meta (por criativo, lido do
+// nome do anúncio) com o resultado real no CRM (leads/ganhos por criativo_codigo).
+// ============================================================
+export type CreativeReportRow = {
+  codigo: number;
+  label: string;          // "[08]"
+  investido: number;      // gasto da Meta no período
+  conversas: number;      // conversas iniciadas (Meta) atribuídas ao criativo
+  leads: number;          // leads REAIS que entraram no CRM com esse código
+  agendadas: number;
+  realizadas: number;
+  ganhos: number;
+  faturamento: number;
+  cpl: number | null;     // investido ÷ leads reais
+  cac: number | null;     // investido ÷ clientes ganhos
+  roas: number | null;    // faturamento ÷ investido
+  ticket: number;         // faturamento ÷ ganhos
+  convLead: number;       // ganhos ÷ leads (%)
+};
+
+export function buildCreativeReport(
+  leads: Lead[],
+  creativeDays: MetaCreativeSpendDay[],
+  range: ResolvedRange,
+): CreativeReportRow[] {
+  const startKey = range.start ? format(range.start, "yyyy-MM-dd") : null;
+  const endKey = format(range.end, "yyyy-MM-dd");
+
+  type Acc = Omit<CreativeReportRow, "label" | "cpl" | "cac" | "roas" | "ticket" | "convLead">;
+  const map = new Map<number, Acc>();
+  const cell = (codigo: number): Acc => {
+    const cur = map.get(codigo) ?? {
+      codigo, investido: 0, conversas: 0, leads: 0, agendadas: 0, realizadas: 0, ganhos: 0, faturamento: 0,
+    };
+    map.set(codigo, cur);
+    return cur;
+  };
+
+  // Gasto/conversas da Meta no intervalo.
+  for (const d of creativeDays) {
+    if (startKey && d.day < startKey) continue;
+    if (d.day > endKey) continue;
+    const c = cell(d.criativo_codigo);
+    c.investido += Number(d.spend) || 0;
+    c.conversas += Number(d.leads) || 0;
+  }
+
+  // Resultado real no CRM (cada evento pela sua data).
+  for (const l of leads) {
+    if (l.criativo_codigo == null) continue;
+    if (inRange(l.created_at, range)) cell(l.criativo_codigo).leads++;
+    if (inRange(l.agendado_em, range)) cell(l.criativo_codigo).agendadas++;
+    if (inRange(l.reuniao_realizada_em, range)) cell(l.criativo_codigo).realizadas++;
+    if (inRange(l.ganho_em, range)) {
+      const c = cell(l.criativo_codigo);
+      c.ganhos++;
+      if (l.valor) c.faturamento += Number(l.valor);
+    }
+  }
+
+  return Array.from(map.values())
+    .map((v) => ({
+      ...v,
+      label: `[${String(v.codigo).padStart(2, "0")}]`,
+      cpl: v.leads > 0 ? v.investido / v.leads : null,
+      cac: v.ganhos > 0 ? v.investido / v.ganhos : null,
+      roas: v.investido > 0 ? v.faturamento / v.investido : null,
+      ticket: v.ganhos > 0 ? v.faturamento / v.ganhos : 0,
+      convLead: v.leads > 0 ? (v.ganhos / v.leads) * 100 : 0,
+    }))
+    .sort((a, b) => b.ganhos - a.ganhos || b.faturamento - a.faturamento || b.investido - a.investido);
 }
 
 export type CreativeStat = { codigo: number; label: string; ganhos: number; faturamento: number };
