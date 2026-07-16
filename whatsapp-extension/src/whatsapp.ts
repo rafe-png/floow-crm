@@ -9,26 +9,18 @@
 export function readActiveChatPhone(): string | null {
   const main = document.querySelector("#main");
   if (!main) return null;
-  const RE = /(\d{8,})@(?:c\.us|s\.whatsapp\.net|lid)/;
-  // 1) Mensagens (data-id tem o JID do contato). Prioriza telefone real; se só
-  //    houver @lid, usa o @lid.
+  // ANCORADO no data-id de MENSAGEM: "<true|false>_<jid>_<msgid>". Assim pegamos
+  // só o contato da conversa aberta (não um JID solto/persistente de outro chat).
+  const RE = /^(?:true|false)_(\d{8,})@(?:c\.us|s\.whatsapp\.net|lid)_/;
   let lidFallback: string | null = null;
   for (const n of Array.from(main.querySelectorAll("[data-id]"))) {
     const id = n.getAttribute("data-id") || "";
     const m = id.match(RE);
     if (!m) continue;
     if (id.includes("@lid")) { lidFallback = lidFallback ?? m[1]; continue; }
-    return m[1]; // telefone real tem prioridade
+    return m[1]; // telefone real tem prioridade sobre @lid
   }
-  if (lidFallback) return lidFallback;
-  // 2) Qualquer atributo dentro do #main que tenha um JID.
-  for (const el of Array.from(main.querySelectorAll<HTMLElement>("*"))) {
-    for (const attr of Array.from(el.attributes)) {
-      const m = attr.value.match(RE);
-      if (m) return m[1];
-    }
-  }
-  return null;
+  return lidFallback;
 }
 
 // Título da conversa aberta: nome do contato (salvo) OU o número (não salvo).

@@ -86,6 +86,9 @@ function KanbanContent() {
   const [newOpen, setNewOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<LeadStatus | undefined>(undefined);
   const [selected, setSelected] = useState<Lead | null>(null);
+  // Qual ?lead= já foi fechado pelo usuário (fecha o painel na hora, sem depender
+  // da URL atualizar — evita o painel "travar" aberto quando vem da extensão).
+  const [dismissedParam, setDismissedParam] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<CelebrationKind | null>(null);
   // Filtros do funil. null = todos. Ficam salvos (localStorage) entre navegações.
   const [filterSdr, setFilterSdr] = useStickyState<string | null>("floow.kanban.sdr", null);
@@ -218,16 +221,21 @@ function KanbanContent() {
     triggerCelebration("negocio_ganho");
   }
 
-  // Lead selecionado: ou foi clicado no board, ou veio via ?lead=<id> (link de uma tarefa).
+  // Lead selecionado: clicado no board, OU via ?lead=<id> (link da extensão/tarefa)
+  // — mas só se esse ?lead ainda não foi fechado manualmente.
+  const deepLead = leadParam && leadParam !== dismissedParam ? leadParam : null;
   const selectedLead = selected
     ? leads.find((l) => l.id === selected.id) ?? null
-    : leadParam
-      ? leads.find((l) => l.id === leadParam) ?? null
+    : deepLead
+      ? leads.find((l) => l.id === deepLead) ?? null
       : null;
 
   function closePanel() {
     setSelected(null);
-    if (leadParam) router.replace("/kanban", { scroll: false });
+    if (leadParam) {
+      setDismissedParam(leadParam);           // fecha na hora
+      router.replace("/kanban", { scroll: false }); // limpa a URL (best-effort)
+    }
   }
 
   // Orquestra o avanço de etapa aplicando as travas em ordem:

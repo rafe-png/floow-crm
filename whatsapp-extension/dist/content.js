@@ -21316,7 +21316,7 @@ ${suffix}`;
   function readActiveChatPhone() {
     const main = document.querySelector("#main");
     if (!main) return null;
-    const RE = /(\d{8,})@(?:c\.us|s\.whatsapp\.net|lid)/;
+    const RE = /^(?:true|false)_(\d{8,})@(?:c\.us|s\.whatsapp\.net|lid)_/;
     let lidFallback = null;
     for (const n of Array.from(main.querySelectorAll("[data-id]"))) {
       const id = n.getAttribute("data-id") || "";
@@ -21328,14 +21328,7 @@ ${suffix}`;
       }
       return m[1];
     }
-    if (lidFallback) return lidFallback;
-    for (const el of Array.from(main.querySelectorAll("*"))) {
-      for (const attr of Array.from(el.attributes)) {
-        const m = attr.value.match(RE);
-        if (m) return m[1];
-      }
-    }
-    return null;
+    return lidFallback;
   }
   function readActiveChatTitle() {
     const main = document.querySelector("#main");
