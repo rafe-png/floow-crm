@@ -23,6 +23,7 @@ import { PersonSelect } from "@/components/ui/PersonSelect";
 import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
 import { LeadTasks } from "@/components/tasks/LeadTasks";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
+import { useTeamContext } from "@/lib/contexts/TeamContext";
 import {
   BANT_AUTHORITY_LABELS,
   BANT_BUDGET_LABELS,
@@ -55,6 +56,7 @@ type Props = {
 
 export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
   const { leads } = useLeadsContext();
+  const { isAdmin } = useTeamContext();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const initialDateTime = splitIso(lead.data_agendamento);
@@ -220,9 +222,11 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
                 </button>
               </>
             )}
-            <button onClick={handleDelete} className="rounded p-1.5 text-zinc-500 hover:bg-rose-500/10 hover:text-rose-400" aria-label="Excluir">
-              <Trash2 size={16} />
-            </button>
+            {isAdmin && (
+              <button onClick={handleDelete} className="rounded p-1.5 text-zinc-500 hover:bg-rose-500/10 hover:text-rose-400" aria-label="Excluir">
+                <Trash2 size={16} />
+              </button>
+            )}
             <button onClick={onClose} className="rounded p-1.5 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300" aria-label="Fechar">
               <X size={18} />
             </button>

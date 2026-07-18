@@ -195,9 +195,11 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
                 <InstagramIcon size={16} />
               </a>
             )}
-            <button onClick={handleDelete} className="rounded p-1.5 text-zinc-500 hover:bg-rose-500/10 hover:text-rose-400" aria-label="Excluir">
-              <Trash2 size={16} />
-            </button>
+            {isAdmin && (
+              <button onClick={handleDelete} className="rounded p-1.5 text-zinc-500 hover:bg-rose-500/10 hover:text-rose-400" aria-label="Excluir">
+                <Trash2 size={16} />
+              </button>
+            )}
             <button onClick={onClose} className="rounded p-1.5 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300" aria-label="Fechar">
               <X size={18} />
             </button>
