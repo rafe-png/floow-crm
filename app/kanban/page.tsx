@@ -21,7 +21,7 @@ import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { useStickyState } from "@/lib/hooks/useStickyState";
 import { resolveRange, type PeriodPreset } from "@/lib/reports";
-import { PRODUTO_LABELS, PRODUTO_OPTIONS, SEGMENTO_LABELS, type Lead, type LeadProduto, type LeadStatus, type MotivoCarteira, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
+import { FONTE_LABELS, FONTE_OPTIONS, PRODUTO_LABELS, PRODUTO_OPTIONS, SEGMENTO_LABELS, type Lead, type LeadFonte, type LeadProduto, type LeadStatus, type MotivoCarteira, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
 import { computeLeadScore, PRIORITY_SHORT, type LeadPriority } from "@/lib/lead-score";
 
 // Info do negócio (empresa, instagram, decisor, segmento) — obrigatória de
@@ -94,7 +94,8 @@ function KanbanContent() {
   const [filterSdr, setFilterSdr] = useStickyState<string | null>("floow.kanban.sdr", null);
   const [filterCloser, setFilterCloser] = useStickyState<string | null>("floow.kanban.closer", null);
   const [filterPriority, setFilterPriority] = useStickyState<LeadPriority | null>("floow.kanban.prioridade", null);
-  const [filterOrigem, setFilterOrigem] = useStickyState<"whatsapp" | "manual" | null>("floow.kanban.origem", null);
+  // Origem = fonte de marketing do lead (Meta Ads, Instagram, Indicação, …).
+  const [filterOrigem, setFilterOrigem] = useStickyState<LeadFonte | null>("floow.kanban.fonte", null);
   const [filterSegmento, setFilterSegmento] = useStickyState<SegmentoConfeccao | null>("floow.kanban.segmento", null);
   const [filterProduto, setFilterProduto] = useStickyState<LeadProduto | null>("floow.kanban.produto", null);
   // Data de ENTRADA do lead no funil (created_at). null = todos.
@@ -124,8 +125,7 @@ function KanbanContent() {
     return leads.filter((l) => {
       if (filterSdr && l.sdr_responsavel !== filterSdr) return false;
       if (filterCloser && l.closer_responsavel !== filterCloser) return false;
-      if (filterOrigem === "whatsapp" && l.origem !== "whatsapp") return false;
-      if (filterOrigem === "manual" && l.origem === "whatsapp") return false;
+      if (filterOrigem && l.fonte !== filterOrigem) return false;
       if (filterSegmento && l.segmento !== filterSegmento) return false;
       if (filterProduto && l.produto !== filterProduto) return false;
       if (range) {
@@ -347,11 +347,8 @@ function KanbanContent() {
           />
           <FilterChip
             label="Origem" allLabel="Todas"
-            value={filterOrigem ?? ""} onChange={(v) => setFilterOrigem((v || null) as "whatsapp" | "manual" | null)}
-            options={[
-              { value: "whatsapp", label: "Anúncio (WhatsApp)" },
-              { value: "manual", label: "Manual" },
-            ]}
+            value={filterOrigem ?? ""} onChange={(v) => setFilterOrigem((v || null) as LeadFonte | null)}
+            options={FONTE_OPTIONS.map((f) => ({ value: f, label: FONTE_LABELS[f] }))}
           />
           <FilterChip
             label="Segmento" allLabel="Todos"
