@@ -122,7 +122,13 @@
       "Bash(python3 -c \"import sys,json; [print\\(f\\\\\"tel={x['telefone']!s:20} insta={x['instagram']!s:15} {x['nome'][:22]}\\\\\"\\) for x in json.load\\(sys.stdin\\)]\")",
       "Bash(awk '{print \"zip:\", $9, \"·\", $5\" bytes ·\", $6,$7,$8}')",
       "Bash(open .)",
-      "Bash(open dist *)"
+      "Bash(open dist *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(' bucket:', d.get\\('name'\\), '· público:', d.get\\('public'\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); r=d[0] if isinstance\\(d,list\\) else d; print\\('inserido:', r.get\\('name'\\), '·', len\\(r.get\\('urls',[]\\)\\), 'variantes · id', r.get\\('id'\\)\\)\")",
+      "Bash(npx --yes vercel@latest env rm ZAPI_INSTANCES production -y)",
+      "Bash(npx --yes vercel@latest env add ZAPI_INSTANCES production)",
+      "Bash(npx --yes vercel@latest env ls production)",
+      "Bash(perl -0pi -e 's/NextResponse\\\\.json\\\\\\(\\\\s*\\(\\\\{ ok: false, error: \"sem token\" \\\\}\\),\\\\s*\\\\{ status: 401 \\\\}\\\\s*\\\\\\)/json\\($1, 401\\)/g' app/api/ext/send-audio/route.ts)"
     ]
   }
 }
