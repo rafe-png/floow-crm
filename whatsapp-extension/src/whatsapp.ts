@@ -23,6 +23,12 @@ export function readActiveChatPhone(): string | null {
   return lidFallback;
 }
 
+// Textos do header que NÃO são o nome do contato (status, dicas, rótulos).
+// O WhatsApp mostra "online", "digitando…", "visto por último…" logo abaixo do
+// nome — sem filtrar, a extensão pegava "online" como se fosse o nome.
+const NOT_A_NAME =
+  /^(online|digitando|gravando|typing|recording|visto por|last seen|online h|clique para|click here|toque para|tap here|conta comercial|business account|carregando|loading|criptografia|encrypted)/i;
+
 // Título da conversa aberta: nome do contato (salvo) OU o número (não salvo).
 export function readActiveChatTitle(): string | null {
   const main = document.querySelector("#main");
@@ -30,14 +36,22 @@ export function readActiveChatTitle(): string | null {
   const header = main.querySelector("header");
   if (!header) return null;
 
-  const withTitle = header.querySelector("span[title]") as HTMLElement | null;
-  const t = withTitle?.getAttribute("title")?.trim();
-  if (t) return t;
+  // Junta os candidatos (spans com title + spans de texto) e devolve o 1º que
+  // parece um nome de verdade (não é status/dica).
+  const candidates: string[] = [];
+  header.querySelectorAll("span[title]").forEach((el) => {
+    const t = (el as HTMLElement).getAttribute("title")?.trim();
+    if (t) candidates.push(t);
+  });
+  header.querySelectorAll('span[dir="auto"]').forEach((el) => {
+    const t = el.textContent?.trim();
+    if (t) candidates.push(t);
+  });
 
-  // Fallback: texto do primeiro span "auto" do header (nome renderizado).
-  const span = header.querySelector('span[dir="auto"]') as HTMLElement | null;
-  const txt = span?.textContent?.trim();
-  return txt && txt.length > 0 ? txt : null;
+  for (const c of candidates) {
+    if (c.length >= 2 && !NOT_A_NAME.test(c)) return c;
+  }
+  return null;
 }
 
 // Diagnóstico (mostrado no painel quando não acha o lead).

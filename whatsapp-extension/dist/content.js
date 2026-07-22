@@ -21330,17 +21330,25 @@ ${suffix}`;
     }
     return lidFallback;
   }
+  var NOT_A_NAME = /^(online|digitando|gravando|typing|recording|visto por|last seen|online h|clique para|click here|toque para|tap here|conta comercial|business account|carregando|loading|criptografia|encrypted)/i;
   function readActiveChatTitle() {
     const main = document.querySelector("#main");
     if (!main) return null;
     const header = main.querySelector("header");
     if (!header) return null;
-    const withTitle = header.querySelector("span[title]");
-    const t = withTitle?.getAttribute("title")?.trim();
-    if (t) return t;
-    const span = header.querySelector('span[dir="auto"]');
-    const txt = span?.textContent?.trim();
-    return txt && txt.length > 0 ? txt : null;
+    const candidates = [];
+    header.querySelectorAll("span[title]").forEach((el) => {
+      const t = el.getAttribute("title")?.trim();
+      if (t) candidates.push(t);
+    });
+    header.querySelectorAll('span[dir="auto"]').forEach((el) => {
+      const t = el.textContent?.trim();
+      if (t) candidates.push(t);
+    });
+    for (const c of candidates) {
+      if (c.length >= 2 && !NOT_A_NAME.test(c)) return c;
+    }
+    return null;
   }
   function readChatDebug() {
     return { mainFound: !!document.querySelector("#main"), phone: readActiveChatPhone(), title: readActiveChatTitle() };
