@@ -718,8 +718,9 @@ async function afterAuth() {
   const { data: cl } = await supabase.from("team_members").select("id,name").eq("role", "Closer").eq("active", true).order("name");
   closers = (cl as { id: string; name: string }[]) ?? [];
 
-  const { data: au } = await supabase.from("audio_snippets").select("id,name,urls,emoji,active,ordem").eq("active", true).order("ordem");
-  audios = (au as AudioSnippet[]) ?? [];
+  const { data: au } = await supabase.from("audio_snippets").select("id,name,urls,emoji,active,ordem,owner").eq("active", true).order("ordem");
+  // Só os áudios "de todos" (owner null) + os do próprio SDR logado.
+  audios = ((au as AudioSnippet[]) ?? []).filter((a) => !a.owner || a.owner === member.name);
 
   await loadLeads();
   subscribeRealtime();

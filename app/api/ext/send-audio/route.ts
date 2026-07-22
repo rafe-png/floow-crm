@@ -87,12 +87,16 @@ export async function POST(req: NextRequest) {
   // Snippet + variante aleatória (rotação anti-spam).
   const { data: snippet } = await admin
     .from("audio_snippets")
-    .select("name, urls, active")
+    .select("name, urls, active, owner")
     .eq("id", snippetId)
     .maybeSingle();
   const urls: string[] = (snippet?.urls as string[]) ?? [];
   if (!snippet || snippet.active === false || urls.length === 0) {
     return reply({ ok: false, error: "áudio não encontrado ou sem variantes" }, 404);
+  }
+  // Áudio com dono só pode ser enviado por esse dono (null = todos).
+  if (snippet.owner && snippet.owner !== sdrName) {
+    return reply({ ok: false, error: "esse áudio não é seu" }, 403);
   }
   // Sem Math.random no client, mas aqui é server: escolhe uma variante.
   const audioUrl = urls[Math.floor(Math.random() * urls.length)];

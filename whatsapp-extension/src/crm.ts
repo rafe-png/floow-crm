@@ -23,6 +23,7 @@ export type AudioSnippet = {
   emoji: string | null;
   active: boolean;
   ordem: number;
+  owner: string | null; // null = todos; senão só aparece pro dono (team_members.name)
 };
 
 export type Lead = {

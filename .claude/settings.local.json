@@ -128,7 +128,11 @@
       "Bash(npx --yes vercel@latest env rm ZAPI_INSTANCES production -y)",
       "Bash(npx --yes vercel@latest env add ZAPI_INSTANCES production)",
       "Bash(npx --yes vercel@latest env ls production)",
-      "Bash(perl -0pi -e 's/NextResponse\\\\.json\\\\\\(\\\\s*\\(\\\\{ ok: false, error: \"sem token\" \\\\}\\),\\\\s*\\\\{ status: 401 \\\\}\\\\s*\\\\\\)/json\\($1, 401\\)/g' app/api/ext/send-audio/route.ts)"
+      "Bash(perl -0pi -e 's/NextResponse\\\\.json\\\\\\(\\\\s*\\(\\\\{ ok: false, error: \"sem token\" \\\\}\\),\\\\s*\\\\{ status: 401 \\\\}\\\\s*\\\\\\)/json\\($1, 401\\)/g' app/api/ext/send-audio/route.ts)",
+      "Bash(curl -s -o /dev/null -w \"status=%{http_code}\\\\n\" -X OPTIONS \"https://floow-crm.vercel.app/api/ext/send-audio\" -H \"Origin: https://web.whatsapp.com\" -H \"Access-Control-Request-Method: POST\" -H \"Access-Control-Request-Headers: authorization,content-type\")",
+      "Bash(curl -s -D - -o /dev/null -X OPTIONS \"https://floow-crm.vercel.app/api/ext/send-audio\" -H \"Origin: https://web.whatsapp.com\")",
+      "Bash(zip -rq floow-whatsapp-extension.zip dist manifest.json)",
+      "Bash(zip -rq floow-whatsapp-extension.zip dist)"
     ]
   }
 }

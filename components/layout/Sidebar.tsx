@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Calendar, CheckSquare, DollarSign, LayoutDashboard, Kanban, Settings } from "lucide-react";
+import { AudioLines, BarChart3, Calendar, CheckSquare, DollarSign, LayoutDashboard, Kanban, Settings } from "lucide-react";
 import { FloowLogo } from "@/components/icons/FloowLogo";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 
@@ -24,6 +24,9 @@ function useNavItems(): NavItem[] {
   ];
   if (isAdmin || isTraffic) {
     items.push({ href: "/financeiro", label: "Financeiro", icon: DollarSign });
+  }
+  if (isAdmin) {
+    items.push({ href: "/audios", label: "Áudios", icon: AudioLines });
   }
   return items;
 }
