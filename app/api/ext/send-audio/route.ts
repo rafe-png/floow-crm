@@ -109,7 +109,12 @@ export async function POST(req: NextRequest) {
     const res = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({ phone: digits, audio: audioUrl }),
+      body: JSON.stringify({
+        phone: digits,
+        audio: audioUrl,
+        waveform: true,   // barrinhas (forma de onda) — não fica linha reta
+        delayTyping: 2,   // mostra "gravando áudio…" ~2s antes → parece gravado na hora
+      }),
     });
     const zapi = await res.json().catch(() => ({}));
     if (!res.ok) {
