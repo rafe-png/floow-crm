@@ -201,6 +201,15 @@ function renderLead() {
   }
 
   const fonte = lead.fonte ? (FONTE_LABELS[lead.fonte] ?? lead.fonte) : null;
+  // Número discável pro wa.me (leads @lid não têm número real → sem botão).
+  const waDigits = (() => {
+    if (!lead.telefone || lead.telefone.includes("@lid")) return null;
+    let d = lead.telefone.replace(/\D/g, "");
+    if (!d) return null;
+    if (d.length <= 11) d = "55" + d.replace(/^55/, "");
+    return d;
+  })();
+
   body.append(
     h("div", { class: "floow-section" }, [
       h("div", { class: "floow-leadname" }, [lead.empresa || lead.nome]),
@@ -215,6 +224,15 @@ function renderLead() {
         lead.data_agendamento ? h("div", { style: "color:#f5c518" }, [`📅 ${fmtDate(lead.data_agendamento)}`]) : document.createTextNode(""),
       ]),
       matchInfo ? h("div", { class: "floow-hint" }, [`vinculado ${matchInfo}`]) : document.createTextNode(""),
+      waDigits
+        ? h("a", {
+            class: "floow-btn floow-wa",
+            // whatsapp:// abre o APLICATIVO desktop já nessa conversa (pra ligar,
+            // que só dá no app). wa.me abriria no web — não é o que se quer aqui.
+            href: `whatsapp://send?phone=${waDigits}`,
+            title: "Abre o app do WhatsApp nesta conversa (pra ligar)",
+          }, ["📞 Abrir no app (ligar)"])
+        : document.createTextNode(""),
     ]),
   );
 
