@@ -21525,6 +21525,16 @@ ${suffix}`;
       if (d.length <= 11) d = "55" + d.replace(/^55/, "");
       return d;
     })();
+    let waButton = document.createTextNode("");
+    if (waDigits) {
+      const a = h("a", {
+        class: "floow-btn floow-wa",
+        href: `whatsapp://send?phone=${waDigits}`,
+        title: "Abre o app do WhatsApp nesta conversa (pra ligar)"
+      });
+      a.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg><span>Ligar pelo app</span>';
+      waButton = a;
+    }
     body.append(
       h("div", { class: "floow-section" }, [
         h("div", { class: "floow-leadname" }, [lead.empresa || lead.nome]),
@@ -21540,13 +21550,7 @@ ${suffix}`;
           lead.data_agendamento ? h("div", { style: "color:#f5c518" }, [`\u{1F4C5} ${fmtDate(lead.data_agendamento)}`]) : document.createTextNode("")
         ]),
         matchInfo ? h("div", { class: "floow-hint" }, [`vinculado ${matchInfo}`]) : document.createTextNode(""),
-        waDigits ? h("a", {
-          class: "floow-btn floow-wa",
-          // whatsapp:// abre o APLICATIVO desktop já nessa conversa (pra ligar,
-          // que só dá no app). wa.me abriria no web — não é o que se quer aqui.
-          href: `whatsapp://send?phone=${waDigits}`,
-          title: "Abre o app do WhatsApp nesta conversa (pra ligar)"
-        }, ["\u{1F4DE} Abrir no app (ligar)"]) : document.createTextNode("")
+        waButton
       ])
     );
     const grid = h("div", { class: "floow-grid" });

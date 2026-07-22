@@ -73,12 +73,20 @@
 #floow-panel .floow-btn-primary:hover { filter: brightness(1.05); }
 #floow-panel .floow-btn-primary:disabled { opacity: .4; cursor: default; filter: none; }
 
-/* Botão "Abrir no app" (verde WhatsApp) */
+/* Botão "Ligar pelo app" — verde WhatsApp em tom "tinted" (igual às pills/badges) */
 #floow-panel .floow-wa {
-  display: block; margin-top: 12px; text-align: center; text-decoration: none;
-  background: #25D366; border-color: #25D366; color: #05391b;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 12px; text-decoration: none;
+  background: rgba(37, 211, 102, 0.12);
+  border: 1px solid rgba(37, 211, 102, 0.4);
+  color: #3ddc84;
 }
-#floow-panel .floow-wa:hover { background: #22c35e; border-color: #22c35e; }
+#floow-panel .floow-wa:hover {
+  background: rgba(37, 211, 102, 0.2);
+  border-color: rgba(37, 211, 102, 0.65);
+  color: #4ff0a0;
+}
+#floow-panel .floow-wa svg { flex: 0 0 auto; opacity: .95; }
 
 #floow-panel .floow-link { background: none; border: none; color: #f5c518; cursor: pointer; font-size: 12px; font-weight: 600; padding: 0; text-decoration: none; transition: opacity .15s; }
 #floow-panel .floow-link:hover { opacity: .75; }
