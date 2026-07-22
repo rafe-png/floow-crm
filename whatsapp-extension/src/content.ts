@@ -3,6 +3,7 @@ import { APP_URL, ADMIN_EMAIL } from "./config";
 import {
   type Lead,
   type LeadStatus,
+  type AudioSnippet,
   LEAD_COLUMNS,
   STATUS_LABELS,
   STATUS_ORDER,
@@ -36,6 +37,7 @@ let sessionEmail: string | null = null;
 let member: { name: string | null; role: string | null; isAdmin: boolean } = { name: null, role: null, isAdmin: false };
 let leads: Lead[] = [];
 let closers: { id: string; name: string }[] = [];
+let audios: AudioSnippet[] = [];
 let currentLeadId: string | null = null;
 let matchInfo = "";
 let lastPhone: string | null = null;
@@ -241,6 +243,20 @@ function renderLead() {
       waButton,
     ]),
   );
+
+  // Áudios prontos (biblioteca) — só se o lead tem número real.
+  if (waDigits && audios.length > 0) {
+    const wrap = h("div", { class: "floow-pills" });
+    for (const a of audios) {
+      const btn = h("button", { class: "floow-audio" }, [`${a.emoji ? a.emoji + " " : "🎤 "}${a.name}`]);
+      btn.addEventListener("click", () => sendAudio(a, waDigits, btn));
+      wrap.append(btn);
+    }
+    body.append(h("div", { class: "floow-section" }, [
+      h("div", { class: "floow-title" }, ["Enviar áudio"]),
+      wrap,
+    ]));
+  }
 
   // Mover etapa — TODAS as etapas, com trava por papel + regras (dialogs).
   const grid = h("div", { class: "floow-grid" });
@@ -481,6 +497,31 @@ async function reconcileCalendar(leadId: string): Promise<{ ok: boolean; action?
   }
 }
 
+// Envia um áudio pronto pro número do lead (via rota do app → Z-API).
+async function sendAudio(a: AudioSnippet, phone: string, btn: HTMLButtonElement) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) { flash("Sessão expirada — logue de novo."); return; }
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Enviando…";
+  try {
+    const res = await fetch(`${APP_URL}/api/ext/send-audio`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ snippetId: a.id, phone }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (json?.ok) flash(`Áudio "${a.name}" enviado ✓`);
+    else flash("Falha: " + (json?.error || "erro ao enviar áudio"));
+  } catch {
+    flash("Erro de rede ao enviar áudio.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
 async function beginMove(lead: Lead, target: LeadStatus) {
   if (!canMoveTo(target, member)) { flash("Sem permissão pra essa etapa"); return; }
   const prevEventId = lead.google_event_id;
@@ -676,6 +717,9 @@ async function afterAuth() {
 
   const { data: cl } = await supabase.from("team_members").select("id,name").eq("role", "Closer").eq("active", true).order("name");
   closers = (cl as { id: string; name: string }[]) ?? [];
+
+  const { data: au } = await supabase.from("audio_snippets").select("id,name,urls,emoji,active,ordem").eq("active", true).order("ordem");
+  audios = (au as AudioSnippet[]) ?? [];
 
   await loadLeads();
   subscribeRealtime();

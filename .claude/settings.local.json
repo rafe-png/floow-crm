@@ -120,7 +120,9 @@
       "Bash(awk '{print \"zip:\", $6, $7, $8, \"-\", $5, \"bytes\"}')",
       "Bash(python3 -c \"import sys,json;from collections import Counter;print\\(Counter\\(x['origem'] for x in json.load\\(sys.stdin\\)\\)\\)\")",
       "Bash(python3 -c \"import sys,json; [print\\(f\\\\\"tel={x['telefone']!s:20} insta={x['instagram']!s:15} {x['nome'][:22]}\\\\\"\\) for x in json.load\\(sys.stdin\\)]\")",
-      "Bash(awk '{print \"zip:\", $9, \"·\", $5\" bytes ·\", $6,$7,$8}')"
+      "Bash(awk '{print \"zip:\", $9, \"·\", $5\" bytes ·\", $6,$7,$8}')",
+      "Bash(open .)",
+      "Bash(open dist *)"
     ]
   }
 }

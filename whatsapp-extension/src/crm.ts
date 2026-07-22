@@ -15,6 +15,16 @@ export type LeadStatus =
   | "desqualificado"
   | "sem_resposta";
 
+// Áudio "pronto" da biblioteca (enviado pela extensão via Z-API).
+export type AudioSnippet = {
+  id: string;
+  name: string;
+  urls: string[];
+  emoji: string | null;
+  active: boolean;
+  ordem: number;
+};
+
 export type Lead = {
   id: string;
   nome: string;

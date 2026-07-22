@@ -88,6 +88,15 @@
 }
 #floow-panel .floow-wa svg { flex: 0 0 auto; opacity: .95; }
 
+/* Botões de áudio pronto */
+#floow-panel .floow-audio {
+  background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #7dd3fc; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all .13s;
+}
+#floow-panel .floow-audio:hover { background: rgba(56, 189, 248, 0.18); border-color: rgba(56, 189, 248, 0.55); }
+#floow-panel .floow-audio:disabled { opacity: .5; cursor: default; }
+
 #floow-panel .floow-link { background: none; border: none; color: #f5c518; cursor: pointer; font-size: 12px; font-weight: 600; padding: 0; text-decoration: none; transition: opacity .15s; }
 #floow-panel .floow-link:hover { opacity: .75; }
 #floow-panel .floow-msg { font-size: 12px; color: #fb7185; margin-bottom: 6px; min-height: 14px; }

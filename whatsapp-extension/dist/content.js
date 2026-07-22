@@ -21360,6 +21360,7 @@ ${suffix}`;
   var member = { name: null, role: null, isAdmin: false };
   var leads = [];
   var closers = [];
+  var audios = [];
   var currentLeadId = null;
   var matchInfo = "";
   var lastPhone = null;
@@ -21553,6 +21554,18 @@ ${suffix}`;
         waButton
       ])
     );
+    if (waDigits && audios.length > 0) {
+      const wrap = h("div", { class: "floow-pills" });
+      for (const a of audios) {
+        const btn = h("button", { class: "floow-audio" }, [`${a.emoji ? a.emoji + " " : "\u{1F3A4} "}${a.name}`]);
+        btn.addEventListener("click", () => sendAudio(a, waDigits, btn));
+        wrap.append(btn);
+      }
+      body.append(h("div", { class: "floow-section" }, [
+        h("div", { class: "floow-title" }, ["Enviar \xE1udio"]),
+        wrap
+      ]));
+    }
     const grid = h("div", { class: "floow-grid" });
     for (const s of STATUS_ORDER) {
       const active = s === lead.status;
@@ -21808,6 +21821,32 @@ ${suffix}`;
       return null;
     }
   }
+  async function sendAudio(a, phone, btn) {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) {
+      flash("Sess\xE3o expirada \u2014 logue de novo.");
+      return;
+    }
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Enviando\u2026";
+    try {
+      const res = await fetch(`${APP_URL}/api/ext/send-audio`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ snippetId: a.id, phone })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (json?.ok) flash(`\xC1udio "${a.name}" enviado \u2713`);
+      else flash("Falha: " + (json?.error || "erro ao enviar \xE1udio"));
+    } catch {
+      flash("Erro de rede ao enviar \xE1udio.");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  }
   async function beginMove(lead, target) {
     if (!canMoveTo(target, member)) {
       flash("Sem permiss\xE3o pra essa etapa");
@@ -22021,6 +22060,8 @@ ${suffix}`;
     member = { name: m?.name ?? null, role: m?.role ?? null, isAdmin: !!m?.is_admin || sessionEmail?.toLowerCase() === ADMIN_EMAIL };
     const { data: cl } = await supabase.from("team_members").select("id,name").eq("role", "Closer").eq("active", true).order("name");
     closers = cl ?? [];
+    const { data: au } = await supabase.from("audio_snippets").select("id,name,urls,emoji,active,ordem").eq("active", true).order("ordem");
+    audios = au ?? [];
     await loadLeads();
     subscribeRealtime();
     matchFromChat();
