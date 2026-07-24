@@ -137,7 +137,8 @@
       "WebFetch(domain:developer.z-api.io)",
       "WebSearch",
       "Bash(grep -iA0 \"csv\\\\|header\\\\|segmento\\\\|empresa\\\\|fonte\")",
-      "Bash(awk '/export const QUAL_FIELDS/,/\\\\];/' src/crm.ts)"
+      "Bash(awk '/export const QUAL_FIELDS/,/\\\\];/' src/crm.ts)",
+      "Bash(open whatsapp-extension *)"
     ]
   }
 }
