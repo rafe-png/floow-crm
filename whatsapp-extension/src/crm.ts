@@ -32,6 +32,8 @@ export type Lead = {
   empresa: string | null;
   instagram: string | null;
   segmento: string | null;
+  cidade: string | null;
+  estado: string | null;
   telefone: string;
   status: LeadStatus;
   observacoes: string | null;
@@ -57,7 +59,7 @@ export type Lead = {
 
 // Colunas que a extensão lê do banco.
 export const LEAD_COLUMNS =
-  "id,nome,empresa,instagram,segmento,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
+  "id,nome,empresa,instagram,segmento,cidade,estado,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
 
 export const STATUS_LABELS: Record<LeadStatus, string> = {
   qualificado: "Entrada",
@@ -99,6 +101,21 @@ export const FONTE_LABELS: Record<string, string> = {
   meta_ads: "Meta Ads", instagram: "Instagram", indicacao: "Indicação", outbound: "Outbound", outro: "Outro",
 };
 export const FONTE_OPTIONS = Object.keys(FONTE_LABELS);
+
+// Cidades-alvo (igual CIDADE_ALVO do app) — cada uma já carrega a UF.
+export const CIDADE_ALVO: { cidade: string; uf: string }[] = [
+  { cidade: "Santa Cruz do Capibaribe", uf: "PE" },
+  { cidade: "Caruaru", uf: "PE" },
+  { cidade: "Toritama", uf: "PE" },
+  { cidade: "Surubim", uf: "PE" },
+  { cidade: "Jataúba", uf: "PE" },
+  { cidade: "Taquaritinga do Norte", uf: "PE" },
+  { cidade: "Pão de Açúcar", uf: "AL" },
+];
+export function ufForCidade(cidade: string | null): string | null {
+  if (!cidade) return null;
+  return CIDADE_ALVO.find((c) => c.cidade.toLowerCase() === cidade.toLowerCase())?.uf ?? null;
+}
 
 // ---- Qualificação (mesmas opções do app) ----
 export const EXPERIENCIA_LABELS: Record<string, string> = {
@@ -150,6 +167,7 @@ export const QUAL_FIELDS: { key: keyof Lead; label: string; options: Record<stri
   { key: "bant_authority", label: "🎯 Authority", options: BANT_AUTHORITY_LABELS },
   { key: "bant_need", label: "🔥 Need", options: BANT_NEED_LABELS },
   { key: "bant_timing", label: "⏱ Timing", options: BANT_TIMING_LABELS },
+  { key: "fonte", label: "📣 Origem", options: FONTE_LABELS },
 ];
 
 // Etapas que o SDR pode mover (igual SDR_STAGES do app).
@@ -199,6 +217,7 @@ export function needsBusinessInfo(lead: Lead, target: LeadStatus): boolean {
 
 export function isQualComplete(l: Lead): boolean {
   return !!(
+    l.cidade && l.estado && l.fonte &&
     l.experiencia && l.situacao && l.canal_vendas && l.estoque && l.historico && l.estrutura &&
     l.bant_budget && l.bant_authority && l.bant_need && l.bant_timing
   );

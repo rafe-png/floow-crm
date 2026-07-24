@@ -37,15 +37,16 @@ const QUAL_STAGES: LeadStatus[] = [
   "em_agendamento", "agendando", "reuniao_agendada", "no_show", "follow_up", "negocio_ganho",
 ];
 
-// Pré qualificado: dados do negócio preenchidos (inclui localização + fonte).
+// Pré qualificado: dados do negócio preenchidos (decisor, empresa, insta, segmento).
 function isPreQualComplete(l: Lead): boolean {
-  return !!(l.nome && l.empresa && l.instagram && l.segmento && l.cidade && l.estado && l.fonte);
+  return !!(l.nome && l.empresa && l.instagram && l.segmento);
 }
 
-// Qualificado+: produto + qualificação + BANT completos.
+// Qualificado+: produto + qualificação + BANT + localização (cidade/estado) + fonte.
 function isQualComplete(l: Lead): boolean {
   return !!(
     l.produto &&
+    l.cidade && l.estado && l.fonte &&
     l.experiencia && l.situacao && l.canal_vendas && l.estoque && l.historico && l.estrutura &&
     l.bant_budget && l.bant_authority && l.bant_need && l.bant_timing
   );

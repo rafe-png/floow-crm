@@ -21089,7 +21089,7 @@ ${suffix}`;
   });
 
   // src/crm.ts
-  var LEAD_COLUMNS = "id,nome,empresa,instagram,segmento,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
+  var LEAD_COLUMNS = "id,nome,empresa,instagram,segmento,cidade,estado,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
   var STATUS_LABELS = {
     qualificado: "Entrada",
     pre_qualificado: "Pr\xE9 qualificado",
@@ -21140,6 +21140,15 @@ ${suffix}`;
     outro: "Outro"
   };
   var FONTE_OPTIONS = Object.keys(FONTE_LABELS);
+  var CIDADE_ALVO = [
+    { cidade: "Santa Cruz do Capibaribe", uf: "PE" },
+    { cidade: "Caruaru", uf: "PE" },
+    { cidade: "Toritama", uf: "PE" },
+    { cidade: "Surubim", uf: "PE" },
+    { cidade: "Jata\xFAba", uf: "PE" },
+    { cidade: "Taquaritinga do Norte", uf: "PE" },
+    { cidade: "P\xE3o de A\xE7\xFAcar", uf: "AL" }
+  ];
   var EXPERIENCIA_LABELS = {
     menos_6m: "Menos de 6 meses",
     "6m_1ano": "6 meses a 1 ano",
@@ -21216,7 +21225,8 @@ ${suffix}`;
     { key: "bant_budget", label: "\u{1F4B0} Budget", options: BANT_BUDGET_LABELS },
     { key: "bant_authority", label: "\u{1F3AF} Authority", options: BANT_AUTHORITY_LABELS },
     { key: "bant_need", label: "\u{1F525} Need", options: BANT_NEED_LABELS },
-    { key: "bant_timing", label: "\u23F1 Timing", options: BANT_TIMING_LABELS }
+    { key: "bant_timing", label: "\u23F1 Timing", options: BANT_TIMING_LABELS },
+    { key: "fonte", label: "\u{1F4E3} Origem", options: FONTE_LABELS }
   ];
   var SDR_STAGES = [
     "qualificado",
@@ -21272,7 +21282,7 @@ ${suffix}`;
     return lead.status !== target && BUSINESS_STAGES.includes(target) && !isPreQualComplete(lead);
   }
   function isQualComplete(l) {
-    return !!(l.experiencia && l.situacao && l.canal_vendas && l.estoque && l.historico && l.estrutura && l.bant_budget && l.bant_authority && l.bant_need && l.bant_timing);
+    return !!(l.cidade && l.estado && l.fonte && l.experiencia && l.situacao && l.canal_vendas && l.estoque && l.historico && l.estrutura && l.bant_budget && l.bant_authority && l.bant_need && l.bant_timing);
   }
   function needsQualification(lead, target) {
     return lead.status !== target && !NO_QUAL_STAGES.includes(target) && !isQualComplete(lead);
@@ -21667,6 +21677,8 @@ ${suffix}`;
       const v = lead[f.key];
       if (v) vals[f.key] = v;
     }
+    if (lead.cidade) vals.cidade = lead.cidade;
+    if (lead.estado) vals.estado = lead.estado;
     return openModal("Qualifica\xE7\xE3o obrigat\xF3ria", (api) => {
       const wrap = h("div", {});
       wrap.append(h("div", { class: "floow-hint", style: "margin-bottom:8px" }, ["Preencha pra avan\xE7ar (igual ao app)."]));
@@ -21683,10 +21695,26 @@ ${suffix}`;
         }
         wrap.append(h("div", { class: "floow-qlabel" }, [f.label]), pills);
       }
+      const cidadePills = h("div", { class: "floow-pills" });
+      for (const c of CIDADE_ALVO) {
+        const b = h("button", { class: "floow-pill" + (vals.cidade === c.cidade ? " sel" : "") }, [`${c.cidade} \xB7 ${c.uf}`]);
+        b.addEventListener("click", () => {
+          vals.cidade = c.cidade;
+          vals.estado = c.uf;
+          cidadePills.querySelectorAll(".floow-pill").forEach((x) => x.classList.remove("sel"));
+          b.classList.add("sel");
+        });
+        cidadePills.append(b);
+      }
+      wrap.append(h("div", { class: "floow-qlabel" }, ["\u{1F4CD} Cidade"]), cidadePills);
       const confirm = h("button", { class: "floow-btn floow-btn-primary", style: "margin-top:10px" }, ["Confirmar qualifica\xE7\xE3o"]);
       confirm.addEventListener("click", () => {
         for (const f of QUAL_FIELDS) if (!vals[f.key]) {
           api.setError("Falta: " + f.label);
+          return;
+        }
+        if (!vals.cidade || !vals.estado) {
+          api.setError("Falta: Cidade");
           return;
         }
         api.done({ ...vals });

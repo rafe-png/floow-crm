@@ -11,6 +11,7 @@ import {
   FONTE_LABELS,
   FONTE_OPTIONS,
   QUAL_FIELDS,
+  CIDADE_ALVO,
   SEGMENTO_LABELS,
   SEGMENTO_OPTIONS,
   MOTIVO_PERDA_LABELS,
@@ -354,6 +355,8 @@ function openModal<T>(title: string, build: (api: ModalApi<T>) => HTMLElement): 
 function askQualification(lead: Lead): Promise<Record<string, string> | null> {
   const vals: Record<string, string> = {};
   for (const f of QUAL_FIELDS) { const v = lead[f.key] as string | null; if (v) vals[f.key as string] = v; }
+  if (lead.cidade) vals.cidade = lead.cidade;
+  if (lead.estado) vals.estado = lead.estado;
   return openModal("Qualificação obrigatória", (api) => {
     const wrap = h("div", {});
     wrap.append(h("div", { class: "floow-hint", style: "margin-bottom:8px" }, ["Preencha pra avançar (igual ao app)."]));
@@ -370,9 +373,23 @@ function askQualification(lead: Lead): Promise<Record<string, string> | null> {
       }
       wrap.append(h("div", { class: "floow-qlabel" }, [f.label]), pills);
     }
+    // Cidade (localização) — pills das cidades-alvo; cada uma já leva a UF.
+    const cidadePills = h("div", { class: "floow-pills" });
+    for (const c of CIDADE_ALVO) {
+      const b = h("button", { class: "floow-pill" + (vals.cidade === c.cidade ? " sel" : "") }, [`${c.cidade} · ${c.uf}`]);
+      b.addEventListener("click", () => {
+        vals.cidade = c.cidade; vals.estado = c.uf;
+        cidadePills.querySelectorAll(".floow-pill").forEach((x) => x.classList.remove("sel"));
+        b.classList.add("sel");
+      });
+      cidadePills.append(b);
+    }
+    wrap.append(h("div", { class: "floow-qlabel" }, ["📍 Cidade"]), cidadePills);
+
     const confirm = h("button", { class: "floow-btn floow-btn-primary", style: "margin-top:10px" }, ["Confirmar qualificação"]);
     confirm.addEventListener("click", () => {
       for (const f of QUAL_FIELDS) if (!vals[f.key as string]) { api.setError("Falta: " + f.label); return; }
+      if (!vals.cidade || !vals.estado) { api.setError("Falta: Cidade"); return; }
       api.done({ ...vals });
     });
     wrap.append(confirm);
