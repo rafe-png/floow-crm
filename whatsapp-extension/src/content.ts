@@ -227,6 +227,25 @@ function renderLead() {
     waButton = a;
   }
 
+  // Instagram do lead (ícone + @) → abre o perfil numa aba nova.
+  let igLink: Node = document.createTextNode("");
+  if (lead.instagram) {
+    const handle = lead.instagram.replace(/^@/, "");
+    const a = h("a", {
+      class: "floow-ig",
+      href: `https://instagram.com/${handle}`,
+      target: "_blank",
+      rel: "noopener",
+      title: `@${handle} no Instagram`,
+    });
+    a.innerHTML =
+      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
+      '<rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/>' +
+      '<circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg>' +
+      `<span>@${handle}</span>`;
+    igLink = a;
+  }
+
   body.append(
     h("div", { class: "floow-section" }, [
       h("div", { class: "floow-leadname" }, [lead.empresa || lead.nome]),
@@ -238,8 +257,10 @@ function renderLead() {
         lead.sdr_responsavel ? h("div", {}, [`SDR: ${lead.sdr_responsavel}`]) : document.createTextNode(""),
         lead.closer_responsavel ? h("div", {}, [`Closer: ${lead.closer_responsavel}`]) : document.createTextNode(""),
         fonte ? h("div", {}, [`Origem: ${fonte}`]) : document.createTextNode(""),
+        lead.cidade ? h("div", {}, [`📍 ${lead.cidade}${lead.estado ? " · " + lead.estado : ""}`]) : document.createTextNode(""),
         lead.data_agendamento ? h("div", { style: "color:#f5c518" }, [`📅 ${fmtDate(lead.data_agendamento)}`]) : document.createTextNode(""),
       ]),
+      igLink,
       matchInfo ? h("div", { class: "floow-hint" }, [`vinculado ${matchInfo}`]) : document.createTextNode(""),
       waButton,
     ]),

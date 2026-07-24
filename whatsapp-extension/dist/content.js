@@ -21546,6 +21546,19 @@ ${suffix}`;
       a.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg><span>Ligar pelo app</span>';
       waButton = a;
     }
+    let igLink = document.createTextNode("");
+    if (lead.instagram) {
+      const handle = lead.instagram.replace(/^@/, "");
+      const a = h("a", {
+        class: "floow-ig",
+        href: `https://instagram.com/${handle}`,
+        target: "_blank",
+        rel: "noopener",
+        title: `@${handle} no Instagram`
+      });
+      a.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg><span>@${handle}</span>`;
+      igLink = a;
+    }
     body.append(
       h("div", { class: "floow-section" }, [
         h("div", { class: "floow-leadname" }, [lead.empresa || lead.nome]),
@@ -21558,8 +21571,10 @@ ${suffix}`;
           lead.sdr_responsavel ? h("div", {}, [`SDR: ${lead.sdr_responsavel}`]) : document.createTextNode(""),
           lead.closer_responsavel ? h("div", {}, [`Closer: ${lead.closer_responsavel}`]) : document.createTextNode(""),
           fonte ? h("div", {}, [`Origem: ${fonte}`]) : document.createTextNode(""),
+          lead.cidade ? h("div", {}, [`\u{1F4CD} ${lead.cidade}${lead.estado ? " \xB7 " + lead.estado : ""}`]) : document.createTextNode(""),
           lead.data_agendamento ? h("div", { style: "color:#f5c518" }, [`\u{1F4C5} ${fmtDate(lead.data_agendamento)}`]) : document.createTextNode("")
         ]),
+        igLink,
         matchInfo ? h("div", { class: "floow-hint" }, [`vinculado ${matchInfo}`]) : document.createTextNode(""),
         waButton
       ])
