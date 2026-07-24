@@ -148,6 +148,11 @@ export type Lead = {
   instagram: string | null;
   segmento: SegmentoConfeccao | null;
 
+  // Localização (mercado-alvo). `cidade` = texto; `estado` = UF (2 letras) usada
+  // no mapa de calor dos relatórios. Preenchidos na pré-qualificação.
+  cidade: string | null;
+  estado: string | null;
+
   // Responsáveis (pré-auth: texto livre; pós-auth: auto-preenchido)
   sdr_responsavel: string | null;
   closer_responsavel: string | null;
@@ -218,6 +223,44 @@ export const FONTE_LABELS: Record<LeadFonte, string> = {
 };
 
 export const FONTE_OPTIONS = Object.keys(FONTE_LABELS) as LeadFonte[];
+
+// ============================================================
+// Localização — cidades-alvo + estados (UF) pro mapa de calor
+// ============================================================
+
+// Estados brasileiros (UF → nome). Usado no seletor "Outra cidade" e no mapa.
+export const UF_LABELS: Record<string, string> = {
+  AC: "Acre", AL: "Alagoas", AP: "Amapá", AM: "Amazonas", BA: "Bahia",
+  CE: "Ceará", DF: "Distrito Federal", ES: "Espírito Santo", GO: "Goiás",
+  MA: "Maranhão", MT: "Mato Grosso", MS: "Mato Grosso do Sul", MG: "Minas Gerais",
+  PA: "Pará", PB: "Paraíba", PR: "Paraná", PE: "Pernambuco", PI: "Piauí",
+  RJ: "Rio de Janeiro", RN: "Rio Grande do Norte", RS: "Rio Grande do Sul",
+  RO: "Rondônia", RR: "Roraima", SC: "Santa Catarina", SP: "São Paulo",
+  SE: "Sergipe", TO: "Tocantins",
+};
+
+export const ESTADO_OPTIONS = Object.keys(UF_LABELS);
+
+// Cidades-alvo pré-configuradas (aparecem no seletor da pré-qualificação).
+// Cada uma já carrega a UF certa — é o que alimenta o mapa por estado.
+// Pra adicionar novas cidades, é só incluir aqui.
+export type CidadeAlvo = { cidade: string; uf: string };
+export const CIDADE_ALVO: CidadeAlvo[] = [
+  { cidade: "Santa Cruz do Capibaribe", uf: "PE" },
+  { cidade: "Caruaru", uf: "PE" },
+  { cidade: "Toritama", uf: "PE" },
+  { cidade: "Surubim", uf: "PE" },
+  { cidade: "Jataúba", uf: "PE" },
+  { cidade: "Taquaritinga do Norte", uf: "PE" },
+  { cidade: "Pão de Açúcar", uf: "AL" },
+];
+
+// Acha a UF de uma cidade-alvo pelo nome (case-insensitive).
+export function ufForCidade(cidade: string | null): string | null {
+  if (!cidade) return null;
+  const hit = CIDADE_ALVO.find((c) => c.cidade.toLowerCase() === cidade.toLowerCase());
+  return hit?.uf ?? null;
+}
 
 // Produto ofertado (parte da qualificação). Ao selecionar, o "Valor do negócio"
 // é pré-preenchido com PRODUTO_VALORES[produto] — mas continua editável.

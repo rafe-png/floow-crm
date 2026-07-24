@@ -3,7 +3,16 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
-import { STATUS_LABELS, type Lead, type LeadStatus, type SegmentoConfeccao } from "@/lib/types";
+import { CidadeSelect } from "@/components/ui/CidadeSelect";
+import {
+  FONTE_LABELS,
+  FONTE_OPTIONS,
+  STATUS_LABELS,
+  type Lead,
+  type LeadFonte,
+  type LeadStatus,
+  type SegmentoConfeccao,
+} from "@/lib/types";
 
 type Props = {
   lead: Lead;
@@ -19,12 +28,23 @@ export function CompletePreQualDialog({ lead, targetStatus, onCancel, onConfirm 
   const [empresa, setEmpresa] = useState(lead.empresa ?? "");
   const [instagram, setInstagram] = useState(lead.instagram ?? "");
   const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(lead.segmento);
+  const [cidade, setCidade] = useState<string | null>(lead.cidade);
+  const [estado, setEstado] = useState<string | null>(lead.estado);
+  const [fonte, setFonte] = useState<LeadFonte | null>(lead.fonte);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleConfirm() {
     if (!nome.trim() || !empresa.trim() || !instagram.trim() || !segmento) {
       setError("Preencha decisor, empresa, Instagram e segmento.");
+      return;
+    }
+    if (!cidade?.trim() || !estado) {
+      setError("Selecione a cidade (e a UF, se for 'Outra').");
+      return;
+    }
+    if (!fonte) {
+      setError("Selecione a origem (fonte de marketing).");
       return;
     }
     setSaving(true);
@@ -35,6 +55,9 @@ export function CompletePreQualDialog({ lead, targetStatus, onCancel, onConfirm 
         empresa: empresa.trim(),
         instagram: instagram.trim().replace(/^@/, ""),
         segmento,
+        cidade: cidade.trim(),
+        estado,
+        fonte,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar.");
@@ -77,6 +100,30 @@ export function CompletePreQualDialog({ lead, targetStatus, onCancel, onConfirm 
           </Field>
           <Field label="Segmento da confecção *">
             <SegmentoSelect value={segmento} onChange={setSegmento} />
+          </Field>
+          <Field label="Cidade *">
+            <CidadeSelect
+              cidade={cidade}
+              estado={estado}
+              onChange={(v) => {
+                setCidade(v.cidade);
+                setEstado(v.estado);
+              }}
+            />
+          </Field>
+          <Field label="Origem (fonte) *">
+            <select
+              value={fonte ?? ""}
+              onChange={(e) => setFonte((e.target.value || null) as LeadFonte | null)}
+              className="w-full rounded-md border border-zinc-800 bg-[#0f1218] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[#f5c518]"
+            >
+              <option value="">Selecione…</option>
+              {FONTE_OPTIONS.map((f) => (
+                <option key={f} value={f}>
+                  {FONTE_LABELS[f]}
+                </option>
+              ))}
+            </select>
           </Field>
 
           {error && (

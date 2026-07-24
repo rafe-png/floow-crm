@@ -7,6 +7,7 @@ import { LocalSelect } from "@/components/ui/LocalSelect";
 import { PersonSelect } from "@/components/ui/PersonSelect";
 import { PillRow } from "@/components/ui/Pills";
 import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
+import { CidadeSelect } from "@/components/ui/CidadeSelect";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import {
@@ -18,6 +19,8 @@ import {
   ESTOQUE_LABELS,
   ESTRUTURA_LABELS,
   EXPERIENCIA_LABELS,
+  FONTE_LABELS,
+  FONTE_OPTIONS,
   HISTORICO_LABELS,
   PRODUTO_LABELS,
   PRODUTO_VALORES,
@@ -36,6 +39,7 @@ import {
   type EstruturaComercial,
   type Experiencia,
   type HistoricoTrafego,
+  type LeadFonte,
   type LeadStatus,
   type LocalReuniao,
   type SegmentoConfeccao,
@@ -85,6 +89,9 @@ function NewLeadDialogBody({
   const [empresa, setEmpresa] = useState("");
   const [instagram, setInstagram] = useState("");
   const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(null);
+  const [cidade, setCidade] = useState<string | null>(null);
+  const [estado, setEstado] = useState<string | null>(null);
+  const [fonte, setFonte] = useState<LeadFonte | null>(null);
   const [produto, setProduto] = useState<LeadProduto | null>(null);
   const [valor, setValor] = useState("");
 
@@ -128,6 +135,7 @@ function NewLeadDialogBody({
   function reset() {
     setNome(""); setTelefone(""); setEmpresa(""); setInstagram("");
     setSegmento(null);
+    setCidade(null); setEstado(null); setFonte(null);
     setProduto(null);
     setValor("");
     setSdrResp(currentMember?.name ?? null);
@@ -151,6 +159,14 @@ function NewLeadDialogBody({
     }
     if (!quick && !empresa.trim()) {
       setError("Nome da empresa é obrigatório.");
+      return;
+    }
+    if (!quick && (!cidade?.trim() || !estado)) {
+      setError("Selecione a cidade (e a UF, se for 'Outra').");
+      return;
+    }
+    if (!quick && !fonte) {
+      setError("Selecione a origem (fonte de marketing).");
       return;
     }
     if (duplicate) {
@@ -186,6 +202,9 @@ function NewLeadDialogBody({
         empresa: empresa.trim() || null,
         instagram: instagram.trim().replace(/^@/, "") || null,
         segmento: quick ? null : segmento,
+        cidade: quick ? null : (cidade?.trim() || null),
+        estado: quick ? null : estado,
+        fonte: quick ? null : fonte,
         produto: quick ? null : produto,
         valor: quick ? null : (parsedValor != null && !Number.isNaN(parsedValor) ? parsedValor : null),
         sdr_responsavel: sdrResp,
@@ -308,6 +327,27 @@ function NewLeadDialogBody({
               <div className="mt-3">
                 <Field label="Segmento da confecção">
                   <SegmentoSelect value={segmento} onChange={setSegmento} />
+                </Field>
+              </div>
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Cidade *">
+                  <CidadeSelect
+                    cidade={cidade}
+                    estado={estado}
+                    onChange={(v) => { setCidade(v.cidade); setEstado(v.estado); }}
+                  />
+                </Field>
+                <Field label="Origem (fonte) *">
+                  <select
+                    value={fonte ?? ""}
+                    onChange={(e) => setFonte((e.target.value || null) as LeadFonte | null)}
+                    className="w-full rounded-md border border-zinc-800 bg-[#0f1218] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[#f5c518]"
+                  >
+                    <option value="">Selecione…</option>
+                    {FONTE_OPTIONS.map((f) => (
+                      <option key={f} value={f}>{FONTE_LABELS[f]}</option>
+                    ))}
+                  </select>
                 </Field>
               </div>
             </Section>

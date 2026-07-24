@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { DateTimePicker, busyStartsForDate, joinIso, splitIso } from "@/components/ui/DateTimePicker";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
+import { LOCAL_ICONS, LOCAL_LABELS, type LocalReuniao } from "@/lib/types";
 
 type Props = {
   open: boolean;
@@ -11,14 +12,17 @@ type Props = {
   closers: { id: string; name: string }[];
   initialCloser?: string | null;
   initialDate?: string | null; // ISO do agendamento atual (re-agendar)
+  initialLocal?: LocalReuniao | null;
   onCancel: () => void;
-  onConfirm: (closerName: string, dataAgendamentoIso: string) => Promise<void>;
+  onConfirm: (closerName: string, dataAgendamentoIso: string, local: LocalReuniao) => Promise<void>;
 };
 
-// Popup obrigatório ao agendar a reunião: Closer responsável + data/hora.
+const LOCAL_OPTIONS = Object.keys(LOCAL_LABELS) as LocalReuniao[];
+
+// Popup obrigatório ao agendar a reunião: Closer responsável + data/hora + local.
 // (O SDR continua como responsável de pré-vendas — não é alterado aqui.)
 export function CloserSelectDialog({
-  open, leadName, closers, initialCloser, initialDate, onCancel, onConfirm,
+  open, leadName, closers, initialCloser, initialDate, initialLocal, onCancel, onConfirm,
 }: Props) {
   const { leads } = useLeadsContext();
   const init = splitIso(initialDate ?? null);
@@ -26,6 +30,7 @@ export function CloserSelectDialog({
   const [sel, setSel] = useState<string | null>(initialCloser ?? null);
   const [dateStr, setDateStr] = useState(init.date);
   const [timeStr, setTimeStr] = useState(init.time);
+  const [local, setLocal] = useState<LocalReuniao | null>(initialLocal ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,10 +42,11 @@ export function CloserSelectDialog({
     const iso = joinIso(dateStr, timeStr);
     if (!sel) { setError("Escolha o Closer responsável."); return; }
     if (!iso) { setError("Escolha a data e a hora da reunião."); return; }
+    if (!local) { setError("Escolha o local da reunião."); return; }
     setSaving(true);
     setError(null);
     try {
-      await onConfirm(sel, iso);
+      await onConfirm(sel, iso, local);
       setSel(null);
     } finally {
       setSaving(false);
@@ -99,6 +105,29 @@ export function CloserSelectDialog({
             />
           </div>
 
+          <div>
+            <span className="mb-1.5 block text-xs font-medium text-zinc-400">Local da reunião *</span>
+            <div className="flex flex-wrap gap-1.5">
+              {LOCAL_OPTIONS.map((l) => {
+                const selected = local === l;
+                return (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => setLocal(l)}
+                    className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                      selected
+                        ? "border-fuchsia-500/50 bg-fuchsia-500/15 text-fuchsia-200"
+                        : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700"
+                    }`}
+                  >
+                    {LOCAL_ICONS[l]} {LOCAL_LABELS[l]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {error && (
             <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
               {error}
@@ -112,7 +141,7 @@ export function CloserSelectDialog({
           </button>
           <button
             onClick={handleConfirm}
-            disabled={!sel || !dateStr || !timeStr || saving}
+            disabled={!sel || !dateStr || !timeStr || !local || saving}
             className="rounded-md bg-fuchsia-500 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-400 disabled:opacity-50"
           >
             {saving ? "Salvando…" : "Confirmar reunião"}

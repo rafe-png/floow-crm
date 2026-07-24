@@ -11,7 +11,8 @@ import { useMetaSpendContext } from "@/lib/contexts/MetaSpendContext";
 import { usePeriodContext } from "@/lib/contexts/PeriodContext";
 import { PeriodPicker } from "@/components/ui/PeriodPicker";
 import { cac, custoPorLead, metaLeadsInWindow, metaSpendInWindow } from "@/lib/finance";
-import { faturamentoInRange, ganhosInRange, periodLabel, realAdLeadsInRange, resolveRange } from "@/lib/reports";
+import { faturamentoInRange, filterLeadsByRange, ganhosInRange, periodLabel, realAdLeadsInRange, resolveRange } from "@/lib/reports";
+import { GeoReport } from "@/components/relatorios/GeoReport";
 import { PIPELINE_STATUSES, type Lead, type Owner } from "@/lib/types";
 
 function startOfIsoWeek(d: Date) {
@@ -185,6 +186,11 @@ export default function DashboardPage() {
         <section className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           <Funnel leads={leads} />
           <UpcomingMeetings leads={leads} />
+        </section>
+
+        {/* Localização dos leads (mapa de calor + pizza + filtro) */}
+        <section className="mt-6">
+          <GeoReport leads={filterLeadsByRange(leads, range)} />
         </section>
       </main>
     </>

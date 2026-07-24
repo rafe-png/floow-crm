@@ -135,7 +135,8 @@
       "Bash(zip -rq floow-whatsapp-extension.zip dist)",
       "Bash(grep -n \"^- \\\\`038\\\\`\" CLAUDE.md)",
       "WebFetch(domain:developer.z-api.io)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(grep -iA0 \"csv\\\\|header\\\\|segmento\\\\|empresa\\\\|fonte\")"
     ]
   }
 }

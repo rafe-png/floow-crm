@@ -9,6 +9,7 @@ import { DateTimePicker, busyStartsForDate, joinIso, splitIso } from "@/componen
 import { LocalSelect } from "@/components/ui/LocalSelect";
 import { PersonSelect } from "@/components/ui/PersonSelect";
 import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
+import { CidadeSelect } from "@/components/ui/CidadeSelect";
 import { LeadTasks } from "@/components/tasks/LeadTasks";
 import { CreativeCodePicker, formatCreativeCode } from "@/components/lead/CreativeCodeDialog";
 import { useLeadEvents } from "@/lib/hooks/useLeads";
@@ -69,6 +70,8 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
   const [empresa, setEmpresa] = useState(lead.empresa ?? "");
   const [instagram, setInstagram] = useState(lead.instagram ?? "");
   const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(lead.segmento);
+  const [cidade, setCidade] = useState<string | null>(lead.cidade);
+  const [estado, setEstado] = useState<string | null>(lead.estado);
   const [fonte, setFonte] = useState<LeadFonte | null>(lead.fonte);
   const [produto, setProduto] = useState<LeadProduto | null>(lead.produto);
   const [valor, setValor] = useState(lead.valor != null ? String(lead.valor) : "");
@@ -122,6 +125,8 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
         empresa: empresa.trim() || null,
         instagram: instagram.trim().replace(/^@/, "") || null,
         segmento,
+        cidade: cidade?.trim() || null,
+        estado,
         fonte,
         produto,
         valor: parsedValor != null && !Number.isNaN(parsedValor) ? parsedValor : null,
@@ -245,6 +250,13 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
             </Field>
             <Field label="Segmento da confecção">
               <SegmentoSelect value={segmento} onChange={(v) => { setSegmento(v); setDirty(true); }} />
+            </Field>
+            <Field label="Cidade">
+              <CidadeSelect
+                cidade={cidade}
+                estado={estado}
+                onChange={(v) => { setCidade(v.cidade); setEstado(v.estado); setDirty(true); }}
+              />
             </Field>
             <Field label="Origem">
               <select

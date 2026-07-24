@@ -6,6 +6,7 @@ import {
   MOTIVO_DESQUALIFICACAO_LABELS,
   MOTIVO_PERDA_LABELS,
   STATUS_LABELS,
+  UF_LABELS,
   type Lead,
   type LeadFonte,
   type LeadStatus,
@@ -466,6 +467,78 @@ export function buildSourceStats(leads: Lead[]): SourceStat[] {
 }
 
 // ============================================================
+// Geografia — distribuição dos leads por estado/cidade (mapa de calor)
+// ============================================================
+
+// Qual recorte de leads o mapa mostra.
+export type GeoOutcome = "todos" | "ganhos" | "perdidos" | "agendados";
+
+export const GEO_OUTCOME_LABELS: Record<GeoOutcome, string> = {
+  todos: "Todos os leads",
+  ganhos: "Ganhos",
+  perdidos: "Perdidos",
+  agendados: "Agendados",
+};
+
+// Um lead entra no recorte escolhido?
+function matchesOutcome(l: Lead, outcome: GeoOutcome): boolean {
+  switch (outcome) {
+    case "ganhos": return l.status === "negocio_ganho";
+    case "perdidos": return l.status === "negocio_perdido";
+    case "agendados": return !!l.agendado_em;
+    default: return true;
+  }
+}
+
+export type GeoEstadoStat = { uf: string; nome: string; count: number; faturamento: number };
+export type GeoCidadeStat = { cidade: string; uf: string; count: number };
+export type GeoStats = {
+  outcome: GeoOutcome;
+  total: number;          // leads com estado no recorte
+  semLocal: number;       // leads do recorte sem estado preenchido
+  maxCount: number;       // maior contagem por estado (escala do calor)
+  byEstado: GeoEstadoStat[];
+  byCidade: GeoCidadeStat[];
+};
+
+/**
+ * Agrupa os leads por estado (UF) e por cidade, dentro do recorte escolhido
+ * (todos/ganhos/perdidos/agendados). Base do mapa de calor + pizza/ranking.
+ */
+export function buildGeoStats(leads: Lead[], outcome: GeoOutcome = "todos"): GeoStats {
+  const estados = new Map<string, GeoEstadoStat>();
+  const cidades = new Map<string, GeoCidadeStat>();
+  let semLocal = 0;
+  let total = 0;
+
+  for (const l of leads) {
+    if (!matchesOutcome(l, outcome)) continue;
+    const uf = (l.estado ?? "").trim().toUpperCase();
+    if (!uf || !UF_LABELS[uf]) { semLocal++; continue; }
+    total++;
+
+    const e = estados.get(uf) ?? { uf, nome: UF_LABELS[uf], count: 0, faturamento: 0 };
+    e.count++;
+    if (l.status === "negocio_ganho" && l.valor) e.faturamento += Number(l.valor);
+    estados.set(uf, e);
+
+    const cidadeNome = (l.cidade ?? "").trim();
+    if (cidadeNome) {
+      const key = `${cidadeNome.toLowerCase()}|${uf}`;
+      const c = cidades.get(key) ?? { cidade: cidadeNome, uf, count: 0 };
+      c.count++;
+      cidades.set(key, c);
+    }
+  }
+
+  const byEstado = Array.from(estados.values()).sort((a, b) => b.count - a.count);
+  const byCidade = Array.from(cidades.values()).sort((a, b) => b.count - a.count);
+  const maxCount = byEstado.reduce((m, e) => Math.max(m, e.count), 0);
+
+  return { outcome, total, semLocal, maxCount, byEstado, byCidade };
+}
+
+// ============================================================
 // Análises inteligentes (dia da semana, mensal, criativos)
 // ============================================================
 
@@ -635,6 +708,8 @@ export function buildLeadsCsv(leads: Lead[]): string {
     "Decisor",
     "Telefone",
     "Instagram",
+    "Cidade",
+    "Estado",
     "Status",
     "Origem",
     "Valor",
@@ -661,6 +736,8 @@ export function buildLeadsCsv(leads: Lead[]): string {
     l.nome,
     l.telefone,
     l.instagram ?? "",
+    l.cidade ?? "",
+    l.estado ?? "",
     STATUS_LABELS[l.status],
     l.fonte ? FONTE_LABELS[l.fonte] : "",
     l.valor ?? "",

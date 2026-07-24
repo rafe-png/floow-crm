@@ -21,7 +21,7 @@ import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { useStickyState } from "@/lib/hooks/useStickyState";
 import { resolveRange, type PeriodPreset } from "@/lib/reports";
-import { FONTE_LABELS, FONTE_OPTIONS, PRODUTO_LABELS, PRODUTO_OPTIONS, SEGMENTO_LABELS, type Lead, type LeadFonte, type LeadProduto, type LeadStatus, type MotivoCarteira, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
+import { FONTE_LABELS, FONTE_OPTIONS, PRODUTO_LABELS, PRODUTO_OPTIONS, SEGMENTO_LABELS, type Lead, type LeadFonte, type LeadProduto, type LeadStatus, type LocalReuniao, type MotivoCarteira, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
 import { computeLeadScore, PRIORITY_SHORT, type LeadPriority } from "@/lib/lead-score";
 
 // Info do negócio (empresa, instagram, decisor, segmento) — obrigatória de
@@ -37,9 +37,9 @@ const QUAL_STAGES: LeadStatus[] = [
   "em_agendamento", "agendando", "reuniao_agendada", "no_show", "follow_up", "negocio_ganho",
 ];
 
-// Pré qualificado: dados do negócio preenchidos.
+// Pré qualificado: dados do negócio preenchidos (inclui localização + fonte).
 function isPreQualComplete(l: Lead): boolean {
-  return !!(l.nome && l.empresa && l.instagram && l.segmento);
+  return !!(l.nome && l.empresa && l.instagram && l.segmento && l.cidade && l.estado && l.fonte);
 }
 
 // Qualificado+: produto + qualificação + BANT completos.
@@ -189,6 +189,7 @@ function KanbanContent() {
     patch: Partial<Lead>;
     initialCloser: string | null;
     initialDate: string | null;
+    initialLocal: LocalReuniao | null;
   } | null>(null);
 
   function askCloser(
@@ -197,16 +198,18 @@ function KanbanContent() {
     patch: Partial<Lead>,
     initialCloser: string | null,
     initialDate: string | null,
+    initialLocal: LocalReuniao | null,
   ) {
-    setPendingCloser({ id, name, patch, initialCloser, initialDate });
+    setPendingCloser({ id, name, patch, initialCloser, initialDate, initialLocal });
   }
 
-  async function handleConfirmCloser(closerName: string, dataIso: string) {
+  async function handleConfirmCloser(closerName: string, dataIso: string, local: LocalReuniao) {
     if (!pendingCloser) return;
     await updateLead(pendingCloser.id, {
       ...pendingCloser.patch,
       closer_responsavel: closerName,
       data_agendamento: dataIso,
+      local,
     });
     setPendingCloser(null);
     triggerCelebration("reuniao_agendada");
@@ -270,7 +273,7 @@ function KanbanContent() {
       return;
     }
     if (target === "reuniao_agendada" && lead.status !== "reuniao_agendada") {
-      askCloser(lead.id, name, { ...basePatch, status: target }, lead.closer_responsavel ?? null, lead.data_agendamento ?? null);
+      askCloser(lead.id, name, { ...basePatch, status: target }, lead.closer_responsavel ?? null, lead.data_agendamento ?? null, lead.local ?? null);
       return;
     }
     await updateLead(lead.id, { ...basePatch, status: target });
@@ -489,6 +492,7 @@ function KanbanContent() {
         closers={closers}
         initialCloser={pendingCloser?.initialCloser}
         initialDate={pendingCloser?.initialDate}
+        initialLocal={pendingCloser?.initialLocal}
         onCancel={() => setPendingCloser(null)}
         onConfirm={handleConfirmCloser}
       />

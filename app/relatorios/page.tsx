@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { CreativeBars, MonthlyBars, WeekdayBars } from "@/components/relatorios/ReportCharts";
+import { GeoReport } from "@/components/relatorios/GeoReport";
 import { PeriodPicker } from "@/components/ui/PeriodPicker";
 import { useMetaSpendContext } from "@/lib/contexts/MetaSpendContext";
 import { usePeriodContext } from "@/lib/contexts/PeriodContext";
@@ -206,6 +207,9 @@ export default function RelatoriosPage() {
               </table>
             )}
           </section>
+
+          {/* Localização dos leads — mapa de calor + pizza + ranking + filtro */}
+          <GeoReport leads={filtered} />
 
           {/* Motivos de perda */}
           {lossReasons.length > 0 && (
