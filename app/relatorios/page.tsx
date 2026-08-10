@@ -5,6 +5,7 @@ import { Download } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { CreativeBars, MonthlyBars, WeekdayBars } from "@/components/relatorios/ReportCharts";
 import { GeoReport } from "@/components/relatorios/GeoReport";
+import { CallsReport } from "@/components/relatorios/CallsReport";
 import { PeriodPicker } from "@/components/ui/PeriodPicker";
 import { useMetaSpendContext } from "@/lib/contexts/MetaSpendContext";
 import { usePeriodContext } from "@/lib/contexts/PeriodContext";
@@ -461,6 +462,9 @@ export default function RelatoriosPage() {
               </div>
             )}
           </section>
+
+          {/* Ligações — desempenho por SDR (histórico de ligações) */}
+          <CallsReport leads={leads} range={range} />
 
           {/* Insights do Closer — cards visuais */}
           <section>

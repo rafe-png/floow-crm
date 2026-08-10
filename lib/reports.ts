@@ -438,6 +438,118 @@ export function buildCloserInsights(leads: Lead[], range: ResolvedRange): Closer
 }
 
 // ============================================================
+// Ligações — desempenho por SDR (do histórico lead_events tipo='ligacao')
+// ============================================================
+
+// Evento de ligação enxuto (vem de lead_events).
+export type CallEventLite = {
+  lead_id: string;
+  actor_name: string | null;
+  created_at: string;
+  payload: { outcome?: string } | null;
+};
+
+type CallCounters = { total: number; atendeu: number; rejeitou: number; chamou_ate_cair: number; nao_chamou: number };
+
+export type CallSdrStat = CallCounters & {
+  name: string;
+  taxaAtendimento: number;   // atendeu ÷ total (%)
+  leadsUnicos: number;       // leads distintos que esse SDR ligou
+};
+
+export type CallStats = CallCounters & {
+  taxaAtendimento: number;
+  leadsUnicos: number;       // leads distintos ligados (geral)
+  leadsAgendados: number;    // desses, quantos chegaram a agendar (agendado_em)
+  leadsGanhos: number;       // desses, quantos fecharam (negócio ganho)
+  mediaPorDia: number;       // ligações ÷ dias com ligação
+  perSdr: CallSdrStat[];
+  byDay: { day: string; label: string; total: number; atendeu: number }[];
+};
+
+function emptyCallCounters(): CallCounters {
+  return { total: 0, atendeu: 0, rejeitou: 0, chamou_ate_cair: 0, nao_chamou: 0 };
+}
+function tallyOutcome(c: CallCounters, outcome: string | undefined) {
+  c.total++;
+  if (outcome === "atendeu") c.atendeu++;
+  else if (outcome === "rejeitou") c.rejeitou++;
+  else if (outcome === "chamou_ate_cair") c.chamou_ate_cair++;
+  else if (outcome === "nao_chamou") c.nao_chamou++;
+}
+
+/**
+ * Estatísticas de ligações no período: total, resultados, taxa de atendimento,
+ * leads ligados (e quantos agendaram/fecharam) e desempenho por SDR + por dia.
+ */
+export function buildCallStats(events: CallEventLite[], leads: Lead[], range: ResolvedRange): CallStats {
+  const inWindow = events.filter((e) => inRange(e.created_at, range));
+
+  const overall = emptyCallCounters();
+  const perSdrMap = new Map<string, CallCounters & { leads: Set<string> }>();
+  const overallLeads = new Set<string>();
+  const dayMap = new Map<string, { total: number; atendeu: number }>();
+
+  for (const e of inWindow) {
+    const outcome = e.payload?.outcome;
+    tallyOutcome(overall, outcome);
+    overallLeads.add(e.lead_id);
+
+    const name = e.actor_name ?? "Não atribuído";
+    const cur = perSdrMap.get(name) ?? { ...emptyCallCounters(), leads: new Set<string>() };
+    tallyOutcome(cur, outcome);
+    cur.leads.add(e.lead_id);
+    perSdrMap.set(name, cur);
+
+    const d = new Date(e.created_at);
+    const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    const day = dayMap.get(key) ?? { total: 0, atendeu: 0 };
+    day.total++;
+    if (outcome === "atendeu") day.atendeu++;
+    dayMap.set(key, day);
+  }
+
+  // Dos leads ligados, quantos agendaram / ganharam (snapshot pelo status atual).
+  const byId = new Map(leads.map((l) => [l.id, l]));
+  let leadsAgendados = 0, leadsGanhos = 0;
+  for (const id of overallLeads) {
+    const l = byId.get(id);
+    if (!l) continue;
+    if (l.agendado_em) leadsAgendados++;
+    if (l.status === "negocio_ganho") leadsGanhos++;
+  }
+
+  const perSdr: CallSdrStat[] = Array.from(perSdrMap.entries())
+    .map(([name, v]) => ({
+      name,
+      total: v.total, atendeu: v.atendeu, rejeitou: v.rejeitou,
+      chamou_ate_cair: v.chamou_ate_cair, nao_chamou: v.nao_chamou,
+      taxaAtendimento: v.total > 0 ? (v.atendeu / v.total) * 100 : 0,
+      leadsUnicos: v.leads.size,
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  const byDay = Array.from(dayMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([day, v]) => ({ day, label: day.slice(8) + "/" + day.slice(5, 7), total: v.total, atendeu: v.atendeu }));
+
+  return {
+    ...overall,
+    taxaAtendimento: overall.total > 0 ? (overall.atendeu / overall.total) * 100 : 0,
+    leadsUnicos: overallLeads.size,
+    leadsAgendados,
+    leadsGanhos,
+    mediaPorDia: dayMap.size > 0 ? overall.total / dayMap.size : 0,
+    perSdr,
+    byDay,
+  };
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+// ============================================================
 // Por fonte de marketing (Meta Ads / Indicação / Outbound / Outro)
 // ============================================================
 
