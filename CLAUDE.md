@@ -114,6 +114,7 @@ Diretório `whatsapp-extension/` (projeto à parte, vanilla TS + esbuild, NÃO f
 - `src/whatsapp.ts` — lê a conversa aberta (`#main header span[title]`); frágil por design (HTML ofuscado), busca manual é a rede de segurança.
 - `src/crm.ts` — espelho enxuto de tipos/labels/`canMoveTo`/`normalizePhone` do app. Manter em sincronia se o funil mudar.
 - Só move pra `SAFE_STAGES` (sem dialogs de info extra); respeita RLS por papel. Build: `cd whatsapp-extension && npm install && npm run build` → carrega `dist/` em `chrome://extensions` (modo dev). `dist/` é commitado pra instalar sem buildar.
+- **Ligações**: botão "📞 Ligar pelo WhatsApp" (`handleCall`) tenta clicar no botão de chamada de voz nativo do WhatsApp Web (`startNativeCall` em `whatsapp.ts`, best-effort — DOM ofuscado); se não achar, fallback `whatsapp://`. Em qualquer caso pergunta o resultado (`CALL_OUTCOME_LABELS`: atendeu/nao_atendeu/caixa_postal/ocupado) e **registra no histórico** via `lead_events` `tipo='ligacao'` (payload `{outcome, via:'whatsapp_ext'}`). Card mostra contador (`refreshCallHistory`); CRM mostra na timeline do `LeadDetailsPanel`. Sem migração (tipo é text livre). `LeadEventType` no app ganhou `"ligacao"`.
 
 ### Papéis e permissões (Phase 2.7)
 
