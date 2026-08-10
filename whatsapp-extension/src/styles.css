@@ -110,6 +110,17 @@
   margin-top: 8px; font-size: 11px; color: #9aa4b2;
 }
 
+/* Aviso de possível quebra da extensão (layout do WhatsApp mudou) */
+#floow-panel .floow-alert {
+  margin: 0 0 10px; padding: 10px 12px; border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.45);
+}
+#floow-panel .floow-alert-title { font-size: 13px; font-weight: 700; color: #fca5a5; }
+#floow-panel .floow-alert-body { margin-top: 4px; font-size: 11px; color: #fecaca; line-height: 1.4; }
+#floow-panel .floow-alert-list { margin: 4px 0 0; padding-left: 16px; }
+#floow-panel .floow-alert-list li { margin: 2px 0; }
+#floow-panel .floow-alert .floow-link { margin-top: 6px; color: #fca5a5; }
+
 /* Botões de áudio pronto */
 #floow-panel .floow-audio {
   background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.35);

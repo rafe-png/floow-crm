@@ -170,8 +170,65 @@ function renderSearch() {
   setTimeout(() => input.focus(), 0);
 }
 
+// Timestamp da última vez que o botão de ligar não foi encontrado (sinal de que
+// o layout do WhatsApp pode ter mudado). Vale por alguns minutos.
+let callButtonMissingAt = 0;
+
+// Detecta sinais de que o HTML do WhatsApp mudou e quebrou as leituras da extensão.
+// Só acusa quando há MOTIVO forte (conversa claramente aberta, mas não lemos nada) —
+// pra não dar falso alarme quando é só "nenhuma conversa aberta".
+function layoutWarnings(): string[] {
+  const out: string[] = [];
+  const main = document.querySelector("#main");
+  const header = main?.querySelector("header");
+  // Conversa aberta (tem #main + header + mensagens), mas não lemos NEM número NEM nome.
+  if (main && header) {
+    const hasMsgs = !!main.querySelector("[data-id]");
+    const phone = readActiveChatPhone();
+    const title = readActiveChatTitle();
+    if (hasMsgs && !phone && !title) {
+      out.push("Não consegui ler a conversa aberta (nem número nem nome).");
+    }
+  }
+  if (callButtonMissingAt && Date.now() - callButtonMissingAt < 5 * 60 * 1000) {
+    out.push("Não achei o botão de ligar do WhatsApp Web.");
+  }
+  return out;
+}
+
+// Banner vermelho de "possível quebra" + botão pra copiar o diagnóstico pro Rafe.
+function renderHealthBanner(): Node {
+  const warns = layoutWarnings();
+  if (warns.length === 0) return document.createTextNode("");
+
+  const diag =
+    `floow CRM — possível quebra da extensão\n` +
+    `quando: ${new Date().toLocaleString("pt-BR")}\n` +
+    `url: ${location.href}\n` +
+    `problemas: ${warns.join(" | ")}\n` +
+    `debug: tel=${readActiveChatPhone() ?? "—"} · nome=${readActiveChatTitle() ?? "—"} · main=${!!document.querySelector("#main")}`;
+
+  const copy = h("button", { class: "floow-link" }, ["copiar diagnóstico"]);
+  copy.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(diag); copy.textContent = "copiado ✓"; }
+    catch { copy.textContent = "copie o print"; }
+  });
+
+  return h("div", { class: "floow-alert" }, [
+    h("div", { class: "floow-alert-title" }, ["⚠️ A extensão pode ter quebrado"]),
+    h("div", { class: "floow-alert-body" }, [
+      "O WhatsApp parece ter mudado o layout. Avise o Rafe pra consertar:",
+      h("ul", { class: "floow-alert-list" }, warns.map((w) => h("li", {}, [w]))),
+    ]),
+    copy,
+  ]);
+}
+
 function renderLead() {
   const lead = currentLead();
+
+  // Aviso de possível quebra (layout do WhatsApp mudou) — no topo, bem visível.
+  body.append(renderHealthBanner());
 
   body.append(
     h("div", { class: "floow-section" }, [
@@ -532,6 +589,10 @@ async function handleCall(lead: Lead, digits: string) {
     // Fallback: abre o app desktop nessa conversa (lá dá pra ligar).
     window.location.href = `whatsapp://send?phone=${digits}`;
     flash("Não achei o botão de ligar do WhatsApp Web — abrindo o app.");
+    callButtonMissingAt = Date.now(); // dispara o aviso de possível quebra
+    render();
+  } else {
+    callButtonMissingAt = 0;
   }
   // 2) Pergunta o resultado e registra (mesmo que a ligação seja pelo app/manual).
   const outcome = await askReason("Como foi a ligação?", CALL_OUTCOME_LABELS);

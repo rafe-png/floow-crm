@@ -21514,8 +21514,53 @@ ${suffix}`;
     );
     setTimeout(() => input.focus(), 0);
   }
+  var callButtonMissingAt = 0;
+  function layoutWarnings() {
+    const out = [];
+    const main = document.querySelector("#main");
+    const header = main?.querySelector("header");
+    if (main && header) {
+      const hasMsgs = !!main.querySelector("[data-id]");
+      const phone = readActiveChatPhone();
+      const title = readActiveChatTitle();
+      if (hasMsgs && !phone && !title) {
+        out.push("N\xE3o consegui ler a conversa aberta (nem n\xFAmero nem nome).");
+      }
+    }
+    if (callButtonMissingAt && Date.now() - callButtonMissingAt < 5 * 60 * 1e3) {
+      out.push("N\xE3o achei o bot\xE3o de ligar do WhatsApp Web.");
+    }
+    return out;
+  }
+  function renderHealthBanner() {
+    const warns = layoutWarnings();
+    if (warns.length === 0) return document.createTextNode("");
+    const diag = `floow CRM \u2014 poss\xEDvel quebra da extens\xE3o
+quando: ${(/* @__PURE__ */ new Date()).toLocaleString("pt-BR")}
+url: ${location.href}
+problemas: ${warns.join(" | ")}
+debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle() ?? "\u2014"} \xB7 main=${!!document.querySelector("#main")}`;
+    const copy = h("button", { class: "floow-link" }, ["copiar diagn\xF3stico"]);
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(diag);
+        copy.textContent = "copiado \u2713";
+      } catch {
+        copy.textContent = "copie o print";
+      }
+    });
+    return h("div", { class: "floow-alert" }, [
+      h("div", { class: "floow-alert-title" }, ["\u26A0\uFE0F A extens\xE3o pode ter quebrado"]),
+      h("div", { class: "floow-alert-body" }, [
+        "O WhatsApp parece ter mudado o layout. Avise o Rafe pra consertar:",
+        h("ul", { class: "floow-alert-list" }, warns.map((w) => h("li", {}, [w])))
+      ]),
+      copy
+    ]);
+  }
   function renderLead() {
     const lead = currentLead();
+    body.append(renderHealthBanner());
     body.append(
       h("div", { class: "floow-section" }, [
         h("div", { class: "floow-row" }, [
@@ -21880,6 +21925,10 @@ ${suffix}`;
     if (!started) {
       window.location.href = `whatsapp://send?phone=${digits}`;
       flash("N\xE3o achei o bot\xE3o de ligar do WhatsApp Web \u2014 abrindo o app.");
+      callButtonMissingAt = Date.now();
+      render();
+    } else {
+      callButtonMissingAt = 0;
     }
     const outcome = await askReason("Como foi a liga\xE7\xE3o?", CALL_OUTCOME_LABELS);
     if (!outcome) return;
