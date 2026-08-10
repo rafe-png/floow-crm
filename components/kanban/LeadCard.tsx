@@ -15,6 +15,7 @@ import {
   SEGMENTO_LABELS,
   type Lead,
   whatsappLink,
+  WHATSAPP_TAB,
 } from "@/lib/types";
 
 type Props = {
@@ -175,8 +176,7 @@ export function LeadCard({ lead, onClick }: Props) {
 
           <a
             href={whatsappLink(lead.telefone)}
-            target="_blank"
-            rel="noopener noreferrer"
+            target={WHATSAPP_TAB}
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
             className="flex items-center gap-1 rounded px-1.5 py-1 text-[#25D366] hover:bg-[#25D366]/10"

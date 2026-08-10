@@ -579,10 +579,14 @@ export function normalizePhone(telefone: string | null | undefined): string {
   return digits.length >= 12 ? digits : `55${digits}`;
 }
 
-// Helper pra montar telefone formatado pra wa.me
+// Helper pra abrir a conversa direto no WhatsApp WEB (não no app do PC).
 export function whatsappLink(telefone: string): string {
-  return `https://wa.me/${normalizePhone(telefone)}`;
+  return `https://web.whatsapp.com/send?phone=${normalizePhone(telefone)}`;
 }
+
+// Nome fixo da aba do WhatsApp Web — usar como `target` pra reaproveitar a MESMA
+// aba entre leads (em vez de abrir uma janela nova a cada clique).
+export const WHATSAPP_TAB = "floow_whatsapp_web";
 
 // Acha um lead já existente com o mesmo contato (telefone ou @instagram).
 // `ignoreId` exclui o próprio lead (útil ao editar).

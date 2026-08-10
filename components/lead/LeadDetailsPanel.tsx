@@ -51,6 +51,7 @@ import {
   type Owner,
   type SegmentoConfeccao,
   whatsappLink,
+  WHATSAPP_TAB,
 } from "@/lib/types";
 
 type Props = {
@@ -184,8 +185,7 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
           <div className="flex items-center gap-1">
             <a
               href={whatsappLink(lead.telefone)}
-              target="_blank"
-              rel="noopener noreferrer"
+              target={WHATSAPP_TAB}
               className="rounded p-1.5 text-[#25D366] hover:bg-[#25D366]/10"
               title="WhatsApp"
             >

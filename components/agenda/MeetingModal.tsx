@@ -44,6 +44,7 @@ import {
   type LocalReuniao,
   type SegmentoConfeccao,
   whatsappLink,
+  WHATSAPP_TAB,
 } from "@/lib/types";
 import { computeLeadScore, PRIORITY_LABELS, PRIORITY_META } from "@/lib/lead-score";
 
@@ -168,8 +169,7 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
             )}
             <a
               href={whatsappLink(lead.telefone)}
-              target="_blank"
-              rel="noopener noreferrer"
+              target={WHATSAPP_TAB}
               className="rounded p-1.5 text-[#25D366] hover:bg-[#25D366]/10"
               title="WhatsApp"
             >
