@@ -21707,7 +21707,7 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
   function renderFooter(lead) {
     body.append(
       h("div", { class: "floow-section floow-footer" }, [
-        lead ? h("a", { class: "floow-link", href: `${APP_URL}/kanban?lead=${lead.id}`, target: "_blank" }, ["Abrir no app \u2197"]) : h("a", { class: "floow-link", href: `${APP_URL}/kanban`, target: "_blank" }, ["Abrir app \u2197"]),
+        lead ? h("a", { class: "floow-link", href: `${APP_URL}/kanban?lead=${lead.id}`, target: "floow_crm" }, ["Abrir no app \u2197"]) : h("a", { class: "floow-link", href: `${APP_URL}/kanban`, target: "floow_crm" }, ["Abrir app \u2197"]),
         h("div", { class: "floow-who" }, [
           h("span", { class: "floow-hint" }, [member.name ? `Logado: ${member.name}` : sessionEmail ?? ""]),
           h("button", { class: "floow-link", onclick: doLogout }, ["sair"])
