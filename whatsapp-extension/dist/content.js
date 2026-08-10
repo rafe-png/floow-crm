@@ -21140,6 +21140,13 @@ ${suffix}`;
     outro: "Outro"
   };
   var FONTE_OPTIONS = Object.keys(FONTE_LABELS);
+  var CALL_OUTCOME_LABELS = {
+    atendeu: "Atendeu \u2705",
+    nao_atendeu: "N\xE3o atendeu",
+    caixa_postal: "Caixa postal",
+    ocupado: "Ocupado"
+  };
+  var CALL_OUTCOME_OPTIONS = Object.keys(CALL_OUTCOME_LABELS);
   var CIDADE_ALVO = [
     { cidade: "Santa Cruz do Capibaribe", uf: "PE" },
     { cidade: "Caruaru", uf: "PE" },
@@ -21360,6 +21367,22 @@ ${suffix}`;
     }
     return null;
   }
+  function startNativeCall() {
+    const header = document.querySelector("#main header");
+    if (!header) return false;
+    const els = Array.from(header.querySelectorAll("[aria-label],[title],[data-icon]"));
+    for (const el of els) {
+      const label = (el.getAttribute("aria-label") || el.getAttribute("title") || el.getAttribute("data-icon") || "").toLowerCase();
+      if (!label) continue;
+      if (/v[ií]deo|video/.test(label)) continue;
+      if (/voz|voice|chamada|call|ligar|phone|audio-call|ptt/.test(label)) {
+        const clickable = el.closest('[role="button"],button,a,div[role="button"]') || el;
+        clickable.click();
+        return true;
+      }
+    }
+    return false;
+  }
   function readChatDebug() {
     return { mainFound: !!document.querySelector("#main"), phone: readActiveChatPhone(), title: readActiveChatTitle() };
   }
@@ -21538,14 +21561,16 @@ ${suffix}`;
     })();
     let waButton = document.createTextNode("");
     if (waDigits) {
-      const a = h("a", {
+      const btn = h("button", {
         class: "floow-btn floow-wa",
-        href: `whatsapp://send?phone=${waDigits}`,
-        title: "Abre o app do WhatsApp nesta conversa (pra ligar)"
+        title: "Liga pelo WhatsApp e registra no hist\xF3rico"
       });
-      a.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg><span>Ligar pelo app</span>';
-      waButton = a;
+      btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg><span>\u{1F4DE} Ligar pelo WhatsApp</span>';
+      btn.addEventListener("click", () => handleCall(lead, waDigits));
+      waButton = btn;
     }
+    const callInfo = h("div", { class: "floow-callinfo" }, ["\u{1F4DE} carregando hist\xF3rico\u2026"]);
+    refreshCallHistory(lead.id, callInfo);
     let igLink = document.createTextNode("");
     if (lead.instagram) {
       const handle = lead.instagram.replace(/^@/, "");
@@ -21576,7 +21601,8 @@ ${suffix}`;
         ]),
         igLink,
         matchInfo ? h("div", { class: "floow-hint" }, [`vinculado ${matchInfo}`]) : document.createTextNode(""),
-        waButton
+        waButton,
+        callInfo
       ])
     );
     if (waDigits && audios.length > 0) {
@@ -21848,6 +21874,47 @@ ${suffix}`;
       );
       return wrap;
     });
+  }
+  async function handleCall(lead, digits) {
+    const started = startNativeCall();
+    if (!started) {
+      window.location.href = `whatsapp://send?phone=${digits}`;
+      flash("N\xE3o achei o bot\xE3o de ligar do WhatsApp Web \u2014 abrindo o app.");
+    }
+    const outcome = await askReason("Como foi a liga\xE7\xE3o?", CALL_OUTCOME_LABELS);
+    if (!outcome) return;
+    await logCall(lead, outcome);
+  }
+  async function logCall(lead, outcome) {
+    const { error } = await supabase.from("lead_events").insert({
+      lead_id: lead.id,
+      tipo: "ligacao",
+      actor_email: sessionEmail,
+      actor_name: member.name,
+      payload: { via: "whatsapp_ext", outcome, by: member.name }
+    });
+    if (error) {
+      flash("N\xE3o registrou a liga\xE7\xE3o: " + error.message);
+      return;
+    }
+    flash(`Liga\xE7\xE3o registrada (${CALL_OUTCOME_LABELS[outcome] ?? outcome}) \u2713`);
+    const info = panel?.querySelector(".floow-callinfo");
+    if (info) refreshCallHistory(lead.id, info);
+  }
+  async function refreshCallHistory(leadId, node) {
+    const { data, error } = await supabase.from("lead_events").select("payload, created_at").eq("lead_id", leadId).eq("tipo", "ligacao").order("created_at", { ascending: false });
+    if (error) {
+      node.textContent = "";
+      return;
+    }
+    const rows = data ?? [];
+    if (rows.length === 0) {
+      node.textContent = "\u{1F4DE} Nenhuma liga\xE7\xE3o registrada";
+      return;
+    }
+    const last = rows[0];
+    const out = last.payload?.outcome ? CALL_OUTCOME_LABELS[last.payload.outcome] ?? last.payload.outcome : "";
+    node.textContent = `\u{1F4DE} ${rows.length} liga\xE7\xE3o${rows.length > 1 ? "\xF5es" : ""}${out ? " \xB7 \xFAltima: " + out : ""}`;
   }
   async function reconcileCalendar(leadId) {
     const { data } = await supabase.auth.getSession();

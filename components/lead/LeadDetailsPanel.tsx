@@ -17,6 +17,7 @@ import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import {
   canMoveTo,
+  CALL_OUTCOME_LABELS,
   BANT_AUTHORITY_LABELS,
   BANT_BUDGET_LABELS,
   BANT_NEED_LABELS,
@@ -38,6 +39,7 @@ import {
   type BantBudget,
   type BantNeed,
   type BantTiming,
+  type CallOutcome,
   type EstoqueNivel,
   type EstruturaComercial,
   type HistoricoTrafego,
@@ -458,6 +460,14 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
                     )}
                     {ev.tipo === "note" && (
                       <span>{String(ev.payload?.note ?? "Observações atualizadas")}</span>
+                    )}
+                    {ev.tipo === "ligacao" && (
+                      <span>
+                        📞 Ligação
+                        {ev.payload?.outcome ? (
+                          <> — <strong>{CALL_OUTCOME_LABELS[ev.payload.outcome as CallOutcome] ?? String(ev.payload.outcome)}</strong></>
+                        ) : null}
+                      </span>
                     )}
                   </div>
                   {(ev.actor_name || ev.actor_email || ev.payload?.via === "whatsapp_ext") && (

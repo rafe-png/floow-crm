@@ -281,7 +281,16 @@ export const PRODUTO_VALORES: Record<LeadProduto, number> = {
 
 export const PRODUTO_OPTIONS = Object.keys(PRODUTO_LABELS) as LeadProduto[];
 
-export type LeadEventType = "created" | "status_change" | "note";
+export type LeadEventType = "created" | "status_change" | "note" | "ligacao";
+
+// Resultado de uma ligação (registrada pela extensão no histórico do lead).
+export type CallOutcome = "atendeu" | "nao_atendeu" | "caixa_postal" | "ocupado";
+export const CALL_OUTCOME_LABELS: Record<CallOutcome, string> = {
+  atendeu: "Atendeu ✅",
+  nao_atendeu: "Não atendeu",
+  caixa_postal: "Caixa postal",
+  ocupado: "Ocupado",
+};
 
 export type LeadEvent = {
   id: string;

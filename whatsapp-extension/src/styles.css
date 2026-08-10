@@ -105,6 +105,11 @@
 }
 #floow-panel .floow-ig svg { flex: 0 0 auto; }
 
+/* Histórico de ligações (contador) */
+#floow-panel .floow-callinfo {
+  margin-top: 8px; font-size: 11px; color: #9aa4b2;
+}
+
 /* Botões de áudio pronto */
 #floow-panel .floow-audio {
   background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.35);

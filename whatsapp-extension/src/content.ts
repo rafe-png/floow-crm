@@ -10,6 +10,7 @@ import {
   STATUS_DOT,
   FONTE_LABELS,
   FONTE_OPTIONS,
+  CALL_OUTCOME_LABELS,
   QUAL_FIELDS,
   CIDADE_ALVO,
   SEGMENTO_LABELS,
@@ -28,7 +29,7 @@ import {
   samePhone,
   looksLikePhone,
 } from "./crm";
-import { readActiveChatPhone, readActiveChatTitle, readChatDebug } from "./whatsapp";
+import { readActiveChatPhone, readActiveChatTitle, readChatDebug, startNativeCall } from "./whatsapp";
 
 // ============================================================
 // Estado
@@ -212,20 +213,26 @@ function renderLead() {
     if (d.length <= 11) d = "55" + d.replace(/^55/, "");
     return d;
   })();
-  // Botão "Ligar pelo app": abre o app desktop nessa conversa (whatsapp://).
+  // Botão "Ligar pelo WhatsApp": tenta iniciar a chamada de voz no WhatsApp Web;
+  // se não achar o botão nativo, abre o app desktop (fallback). Em qualquer caso,
+  // ao terminar pergunta o resultado e REGISTRA no histórico do lead.
   let waButton: Node = document.createTextNode("");
   if (waDigits) {
-    const a = h("a", {
+    const btn = h("button", {
       class: "floow-btn floow-wa",
-      href: `whatsapp://send?phone=${waDigits}`,
-      title: "Abre o app do WhatsApp nesta conversa (pra ligar)",
+      title: "Liga pelo WhatsApp e registra no histórico",
     });
-    a.innerHTML =
+    btn.innerHTML =
       '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
       '<path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>' +
-      "<span>Ligar pelo app</span>";
-    waButton = a;
+      "<span>📞 Ligar pelo WhatsApp</span>";
+    btn.addEventListener("click", () => handleCall(lead, waDigits));
+    waButton = btn;
   }
+
+  // Histórico de ligações (contador + última) — preenchido em seguida (async).
+  const callInfo = h("div", { class: "floow-callinfo" }, ["📞 carregando histórico…"]);
+  refreshCallHistory(lead.id, callInfo);
 
   // Instagram do lead (ícone + @) → abre o perfil numa aba nova.
   let igLink: Node = document.createTextNode("");
@@ -263,6 +270,7 @@ function renderLead() {
       igLink,
       matchInfo ? h("div", { class: "floow-hint" }, [`vinculado ${matchInfo}`]) : document.createTextNode(""),
       waButton,
+      callInfo,
     ]),
   );
 
@@ -512,6 +520,54 @@ function askCloserDate(lead: Lead): Promise<{ closer: string; dataIso: string } 
     );
     return wrap;
   });
+}
+
+// ============================================================
+// Ligações — inicia (best-effort) + registra no histórico do lead
+// ============================================================
+async function handleCall(lead: Lead, digits: string) {
+  // 1) Tenta clicar no botão de ligar do WhatsApp Web. Se não achar, abre o app.
+  const started = startNativeCall();
+  if (!started) {
+    // Fallback: abre o app desktop nessa conversa (lá dá pra ligar).
+    window.location.href = `whatsapp://send?phone=${digits}`;
+    flash("Não achei o botão de ligar do WhatsApp Web — abrindo o app.");
+  }
+  // 2) Pergunta o resultado e registra (mesmo que a ligação seja pelo app/manual).
+  const outcome = await askReason("Como foi a ligação?", CALL_OUTCOME_LABELS);
+  if (!outcome) return; // cancelou → não registra
+  await logCall(lead, outcome);
+}
+
+async function logCall(lead: Lead, outcome: string) {
+  const { error } = await supabase.from("lead_events").insert({
+    lead_id: lead.id,
+    tipo: "ligacao",
+    actor_email: sessionEmail,
+    actor_name: member.name,
+    payload: { via: "whatsapp_ext", outcome, by: member.name },
+  });
+  if (error) { flash("Não registrou a ligação: " + error.message); return; }
+  flash(`Ligação registrada (${CALL_OUTCOME_LABELS[outcome] ?? outcome}) ✓`);
+  // Atualiza o contador na hora.
+  const info = panel?.querySelector(".floow-callinfo") as HTMLElement | null;
+  if (info) refreshCallHistory(lead.id, info);
+}
+
+// Conta as ligações do lead e mostra "📞 N ligações · última: …".
+async function refreshCallHistory(leadId: string, node: HTMLElement) {
+  const { data, error } = await supabase
+    .from("lead_events")
+    .select("payload, created_at")
+    .eq("lead_id", leadId)
+    .eq("tipo", "ligacao")
+    .order("created_at", { ascending: false });
+  if (error) { node.textContent = ""; return; }
+  const rows = data ?? [];
+  if (rows.length === 0) { node.textContent = "📞 Nenhuma ligação registrada"; return; }
+  const last = rows[0] as { payload?: { outcome?: string }; created_at: string };
+  const out = last.payload?.outcome ? (CALL_OUTCOME_LABELS[last.payload.outcome] ?? last.payload.outcome) : "";
+  node.textContent = `📞 ${rows.length} ligação${rows.length > 1 ? "ões" : ""}${out ? " · última: " + out : ""}`;
 }
 
 // ============================================================

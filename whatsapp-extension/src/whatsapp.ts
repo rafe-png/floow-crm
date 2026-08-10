@@ -54,6 +54,33 @@ export function readActiveChatTitle(): string | null {
   return null;
 }
 
+// Tenta iniciar a ligação de VOZ nativa do WhatsApp Web (clica no botão do topo
+// da conversa). Best-effort: o HTML é ofuscado, então varremos os botões do header
+// procurando o de voz (evitando o de vídeo). Retorna true se achou e clicou.
+export function startNativeCall(): boolean {
+  const header = document.querySelector("#main header");
+  if (!header) return false;
+
+  // Candidatos: qualquer coisa clicável com rótulo/ícone.
+  const els = Array.from(header.querySelectorAll("[aria-label],[title],[data-icon]"));
+  for (const el of els) {
+    const label = (
+      el.getAttribute("aria-label") ||
+      el.getAttribute("title") ||
+      el.getAttribute("data-icon") ||
+      ""
+    ).toLowerCase();
+    if (!label) continue;
+    if (/v[ií]deo|video/.test(label)) continue; // pula chamada de vídeo
+    if (/voz|voice|chamada|call|ligar|phone|audio-call|ptt/.test(label)) {
+      const clickable = (el.closest('[role="button"],button,a,div[role="button"]') as HTMLElement) || (el as HTMLElement);
+      clickable.click();
+      return true;
+    }
+  }
+  return false;
+}
+
 // Diagnóstico (mostrado no painel quando não acha o lead).
 export function readChatDebug(): { mainFound: boolean; phone: string | null; title: string | null } {
   return { mainFound: !!document.querySelector("#main"), phone: readActiveChatPhone(), title: readActiveChatTitle() };

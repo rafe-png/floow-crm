@@ -102,6 +102,12 @@ export const FONTE_LABELS: Record<string, string> = {
 };
 export const FONTE_OPTIONS = Object.keys(FONTE_LABELS);
 
+// Resultado de uma ligação (registrada no histórico do lead).
+export const CALL_OUTCOME_LABELS: Record<string, string> = {
+  atendeu: "Atendeu ✅", nao_atendeu: "Não atendeu", caixa_postal: "Caixa postal", ocupado: "Ocupado",
+};
+export const CALL_OUTCOME_OPTIONS = Object.keys(CALL_OUTCOME_LABELS);
+
 // Cidades-alvo (igual CIDADE_ALVO do app) — cada uma já carrega a UF.
 export const CIDADE_ALVO: { cidade: string; uf: string }[] = [
   { cidade: "Santa Cruz do Capibaribe", uf: "PE" },
