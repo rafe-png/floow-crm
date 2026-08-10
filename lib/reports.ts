@@ -143,6 +143,16 @@ export function faturamentoInRange(leads: Lead[], range: ResolvedRange): number 
   return total;
 }
 
+/**
+ * Leads GANHOS por um criativo dentro do intervalo (mesma regra do relatório de
+ * criativos: `criativo_codigo` + ganho_em no período). Usado no drill-down.
+ */
+export function wonLeadsForCreative(leads: Lead[], codigo: number, range: ResolvedRange): Lead[] {
+  return leads
+    .filter((l) => l.criativo_codigo === codigo && inRange(l.ganho_em, range))
+    .sort((a, b) => (b.ganho_em ?? "").localeCompare(a.ganho_em ?? ""));
+}
+
 /** Nº de negócios ganhos (ganho_em) dentro do intervalo. */
 export function ganhosInRange(leads: Lead[], range: ResolvedRange): number {
   let n = 0;

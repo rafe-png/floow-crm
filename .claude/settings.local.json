@@ -138,7 +138,8 @@
       "WebSearch",
       "Bash(grep -iA0 \"csv\\\\|header\\\\|segmento\\\\|empresa\\\\|fonte\")",
       "Bash(awk '/export const QUAL_FIELDS/,/\\\\];/' src/crm.ts)",
-      "Bash(open whatsapp-extension *)"
+      "Bash(open whatsapp-extension *)",
+      "Bash(awk '/export function buildCreativeReport/,/^}/' lib/reports.ts)"
     ]
   }
 }

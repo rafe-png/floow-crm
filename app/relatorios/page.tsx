@@ -18,6 +18,7 @@ import {
   buildLeadsCsv,
   buildCloserInsights,
   buildCreativeReport,
+  wonLeadsForCreative,
   buildLossReasons,
   buildMonthlyStats,
   buildSdrInsights,
@@ -328,6 +329,50 @@ export default function RelatoriosPage() {
                         <StatMini label="Realizadas" value={c.realizadas} color="text-zinc-300" />
                       </div>
                       <Meter label="Conversão (ganho ÷ leads)" pct={c.convLead} />
+
+                      {/* Clientes ganhos por este criativo */}
+                      {(() => {
+                        const wons = wonLeadsForCreative(leads, c.codigo, range);
+                        return (
+                          <div className="mt-4 border-t border-[#f5c518]/15 pt-3">
+                            <div className="mb-2 flex items-baseline justify-between">
+                              <span className="text-xs font-semibold text-emerald-300">
+                                🏆 Clientes ganhos ({wons.length})
+                              </span>
+                              {wons.length > 0 && (
+                                <span className="text-[11px] tabular-nums text-zinc-500">
+                                  {fmtBRL(wons.reduce((s, l) => s + Number(l.valor ?? 0), 0))}
+                                </span>
+                              )}
+                            </div>
+                            {wons.length === 0 ? (
+                              <p className="text-[11px] text-zinc-500">Nenhum cliente ganho por este criativo no período.</p>
+                            ) : (
+                              <ul className="space-y-1">
+                                {wons.map((l) => (
+                                  <li
+                                    key={l.id}
+                                    className="flex items-center gap-2 rounded-md bg-zinc-900/50 px-2.5 py-1.5"
+                                  >
+                                    <span className="min-w-0 flex-1 truncate text-xs text-zinc-100">
+                                      {l.empresa || l.nome}
+                                      {l.cidade && <span className="text-zinc-500"> · {l.cidade}{l.estado ? `/${l.estado}` : ""}</span>}
+                                    </span>
+                                    {l.ganho_em && (
+                                      <span className="shrink-0 text-[10px] tabular-nums text-zinc-500">
+                                        {new Date(l.ganho_em).toLocaleDateString("pt-BR")}
+                                      </span>
+                                    )}
+                                    <span className="shrink-0 text-xs font-semibold tabular-nums text-emerald-300">
+                                      {fmtBRL(Number(l.valor ?? 0))}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })()}
