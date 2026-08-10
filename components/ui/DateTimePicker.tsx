@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import { Calendar, Clock, X } from "lucide-react";
 import type { Lead } from "@/lib/types";
 
@@ -14,10 +13,10 @@ type Props = {
   busyStarts?: number[];
 };
 
-// Reuniões têm 1h de duração. Slots de 30 em 30 minutos, 07:00 → 20:30.
+// Reuniões têm 1h de duração. Slots de 15 em 15 minutos, 07:00 → 20:45.
 const SLOT_START_MIN = 7 * 60;
-const SLOT_END_MIN = 20 * 60 + 30;
-const SLOT_STEP_MIN = 30;
+const SLOT_END_MIN = 20 * 60 + 45;
+const SLOT_STEP_MIN = 15;
 const MEETING_DURATION_MIN = 60;
 
 const SLOTS: number[] = (() => {
@@ -40,26 +39,17 @@ function hhmmToMinutes(t: string): number | null {
   return h * 60 + m;
 }
 
-// Trava o próprio horário e os 2 seguintes (+30 e +60 min).
-// Ex.: reunião às 08:00 ocupa 08:00, 08:30 e 09:00 (não trava nada pra trás).
+// Trava o próprio horário e a 1h seguinte (5 slots de 15 min, +60 inclusive).
+// Ex.: reunião às 15:15 ocupa 15:15, 15:30, 15:45, 16:00 e 16:15 (livre a partir
+// das 16:30). Não trava nada pra trás.
 function overlapsBusy(slotMin: number, busyStarts: number[]): boolean {
   return busyStarts.some((b) => slotMin >= b && slotMin <= b + MEETING_DURATION_MIN);
 }
 
-function formatBR(date: string, time: string): string {
-  if (!date && !time) return "Sem data";
-  if (date) {
-    const [y, m, d] = date.split("-");
-    const dt = `${d}/${m}/${y}`;
-    return time ? `${dt} às ${time}` : dt;
-  }
-  return time;
-}
-
 /**
- * Data (input nativo) + grade de horários de 30 min.
- * Seleciona apenas o início; a reunião sempre dura 1h. Horários que conflitam
- * com reuniões já marcadas no dia ficam desabilitados ("preenchidos").
+ * Data (1 input) + horário (1 seletor rolável de 15 em 15 min).
+ * Seleciona apenas o início; a reunião sempre dura 1h e reserva a 1h seguinte.
+ * Horários que conflitam com reuniões já marcadas no dia ficam desabilitados.
  */
 export function DateTimePicker({
   date,
@@ -69,102 +59,84 @@ export function DateTimePicker({
   showClear,
   busyStarts = [],
 }: Props) {
-  const dateRef = useRef<HTMLInputElement>(null);
   const selectedMin = time ? hhmmToMinutes(time) : null;
-
-  function openDatePicker() {
-    const el = dateRef.current;
-    if (!el) return;
-    if (typeof el.showPicker === "function") {
-      try { el.showPicker(); return; } catch {}
-    }
-    el.focus();
-  }
 
   return (
     <div className="space-y-2">
-      {/* Resumo amigável BR */}
-      <div
-        onClick={openDatePicker}
-        role="button"
-        tabIndex={0}
-        className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-zinc-800 bg-[#0f1218] px-3 py-2 text-sm hover:border-[#f5c518]/40 transition-colors"
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <Calendar size={15} className="shrink-0 text-[#f5c518]" />
-          <span className={date || time ? "text-zinc-100" : "text-zinc-500"}>
-            {formatBR(date, time)}
-          </span>
-        </div>
-        {showClear && (date || time) && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onDateChange(""); onTimeChange(""); }}
-            className="rounded p-1 text-zinc-500 hover:bg-rose-500/10 hover:text-rose-400"
-            aria-label="Limpar data"
-          >
-            <X size={14} />
-          </button>
-        )}
-      </div>
-
-      {/* Input nativo de data */}
-      <div className="relative">
-        <Calendar
-          size={13}
-          className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500"
-        />
-        <input
-          ref={dateRef}
-          type="date"
-          value={date}
-          onChange={(e) => onDateChange(e.target.value)}
-          min="1900-01-01"
-          className="ds-date-input w-full rounded-md border border-zinc-800 bg-[#0f1218] py-2 pl-7 pr-2 text-sm text-zinc-100 outline-none focus:border-[#f5c518]"
-          placeholder="dd/mm/aaaa"
-        />
-      </div>
-
-      {/* Grade de horários (30 min) */}
+      {/* Data — único input */}
       <div>
-        <div className="mb-1.5 flex items-center gap-1.5 text-[11px] text-zinc-500">
-          <Clock size={12} />
-          {date
-            ? "Início da reunião — dura 1h"
-            : "Selecione a data para liberar os horários"}
+        <div className="mb-1 text-[11px] text-zinc-500">Data</div>
+        <div className="relative">
+          <Calendar
+            size={13}
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500"
+          />
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => onDateChange(e.target.value)}
+            min="1900-01-01"
+            className="ds-date-input w-full rounded-md border border-zinc-800 bg-[#0f1218] py-2 pl-7 pr-2 text-sm text-zinc-100 outline-none focus:border-[#f5c518]"
+            placeholder="dd/mm/aaaa"
+          />
         </div>
-        <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
-          {SLOTS.map((m) => {
-            const label = minutesToHHMM(m);
-            const busy = overlapsBusy(m, busyStarts);
-            const disabled = !date || busy;
-            const selected = selectedMin === m;
+      </div>
 
-            let cls: string;
-            if (selected) {
-              cls = "border-[#f5c518] bg-[#f5c518]/15 text-[#f5c518] font-semibold";
-            } else if (busy) {
-              cls = "cursor-not-allowed border-zinc-900 bg-zinc-950 text-zinc-700 line-through";
-            } else if (!date) {
-              cls = "cursor-not-allowed border-zinc-900 bg-zinc-950 text-zinc-700";
-            } else {
-              cls = "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-[#f5c518]/50 hover:text-zinc-100";
-            }
-
-            return (
-              <button
-                key={m}
-                type="button"
-                disabled={disabled}
-                onClick={() => onTimeChange(label)}
-                title={busy ? "Horário ocupado" : label}
-                className={`rounded-md border px-2 py-1.5 text-xs transition-colors ${cls}`}
-              >
-                {label}
-              </button>
-            );
-          })}
+      {/* Horário — seletor rolável de 15 em 15 min */}
+      <div>
+        <div className="mb-1 flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+            <Clock size={12} />
+            {date ? "Início — dura 1h (reserva a 1h seguinte)" : "Escolha a data primeiro"}
+          </span>
+          {showClear && (date || time) && (
+            <button
+              type="button"
+              onClick={() => { onDateChange(""); onTimeChange(""); }}
+              className="flex items-center gap-0.5 text-[11px] text-zinc-500 hover:text-rose-400"
+            >
+              <X size={11} /> limpar
+            </button>
+          )}
         </div>
+
+        {!date ? (
+          <div className="rounded-md border border-zinc-900 bg-zinc-950 px-3 py-3 text-center text-xs text-zinc-600">
+            Selecione a data para liberar os horários
+          </div>
+        ) : (
+          <div className="max-h-52 space-y-0.5 overflow-y-auto rounded-md border border-zinc-800 bg-[#0f1218] p-1">
+            {SLOTS.map((m) => {
+              const label = minutesToHHMM(m);
+              const busy = overlapsBusy(m, busyStarts);
+              const selected = selectedMin === m;
+
+              let cls: string;
+              if (selected) {
+                cls = "bg-[#f5c518]/15 text-[#f5c518] font-semibold";
+              } else if (busy) {
+                cls = "cursor-not-allowed text-zinc-700 line-through";
+              } else {
+                cls = "text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100";
+              }
+
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onTimeChange(label)}
+                  title={busy ? "Horário ocupado (reunião na 1h)" : label}
+                  className={`flex w-full items-center justify-between rounded px-3 py-1.5 text-sm tabular-nums transition-colors ${cls}`}
+                >
+                  <span>{label}</span>
+                  {busy && <span className="text-[10px] not-italic no-underline">ocupado</span>}
+                  {selected && <span className="text-[10px]">✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <style jsx>{`
