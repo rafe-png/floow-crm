@@ -104,7 +104,7 @@ export const FONTE_OPTIONS = Object.keys(FONTE_LABELS);
 
 // Resultado de uma ligação (registrada no histórico do lead).
 export const CALL_OUTCOME_LABELS: Record<string, string> = {
-  atendeu: "Atendeu ✅", rejeitou: "Rejeitou", chamou_ate_cair: "Chamou até cair", nao_chamou: "Não chamou",
+  atendeu: "Atendeu ✅", atendeu_desligou: "Atendeu mas desligou", rejeitou: "Rejeitou", chamou_ate_cair: "Chamou até cair", nao_chamou: "Não chamou",
 };
 export const CALL_OUTCOME_OPTIONS = Object.keys(CALL_OUTCOME_LABELS);
 

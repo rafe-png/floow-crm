@@ -449,7 +449,7 @@ export type CallEventLite = {
   payload: { outcome?: string } | null;
 };
 
-type CallCounters = { total: number; atendeu: number; rejeitou: number; chamou_ate_cair: number; nao_chamou: number };
+type CallCounters = { total: number; atendeu: number; atendeu_desligou: number; rejeitou: number; chamou_ate_cair: number; nao_chamou: number };
 
 export type CallSdrStat = CallCounters & {
   name: string;
@@ -468,11 +468,12 @@ export type CallStats = CallCounters & {
 };
 
 function emptyCallCounters(): CallCounters {
-  return { total: 0, atendeu: 0, rejeitou: 0, chamou_ate_cair: 0, nao_chamou: 0 };
+  return { total: 0, atendeu: 0, atendeu_desligou: 0, rejeitou: 0, chamou_ate_cair: 0, nao_chamou: 0 };
 }
 function tallyOutcome(c: CallCounters, outcome: string | undefined) {
   c.total++;
   if (outcome === "atendeu") c.atendeu++;
+  else if (outcome === "atendeu_desligou") c.atendeu_desligou++;
   else if (outcome === "rejeitou") c.rejeitou++;
   else if (outcome === "chamou_ate_cair") c.chamou_ate_cair++;
   else if (outcome === "nao_chamou") c.nao_chamou++;
@@ -522,7 +523,7 @@ export function buildCallStats(events: CallEventLite[], leads: Lead[], range: Re
   const perSdr: CallSdrStat[] = Array.from(perSdrMap.entries())
     .map(([name, v]) => ({
       name,
-      total: v.total, atendeu: v.atendeu, rejeitou: v.rejeitou,
+      total: v.total, atendeu: v.atendeu, atendeu_desligou: v.atendeu_desligou, rejeitou: v.rejeitou,
       chamou_ate_cair: v.chamou_ate_cair, nao_chamou: v.nao_chamou,
       taxaAtendimento: v.total > 0 ? (v.atendeu / v.total) * 100 : 0,
       leadsUnicos: v.leads.size,

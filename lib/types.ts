@@ -284,9 +284,10 @@ export const PRODUTO_OPTIONS = Object.keys(PRODUTO_LABELS) as LeadProduto[];
 export type LeadEventType = "created" | "status_change" | "note" | "ligacao";
 
 // Resultado de uma ligação (registrada pela extensão no histórico do lead).
-export type CallOutcome = "atendeu" | "rejeitou" | "chamou_ate_cair" | "nao_chamou";
+export type CallOutcome = "atendeu" | "atendeu_desligou" | "rejeitou" | "chamou_ate_cair" | "nao_chamou";
 export const CALL_OUTCOME_LABELS: Record<CallOutcome, string> = {
   atendeu: "Atendeu ✅",
+  atendeu_desligou: "Atendeu mas desligou",
   rejeitou: "Rejeitou",
   chamou_ate_cair: "Chamou até cair",
   nao_chamou: "Não chamou",

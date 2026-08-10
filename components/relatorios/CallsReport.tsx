@@ -9,11 +9,12 @@ import { CALL_OUTCOME_LABELS, type Lead } from "@/lib/types";
 // Cores por resultado.
 const OUTCOME_STYLE: Record<string, { bar: string; text: string }> = {
   atendeu: { bar: "bg-emerald-400", text: "text-emerald-300" },
+  atendeu_desligou: { bar: "bg-teal-400", text: "text-teal-300" },
   rejeitou: { bar: "bg-rose-400", text: "text-rose-300" },
   chamou_ate_cair: { bar: "bg-amber-400", text: "text-amber-300" },
   nao_chamou: { bar: "bg-zinc-500", text: "text-zinc-400" },
 };
-const OUTCOME_ORDER = ["atendeu", "rejeitou", "chamou_ate_cair", "nao_chamou"] as const;
+const OUTCOME_ORDER = ["atendeu", "atendeu_desligou", "rejeitou", "chamou_ate_cair", "nao_chamou"] as const;
 
 export function CallsReport({ leads, range }: { leads: Lead[]; range: ResolvedRange }) {
   const [events, setEvents] = useState<CallEventLite[]>([]);
@@ -76,7 +77,7 @@ export function CallsReport({ leads, range }: { leads: Lead[]; range: ResolvedRa
                 const st = OUTCOME_STYLE[k];
                 return (
                   <div key={k} className="flex items-center gap-2">
-                    <span className="w-28 shrink-0 text-xs text-zinc-400">{CALL_OUTCOME_LABELS[k as keyof typeof CALL_OUTCOME_LABELS]}</span>
+                    <span className="w-36 shrink-0 truncate text-xs text-zinc-400" title={CALL_OUTCOME_LABELS[k as keyof typeof CALL_OUTCOME_LABELS]}>{CALL_OUTCOME_LABELS[k as keyof typeof CALL_OUTCOME_LABELS]}</span>
                     <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-zinc-900">
                       <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${pct}%` }} />
                     </div>
@@ -89,12 +90,13 @@ export function CallsReport({ leads, range }: { leads: Lead[]; range: ResolvedRa
 
           {/* Tabela por SDR */}
           <div className="overflow-x-auto rounded-xl border border-zinc-900 bg-zinc-950/60 p-4">
-            <table className="w-full min-w-[560px] text-xs">
+            <table className="w-full min-w-[640px] text-xs">
               <thead>
                 <tr className="text-left text-[10px] uppercase tracking-wider text-zinc-500">
                   <th className="pb-2 font-medium">SDR</th>
                   <th className="pb-2 text-right font-medium">Ligações</th>
                   <th className="pb-2 text-right font-medium">Atendeu</th>
+                  <th className="pb-2 text-right font-medium">Atendeu/desl.</th>
                   <th className="pb-2 text-right font-medium">Rejeitou</th>
                   <th className="pb-2 text-right font-medium">Chamou até cair</th>
                   <th className="pb-2 text-right font-medium">Não chamou</th>
@@ -108,6 +110,7 @@ export function CallsReport({ leads, range }: { leads: Lead[]; range: ResolvedRa
                     <td className="py-2 font-medium text-zinc-200">{r.name}</td>
                     <td className="py-2 text-right font-semibold tabular-nums text-zinc-100">{r.total}</td>
                     <td className="py-2 text-right tabular-nums text-emerald-300">{r.atendeu}</td>
+                    <td className="py-2 text-right tabular-nums text-teal-300">{r.atendeu_desligou}</td>
                     <td className="py-2 text-right tabular-nums text-rose-300">{r.rejeitou}</td>
                     <td className="py-2 text-right tabular-nums text-amber-300">{r.chamou_ate_cair}</td>
                     <td className="py-2 text-right tabular-nums text-zinc-400">{r.nao_chamou}</td>

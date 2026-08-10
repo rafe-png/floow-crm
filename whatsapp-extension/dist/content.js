@@ -21142,6 +21142,7 @@ ${suffix}`;
   var FONTE_OPTIONS = Object.keys(FONTE_LABELS);
   var CALL_OUTCOME_LABELS = {
     atendeu: "Atendeu \u2705",
+    atendeu_desligou: "Atendeu mas desligou",
     rejeitou: "Rejeitou",
     chamou_ate_cair: "Chamou at\xE9 cair",
     nao_chamou: "N\xE3o chamou"
