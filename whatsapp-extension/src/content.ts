@@ -384,12 +384,20 @@ function renderLead() {
   renderFooter(lead);
 }
 
+// Abre o CRM SEMPRE na MESMA janela/aba (nomeada "floow_crm") e traz ela pra
+// frente. Reusa a janela existente em vez de abrir uma nova a cada clique.
+function openCrm(e: Event, url: string) {
+  e.preventDefault();
+  const win = window.open(url, "floow_crm");
+  win?.focus();
+}
+
 function renderFooter(lead?: Lead) {
   body.append(
     h("div", { class: "floow-section floow-footer" }, [
       lead
-        ? h("a", { class: "floow-link", href: `${APP_URL}/kanban?lead=${lead.id}`, target: "floow_crm" }, ["Abrir no app ↗"])
-        : h("a", { class: "floow-link", href: `${APP_URL}/kanban`, target: "floow_crm" }, ["Abrir app ↗"]),
+        ? h("a", { class: "floow-link", href: `${APP_URL}/kanban?lead=${lead.id}`, onclick: (e: Event) => openCrm(e, `${APP_URL}/kanban?lead=${lead.id}`) }, ["Abrir no app ↗"])
+        : h("a", { class: "floow-link", href: `${APP_URL}/kanban`, onclick: (e: Event) => openCrm(e, `${APP_URL}/kanban`) }, ["Abrir app ↗"]),
       h("div", { class: "floow-who" }, [
         h("span", { class: "floow-hint" }, [member.name ? `Logado: ${member.name}` : (sessionEmail ?? "")]),
         h("button", { class: "floow-link", onclick: doLogout }, ["sair"]),
@@ -582,19 +590,20 @@ function askCloserDate(lead: Lead): Promise<{ closer: string; dataIso: string } 
 // ============================================================
 // Ligações — inicia (best-effort) + registra no histórico do lead
 // ============================================================
-async function handleCall(lead: Lead, digits: string) {
-  // 1) Tenta clicar no botão de ligar do WhatsApp Web. Se não achar, abre o app.
+async function handleCall(lead: Lead, _digits: string) {
+  // 1) Inicia a ligação SEMPRE no WhatsApp Web (clica no botão de voz nativo).
+  //    NUNCA abrir o app do WhatsApp — a ligação é aqui no Web (decisão fechada).
   const started = startNativeCall();
   if (!started) {
-    // Fallback: abre o app desktop nessa conversa (lá dá pra ligar).
-    window.location.href = `whatsapp://send?phone=${digits}`;
-    flash("Não achei o botão de ligar do WhatsApp Web — abrindo o app.");
-    callButtonMissingAt = Date.now(); // dispara o aviso de possível quebra
+    // Não achou o botão → sinaliza possível quebra do layout (aviso vermelho).
+    // O SDR clica no botão de ligar do próprio WhatsApp Web e registra abaixo.
+    flash("Não achei o botão de ligar do WhatsApp Web — clique nele manualmente.");
+    callButtonMissingAt = Date.now();
     render();
   } else {
     callButtonMissingAt = 0;
   }
-  // 2) Pergunta o resultado e registra (mesmo que a ligação seja pelo app/manual).
+  // 2) Pergunta o resultado e registra no histórico do lead.
   const outcome = await askReason("Como foi a ligação?", CALL_OUTCOME_LABELS);
   if (!outcome) return; // cancelou → não registra
   await logCall(lead, outcome);

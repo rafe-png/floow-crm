@@ -21704,10 +21704,15 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
     body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Observa\xE7\xF5es"]), ta, saveBtn]));
     renderFooter(lead);
   }
+  function openCrm(e, url) {
+    e.preventDefault();
+    const win = window.open(url, "floow_crm");
+    win?.focus();
+  }
   function renderFooter(lead) {
     body.append(
       h("div", { class: "floow-section floow-footer" }, [
-        lead ? h("a", { class: "floow-link", href: `${APP_URL}/kanban?lead=${lead.id}`, target: "floow_crm" }, ["Abrir no app \u2197"]) : h("a", { class: "floow-link", href: `${APP_URL}/kanban`, target: "floow_crm" }, ["Abrir app \u2197"]),
+        lead ? h("a", { class: "floow-link", href: `${APP_URL}/kanban?lead=${lead.id}`, onclick: (e) => openCrm(e, `${APP_URL}/kanban?lead=${lead.id}`) }, ["Abrir no app \u2197"]) : h("a", { class: "floow-link", href: `${APP_URL}/kanban`, onclick: (e) => openCrm(e, `${APP_URL}/kanban`) }, ["Abrir app \u2197"]),
         h("div", { class: "floow-who" }, [
           h("span", { class: "floow-hint" }, [member.name ? `Logado: ${member.name}` : sessionEmail ?? ""]),
           h("button", { class: "floow-link", onclick: doLogout }, ["sair"])
@@ -21920,11 +21925,10 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
       return wrap;
     });
   }
-  async function handleCall(lead, digits) {
+  async function handleCall(lead, _digits) {
     const started = startNativeCall();
     if (!started) {
-      window.location.href = `whatsapp://send?phone=${digits}`;
-      flash("N\xE3o achei o bot\xE3o de ligar do WhatsApp Web \u2014 abrindo o app.");
+      flash("N\xE3o achei o bot\xE3o de ligar do WhatsApp Web \u2014 clique nele manualmente.");
       callButtonMissingAt = Date.now();
       render();
     } else {
