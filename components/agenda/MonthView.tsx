@@ -45,8 +45,11 @@ export function MonthView({ cursor, leads, onClickLead }: Props) {
 
   const meetingsByDay = useMemo(() => {
     const map = new Map<string, Lead[]>();
+    const seen = new Set<string>(); // de-duplica o mesmo lead (evita card em dobro)
     for (const l of leads) {
       if (!l.data_agendamento) continue;
+      if (seen.has(l.id)) continue;
+      seen.add(l.id);
       const d = new Date(l.data_agendamento);
       const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
       const arr = map.get(key) ?? [];

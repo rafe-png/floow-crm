@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { useTasksContext } from "@/lib/contexts/TasksContext";
 import { STATUS_COLORS, type Lead } from "@/lib/types";
+import { computeOverlapColumns, overlapStyle } from "./overlap";
 
 type Props = {
   cursor: Date;
@@ -26,16 +27,20 @@ function isSameDay(a: Date, b: Date) {
 export function DayView({ cursor, leads, onClickLead }: Props) {
   const { tasks } = useTasksContext();
 
-  const meetings = useMemo(
-    () =>
-      leads
-        .filter((l) => l.data_agendamento && isSameDay(new Date(l.data_agendamento), cursor))
-        .sort(
-          (a, b) =>
-            new Date(a.data_agendamento!).getTime() - new Date(b.data_agendamento!).getTime(),
-        ),
-    [leads, cursor],
-  );
+  const meetings = useMemo(() => {
+    const seen = new Set<string>(); // de-duplica o mesmo lead (evita card em dobro)
+    return leads
+      .filter((l) => {
+        if (!l.data_agendamento || !isSameDay(new Date(l.data_agendamento), cursor)) return false;
+        if (seen.has(l.id)) return false;
+        seen.add(l.id);
+        return true;
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.data_agendamento!).getTime() - new Date(b.data_agendamento!).getTime(),
+      );
+  }, [leads, cursor]);
 
   const dayTasks = useMemo(
     () => tasks.filter((t) => !t.done && t.due_at && isSameDay(new Date(t.due_at), cursor)),
@@ -63,6 +68,19 @@ export function DayView({ cursor, leads, onClickLead }: Props) {
     const h = new Date(l.data_agendamento!).getHours();
     return h >= START_HOUR && h < END_HOUR;
   });
+
+  // Layout lado a lado quando duas reuniões se sobrepõem no horário.
+  const placed = useMemo(
+    () =>
+      computeOverlapColumns(
+        visibleMeetings.map((l) => {
+          const dt = new Date(l.data_agendamento!);
+          const startMin = dt.getHours() * 60 + dt.getMinutes();
+          return { id: l.id, startMin, endMin: startMin + 60 };
+        }),
+      ),
+    [visibleMeetings],
+  );
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -136,8 +154,8 @@ export function DayView({ cursor, leads, onClickLead }: Props) {
                 <button
                   key={l.id}
                   onClick={() => onClickLead(l)}
-                  className={`absolute left-2 right-2 overflow-hidden rounded-md p-2 text-left ${c.bg} ${c.border} border ${isPast ? "brightness-[0.55] hover:brightness-90" : "hover:brightness-125"}`}
-                  style={{ top, height: HOUR_HEIGHT - 4 }}
+                  className={`absolute overflow-hidden rounded-md p-2 text-left ${c.bg} ${c.border} border ${isPast ? "brightness-[0.55] hover:brightness-90" : "hover:brightness-125"}`}
+                  style={{ top, height: HOUR_HEIGHT - 4, ...(() => { const p = overlapStyle(placed.get(l.id)); return { left: p.left, width: p.width }; })() }}
                   title={`${format(date, "HH:mm")}–${format(end, "HH:mm")} · ${l.empresa || l.nome}`}
                 >
                   <div className={`text-[11px] font-semibold ${c.text}`}>

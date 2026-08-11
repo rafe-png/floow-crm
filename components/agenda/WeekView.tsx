@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTasksContext } from "@/lib/contexts/TasksContext";
 import { STATUS_COLORS, type Lead } from "@/lib/types";
+import { computeOverlapColumns, overlapStyle } from "./overlap";
 
 type Props = {
   cursor: Date;
@@ -48,8 +49,11 @@ export function WeekView({ cursor, leads, onClickLead }: Props) {
 
   const meetingsByDay = useMemo(() => {
     const map = new Map<string, Lead[]>();
+    const seen = new Set<string>(); // de-duplica o mesmo lead (evita card em dobro)
     for (const l of leads) {
       if (!l.data_agendamento) continue;
+      if (seen.has(l.id)) continue;
+      seen.add(l.id);
       const d = new Date(l.data_agendamento);
       const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
       const arr = map.get(key) ?? [];
@@ -164,6 +168,18 @@ export function WeekView({ cursor, leads, onClickLead }: Props) {
           {days.map((d) => {
             const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
             const meetings = meetingsByDay.get(key) ?? [];
+            // Só as reuniões na faixa visível + layout lado a lado quando sobrepõem.
+            const visible = meetings.filter((l) => {
+              const h = new Date(l.data_agendamento!).getHours();
+              return h >= START_HOUR && h < END_HOUR;
+            });
+            const placed = computeOverlapColumns(
+              visible.map((l) => {
+                const dt = new Date(l.data_agendamento!);
+                const startMin = dt.getHours() * 60 + dt.getMinutes();
+                return { id: l.id, startMin, endMin: startMin + 60 };
+              }),
+            );
 
             return (
               <div key={d.toISOString()} className="relative border-r border-zinc-900">
@@ -177,19 +193,19 @@ export function WeekView({ cursor, leads, onClickLead }: Props) {
                 ))}
 
                 {/* Reuniões */}
-                {meetings.map((l) => {
+                {visible.map((l) => {
                   const date = new Date(l.data_agendamento!);
-                  if (date.getHours() < START_HOUR || date.getHours() >= END_HOUR) return null;
                   const top = meetingPosition(date);
                   const end = new Date(date.getTime() + 60 * 60 * 1000);
                   const isPast = date.getTime() < now.getTime();
                   const c = STATUS_COLORS[l.status];
+                  const pos = overlapStyle(placed.get(l.id));
                   return (
                     <button
                       key={l.id}
                       onClick={() => onClickLead(l)}
-                      className={`absolute left-1 right-1 overflow-hidden rounded p-1.5 text-left ${c.bg} ${c.border} border ${isPast ? "brightness-[0.55] hover:brightness-90" : "hover:brightness-125"}`}
-                      style={{ top, height: HOUR_HEIGHT - 2 }}
+                      className={`absolute overflow-hidden rounded p-1.5 text-left ${c.bg} ${c.border} border ${isPast ? "brightness-[0.55] hover:brightness-90" : "hover:brightness-125"}`}
+                      style={{ top, height: HOUR_HEIGHT - 2, left: pos.left, width: pos.width }}
                       title={`${format(date, "HH:mm")}–${format(end, "HH:mm")} · ${l.empresa || l.nome}`}
                     >
                       <div className={`truncate text-[10px] font-medium ${c.text}`}>
