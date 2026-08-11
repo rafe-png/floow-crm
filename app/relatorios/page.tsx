@@ -11,7 +11,6 @@ import { PeriodPicker } from "@/components/ui/PeriodPicker";
 import { useMetaSpendContext } from "@/lib/contexts/MetaSpendContext";
 import { usePeriodContext } from "@/lib/contexts/PeriodContext";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
-import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { cac, custoPorLead, metaLeadsInWindow, metaSpendInWindow } from "@/lib/finance";
 import {
   buildCoreKpis,
@@ -36,7 +35,6 @@ import {
 import { STATUS_COLORS } from "@/lib/types";
 
 export default function RelatoriosPage() {
-  const { isAdmin } = useTeamContext();
   const { leads } = useLeadsContext();
   const { period } = usePeriodContext();
   const { days: metaDays, creativeDays } = useMetaSpendContext();
@@ -83,20 +81,6 @@ export default function RelatoriosPage() {
   const fmtBRL = (n: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(n);
   const fmtPct = (n: number) => `${n.toFixed(1)}%`;
-
-  // Relatórios são exclusivos do ADM.
-  if (!isAdmin) {
-    return (
-      <>
-        <TopBar title="Relatórios" />
-        <main className="flex flex-1 items-center justify-center p-6">
-          <p className="max-w-sm text-center text-sm text-zinc-500">
-            Os Relatórios são exclusivos do administrador.
-          </p>
-        </main>
-      </>
-    );
-  }
 
   return (
     <>

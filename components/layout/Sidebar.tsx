@@ -12,7 +12,7 @@ type NavItem = {
   icon: typeof LayoutDashboard;
 };
 
-// Relatórios, Financeiro e Áudios são exclusivos do ADM.
+// Relatórios: todos. Financeiro e Áudios: exclusivos do ADM.
 function useNavItems(): NavItem[] {
   const { isAdmin } = useTeamContext();
   const items: NavItem[] = [
@@ -20,10 +20,10 @@ function useNavItems(): NavItem[] {
     { href: "/kanban", label: "Funis de vendas", icon: Kanban },
     { href: "/agenda", label: "Agenda", icon: Calendar },
     { href: "/tarefas", label: "Tarefas", icon: CheckSquare },
+    { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   ];
   if (isAdmin) {
     items.push(
-      { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
       { href: "/financeiro", label: "Financeiro", icon: DollarSign },
       { href: "/audios", label: "Áudios", icon: AudioLines },
     );
