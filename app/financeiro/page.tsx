@@ -21,12 +21,13 @@ const fmtBRL2 = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 }).format(n);
 
 export default function FinanceiroPage() {
-  const { isAdmin, isTraffic } = useTeamContext();
+  const { isAdmin } = useTeamContext();
   const { leads } = useLeadsContext();
   const { period } = usePeriodContext();
   const { days: metaDays, sync, syncing, syncError, lastSync } = useMetaSpendContext();
 
-  const canManage = isAdmin || isTraffic;
+  // Financeiro é exclusivo do ADM.
+  const canManage = isAdmin;
 
   const view = useMemo(() => {
     const range = resolveRange(period);
@@ -63,7 +64,7 @@ export default function FinanceiroPage() {
         <TopBar title="Financeiro" />
         <main className="flex flex-1 items-center justify-center p-6">
           <p className="max-w-sm text-center text-sm text-zinc-500">
-            O Financeiro é gerenciado pelo administrador e pelo gestor de tráfego.
+            O Financeiro é exclusivo do administrador.
           </p>
         </main>
       </>

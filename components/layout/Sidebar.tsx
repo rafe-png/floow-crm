@@ -12,21 +12,21 @@ type NavItem = {
   icon: typeof LayoutDashboard;
 };
 
-// Financeiro só aparece pra admin + gestor de tráfego.
+// Relatórios, Financeiro e Áudios são exclusivos do ADM.
 function useNavItems(): NavItem[] {
-  const { isAdmin, isTraffic } = useTeamContext();
+  const { isAdmin } = useTeamContext();
   const items: NavItem[] = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/kanban", label: "Funis de vendas", icon: Kanban },
     { href: "/agenda", label: "Agenda", icon: Calendar },
     { href: "/tarefas", label: "Tarefas", icon: CheckSquare },
-    { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   ];
-  if (isAdmin || isTraffic) {
-    items.push({ href: "/financeiro", label: "Financeiro", icon: DollarSign });
-  }
   if (isAdmin) {
-    items.push({ href: "/audios", label: "Áudios", icon: AudioLines });
+    items.push(
+      { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
+      { href: "/financeiro", label: "Financeiro", icon: DollarSign },
+      { href: "/audios", label: "Áudios", icon: AudioLines },
+    );
   }
   return items;
 }
