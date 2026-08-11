@@ -26,6 +26,7 @@ export type NewLeadInput = Omit<
   | "perdido_em"
   | "criativo_codigo"
   | "origem"
+  | "agendado_por"
   | "no_show_count"
   | "last_no_show_em"
 >;

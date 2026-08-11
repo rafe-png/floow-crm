@@ -141,7 +141,11 @@
       "Bash(open whatsapp-extension *)",
       "Bash(awk '/export function buildCreativeReport/,/^}/' lib/reports.ts)",
       "Bash(curl -s --max-time 30 \"https://servicodados.ibge.gov.br/api/v1/localidades/municipios?orderBy=nome\" -o /tmp/ibge_mun.json)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(npx --yes vercel@latest env pull /tmp/floow_prod_env --environment=production)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   }
 }

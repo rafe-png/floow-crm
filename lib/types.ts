@@ -174,6 +174,9 @@ export type Lead = {
   // Agendamento
   data_agendamento: string | null;
   local: LocalReuniao | null;
+  // Quem realizou o agendamento (team_members.name) — carimbado ao mover pra
+  // "Reunião agendada". Não confundir com sdr_responsavel (origem) nem closer.
+  agendado_por: string | null;
   meet_link: string | null;
   google_event_id: string | null;
   google_calendar_id: string | null;

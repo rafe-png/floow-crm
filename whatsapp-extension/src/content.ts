@@ -728,7 +728,9 @@ async function beginMove(lead: Lead, target: LeadStatus) {
     if (!c) return; patch.criativo_codigo = c.code;
   } else if (target === "reuniao_agendada") {
     const r = await askCloserDate(lead);
-    if (!r) return; patch.closer_responsavel = r.closer; patch.data_agendamento = r.dataIso;
+    if (!r) return;
+    patch.closer_responsavel = r.closer; patch.data_agendamento = r.dataIso;
+    patch.agendado_por = member.name; // quem realizou o agendamento
   }
 
   const { error } = await supabase.from("leads").update(patch).eq("id", lead.id);

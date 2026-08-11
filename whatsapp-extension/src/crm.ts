@@ -58,6 +58,7 @@ export type Lead = {
   closer_responsavel: string | null;
   fonte: string | null;
   data_agendamento: string | null;
+  agendado_por: string | null;
   google_event_id: string | null;
   criativo_codigo: number | null;
   // Qualificação (pra saber se está completa e pré-preencher)
@@ -76,7 +77,7 @@ export type Lead = {
 
 // Colunas que a extensão lê do banco.
 export const LEAD_COLUMNS =
-  "id,nome,empresa,instagram,segmento,cidade,estado,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
+  "id,nome,empresa,instagram,segmento,cidade,estado,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,agendado_por,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
 
 export const STATUS_LABELS: Record<LeadStatus, string> = {
   qualificado: "Entrada",

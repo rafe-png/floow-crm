@@ -116,14 +116,9 @@ export async function POST(request: Request) {
       patch.criativo_codigo = criativo;
     }
 
-    // (b) reatribui pro ÚLTIMO SDR = dono do número que recebeu esta mensagem.
-    //     Só se o número está mapeado e o lead não está fechado (ganho/perdido/
-    //     desqualificado) — não faz sentido roubar crédito de negócio já encerrado.
-    const lastSdr = sdrForNumber(body.connectedPhone, true);
-    const CLOSED = ["negocio_ganho", "negocio_perdido", "desqualificado"];
-    if (lastSdr && match.sdr_responsavel !== lastSdr && !CLOSED.includes(match.status as string)) {
-      patch.sdr_responsavel = lastSdr;
-    }
+    // NÃO reatribui o SDR. A atribuição é FIXA na origem (o número que recebeu a
+    // 1ª mensagem, definido na criação). Mensagens seguintes por outro número não
+    // mudam o dono do lead — evita "roubar" leads entre SDRs.
 
     if (Object.keys(patch).length > 0) {
       const { error: upErr } = await admin.from("leads").update(patch).eq("id", match.id);

@@ -21126,7 +21126,7 @@ ${suffix}`;
     TO: "Tocantins"
   };
   var ESTADO_OPTIONS = Object.keys(UF_LABELS);
-  var LEAD_COLUMNS = "id,nome,empresa,instagram,segmento,cidade,estado,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
+  var LEAD_COLUMNS = "id,nome,empresa,instagram,segmento,cidade,estado,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,agendado_por,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
   var STATUS_LABELS = {
     qualificado: "Entrada",
     pre_qualificado: "Pr\xE9 qualificado",
@@ -22086,6 +22086,7 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
       if (!r) return;
       patch.closer_responsavel = r.closer;
       patch.data_agendamento = r.dataIso;
+      patch.agendado_por = member.name;
     }
     const { error } = await supabase.from("leads").update(patch).eq("id", lead.id);
     if (error) {

@@ -209,6 +209,7 @@ function KanbanContent() {
       closer_responsavel: closerName,
       data_agendamento: dataIso,
       local,
+      agendado_por: currentMember?.name ?? null, // quem realizou o agendamento
     });
     setPendingCloser(null);
     triggerCelebration("reuniao_agendada");

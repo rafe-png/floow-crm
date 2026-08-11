@@ -296,6 +296,11 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
             <Field label="Local">
               <LocalSelect value={local} onChange={(v) => { setLocal(v); setDirty(true); }} />
             </Field>
+            {lead.agendado_por && (
+              <div className="text-[11px] text-zinc-500">
+                Agendado por <span className="text-zinc-300">{lead.agendado_por}</span>
+              </div>
+            )}
           </Section>
 
           {/* Tarefas */}
