@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
+import { EstadoCidadeSelect } from "@/components/ui/EstadoCidadeSelect";
 import { STATUS_LABELS, type Lead, type LeadStatus, type SegmentoConfeccao } from "@/lib/types";
 
 type Props = {
@@ -19,12 +20,18 @@ export function CompletePreQualDialog({ lead, targetStatus, onCancel, onConfirm 
   const [empresa, setEmpresa] = useState(lead.empresa ?? "");
   const [instagram, setInstagram] = useState(lead.instagram ?? "");
   const [segmento, setSegmento] = useState<SegmentoConfeccao | null>(lead.segmento);
+  const [estado, setEstado] = useState<string | null>(lead.estado);
+  const [cidade, setCidade] = useState<string | null>(lead.cidade);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleConfirm() {
     if (!nome.trim() || !empresa.trim() || !instagram.trim() || !segmento) {
       setError("Preencha decisor, empresa, Instagram e segmento.");
+      return;
+    }
+    if (!estado || !cidade) {
+      setError("Selecione o estado e a cidade do lead.");
       return;
     }
     setSaving(true);
@@ -35,6 +42,8 @@ export function CompletePreQualDialog({ lead, targetStatus, onCancel, onConfirm 
         empresa: empresa.trim(),
         instagram: instagram.trim().replace(/^@/, ""),
         segmento,
+        estado,
+        cidade,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar.");
@@ -77,6 +86,13 @@ export function CompletePreQualDialog({ lead, targetStatus, onCancel, onConfirm 
           </Field>
           <Field label="Segmento da confecção *">
             <SegmentoSelect value={segmento} onChange={setSegmento} />
+          </Field>
+          <Field label="Estado e cidade *">
+            <EstadoCidadeSelect
+              estado={estado}
+              cidade={cidade}
+              onChange={(v) => { setEstado(v.estado); setCidade(v.cidade); }}
+            />
           </Field>
 
           {error && (

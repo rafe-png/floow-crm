@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { PillRow } from "@/components/ui/Pills";
-import { CidadeSelect } from "@/components/ui/CidadeSelect";
 import {
   BANT_AUTHORITY_LABELS,
   BANT_BUDGET_LABELS,
@@ -15,8 +14,6 @@ import {
   EXPERIENCIA_LABELS,
   FONTE_LABELS,
   HISTORICO_LABELS,
-  PRODUTO_LABELS,
-  PRODUTO_VALORES,
   SITUACAO_LABELS,
   STATUS_LABELS,
   type BantAuthority,
@@ -30,7 +27,6 @@ import {
   type HistoricoTrafego,
   type Lead,
   type LeadFonte,
-  type LeadProduto,
   type LeadStatus,
   type Situacao,
 } from "@/lib/types";
@@ -43,7 +39,6 @@ type Props = {
 };
 
 export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onConfirm }: Props) {
-  const [produto, setProduto] = useState<LeadProduto | null>(lead.produto);
   const [experiencia, setExperiencia] = useState<Experiencia | null>(lead.experiencia);
   const [situacao, setSituacao] = useState<Situacao | null>(lead.situacao);
   const [canalVendas, setCanalVendas] = useState<CanalVendas | null>(lead.canal_vendas);
@@ -54,28 +49,18 @@ export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onCo
   const [bantAuthority, setBantAuthority] = useState<BantAuthority | null>(lead.bant_authority);
   const [bantNeed, setBantNeed] = useState<BantNeed | null>(lead.bant_need);
   const [bantTiming, setBantTiming] = useState<BantTiming | null>(lead.bant_timing);
-  const [cidade, setCidade] = useState<string | null>(lead.cidade);
-  const [estado, setEstado] = useState<string | null>(lead.estado);
   const [fonte, setFonte] = useState<LeadFonte | null>(lead.fonte);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleConfirm() {
-    if (!produto) {
-      setError("Selecione o produto ofertado.");
-      return;
-    }
     if (!experiencia || !situacao || !canalVendas || !estoque || !historico || !estrutura) {
       setError("Preencha toda a qualificação (experiência, situação, canal, estoque, histórico, estrutura).");
       return;
     }
     if (!bantBudget || !bantAuthority || !bantNeed || !bantTiming) {
       setError("Preencha todos os 4 campos do BANT.");
-      return;
-    }
-    if (!cidade?.trim() || !estado) {
-      setError("Selecione a cidade (e a UF, se for 'Outra').");
       return;
     }
     if (!fonte) {
@@ -86,7 +71,6 @@ export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onCo
     setError(null);
     try {
       await onConfirm({
-        produto,
         experiencia,
         situacao,
         canal_vendas: canalVendas,
@@ -97,12 +81,7 @@ export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onCo
         bant_authority: bantAuthority,
         bant_need: bantNeed,
         bant_timing: bantTiming,
-        cidade: cidade.trim(),
-        estado,
         fonte,
-        // Pré-preenche o valor sugerido do produto se o lead ainda não tem valor
-        // (não sobrescreve um valor já editado à mão).
-        ...(lead.valor == null ? { valor: PRODUTO_VALORES[produto] } : {}),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar.");
@@ -135,9 +114,6 @@ export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onCo
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Qualificação</h3>
-            <PillRow label="🏷️ Produto ofertado" value={produto}
-              options={Object.entries(PRODUTO_LABELS).map(([v, l]) => ({ value: v as LeadProduto, label: l }))}
-              onChange={setProduto} />
             <PillRow label="Experiência (tempo de mercado)" value={experiencia}
               options={Object.entries(EXPERIENCIA_LABELS).map(([v, l]) => ({ value: v as Experiencia, label: l }))}
               onChange={setExperiencia} />
@@ -175,15 +151,7 @@ export function CompleteQualificationDialog({ lead, targetStatus, onCancel, onCo
           </section>
 
           <section className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Localização & origem</h3>
-            <div>
-              <span className="mb-1.5 block text-xs font-medium text-zinc-400">📍 Cidade</span>
-              <CidadeSelect
-                cidade={cidade}
-                estado={estado}
-                onChange={(v) => { setCidade(v.cidade); setEstado(v.estado); }}
-              />
-            </div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Origem</h3>
             <PillRow label="📣 Origem (fonte)" value={fonte}
               options={Object.entries(FONTE_LABELS).map(([v, l]) => ({ value: v as LeadFonte, label: l }))}
               onChange={setFonte} />

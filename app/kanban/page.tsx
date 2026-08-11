@@ -21,7 +21,7 @@ import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { useStickyState } from "@/lib/hooks/useStickyState";
 import { resolveRange, type PeriodPreset } from "@/lib/reports";
-import { FONTE_LABELS, FONTE_OPTIONS, PRODUTO_LABELS, PRODUTO_OPTIONS, SEGMENTO_LABELS, type Lead, type LeadFonte, type LeadProduto, type LeadStatus, type LocalReuniao, type MotivoCarteira, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
+import { FONTE_LABELS, FONTE_OPTIONS, SEGMENTO_LABELS, type Lead, type LeadFonte, type LeadStatus, type LocalReuniao, type MotivoCarteira, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
 import { computeLeadScore, PRIORITY_SHORT, type LeadPriority } from "@/lib/lead-score";
 
 // Info do negócio (empresa, instagram, decisor, segmento) — obrigatória de
@@ -37,16 +37,16 @@ const QUAL_STAGES: LeadStatus[] = [
   "em_agendamento", "agendando", "reuniao_agendada", "no_show", "follow_up", "negocio_ganho",
 ];
 
-// Pré qualificado: dados do negócio preenchidos (decisor, empresa, insta, segmento).
+// Pré qualificado: dados do negócio (decisor, empresa, insta, segmento) +
+// localização obrigatória desde já (estado + cidade).
 function isPreQualComplete(l: Lead): boolean {
-  return !!(l.nome && l.empresa && l.instagram && l.segmento);
+  return !!(l.nome && l.empresa && l.instagram && l.segmento && l.estado && l.cidade);
 }
 
-// Qualificado+: produto + qualificação + BANT + localização (cidade/estado) + fonte.
+// Qualificado+: qualificação + BANT + fonte.
 function isQualComplete(l: Lead): boolean {
   return !!(
-    l.produto &&
-    l.cidade && l.estado && l.fonte &&
+    l.fonte &&
     l.experiencia && l.situacao && l.canal_vendas && l.estoque && l.historico && l.estrutura &&
     l.bant_budget && l.bant_authority && l.bant_need && l.bant_timing
   );
@@ -98,7 +98,6 @@ function KanbanContent() {
   // Origem = fonte de marketing do lead (Meta Ads, Instagram, Indicação, …).
   const [filterOrigem, setFilterOrigem] = useStickyState<LeadFonte | null>("floow.kanban.fonte", null);
   const [filterSegmento, setFilterSegmento] = useStickyState<SegmentoConfeccao | null>("floow.kanban.segmento", null);
-  const [filterProduto, setFilterProduto] = useStickyState<LeadProduto | null>("floow.kanban.produto", null);
   // Data de ENTRADA do lead no funil (created_at). null = todos.
   const [filterEntrada, setFilterEntrada] = useStickyState<EntradaPreset | null>("floow.kanban.entrada", null);
 
@@ -109,17 +108,17 @@ function KanbanContent() {
 
   // Quantos filtros estão ativos (pro contador e o botão "Limpar").
   const activeFilters = [
-    filterSdr, filterCloser, filterPriority, filterOrigem, filterSegmento, filterProduto, filterEntrada,
+    filterSdr, filterCloser, filterPriority, filterOrigem, filterSegmento, filterEntrada,
   ].filter(Boolean).length;
 
   function clearFilters() {
     setFilterSdr(null); setFilterCloser(null); setFilterPriority(null);
-    setFilterOrigem(null); setFilterSegmento(null); setFilterProduto(null);
+    setFilterOrigem(null); setFilterSegmento(null);
     setFilterEntrada(null);
   }
 
   // Todos veem o funil completo e filtram (responsável, prioridade, origem,
-  // segmento, produto, data de entrada). Sem filtro = todos os leads.
+  // segmento, data de entrada). Sem filtro = todos os leads.
   const visibleLeads = useMemo(() => {
     // Intervalo da data de entrada (resolvido uma vez, não por lead).
     const range = filterEntrada ? resolveRange({ kind: "preset", preset: filterEntrada }) : null;
@@ -128,7 +127,6 @@ function KanbanContent() {
       if (filterCloser && l.closer_responsavel !== filterCloser) return false;
       if (filterOrigem && l.fonte !== filterOrigem) return false;
       if (filterSegmento && l.segmento !== filterSegmento) return false;
-      if (filterProduto && l.produto !== filterProduto) return false;
       if (range) {
         const entrou = new Date(l.created_at);
         if (range.start && entrou < range.start) return false;
@@ -142,7 +140,7 @@ function KanbanContent() {
       }
       return true;
     });
-  }, [leads, filterSdr, filterCloser, filterOrigem, filterSegmento, filterProduto, filterPriority, filterEntrada]);
+  }, [leads, filterSdr, filterCloser, filterOrigem, filterSegmento, filterPriority, filterEntrada]);
   const [pendingLost, setPendingLost] = useState<{
     id: string;
     name: string;
@@ -358,11 +356,6 @@ function KanbanContent() {
             label="Segmento" allLabel="Todos"
             value={filterSegmento ?? ""} onChange={(v) => setFilterSegmento((v || null) as SegmentoConfeccao | null)}
             options={(Object.keys(SEGMENTO_LABELS) as SegmentoConfeccao[]).map((s) => ({ value: s, label: SEGMENTO_LABELS[s] }))}
-          />
-          <FilterChip
-            label="Produto" allLabel="Todos"
-            value={filterProduto ?? ""} onChange={(v) => setFilterProduto((v || null) as LeadProduto | null)}
-            options={PRODUTO_OPTIONS.map((p) => ({ value: p, label: PRODUTO_LABELS[p] }))}
           />
           <FilterChip
             label="Entrada" allLabel="Qualquer data" icon={<CalendarDays size={12} />}

@@ -139,7 +139,9 @@
       "Bash(grep -iA0 \"csv\\\\|header\\\\|segmento\\\\|empresa\\\\|fonte\")",
       "Bash(awk '/export const QUAL_FIELDS/,/\\\\];/' src/crm.ts)",
       "Bash(open whatsapp-extension *)",
-      "Bash(awk '/export function buildCreativeReport/,/^}/' lib/reports.ts)"
+      "Bash(awk '/export function buildCreativeReport/,/^}/' lib/reports.ts)",
+      "Bash(curl -s --max-time 30 \"https://servicodados.ibge.gov.br/api/v1/localidades/municipios?orderBy=nome\" -o /tmp/ibge_mun.json)",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }

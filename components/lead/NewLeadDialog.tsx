@@ -7,7 +7,7 @@ import { LocalSelect } from "@/components/ui/LocalSelect";
 import { PersonSelect } from "@/components/ui/PersonSelect";
 import { PillRow } from "@/components/ui/Pills";
 import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
-import { CidadeSelect } from "@/components/ui/CidadeSelect";
+import { EstadoCidadeSelect } from "@/components/ui/EstadoCidadeSelect";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import {
@@ -22,14 +22,11 @@ import {
   FONTE_LABELS,
   FONTE_OPTIONS,
   HISTORICO_LABELS,
-  PRODUTO_LABELS,
-  PRODUTO_VALORES,
   SITUACAO_LABELS,
   findDuplicateLead,
   STATUS_COLORS,
   STATUS_LABELS,
   type Lead,
-  type LeadProduto,
   type BantAuthority,
   type BantBudget,
   type BantNeed,
@@ -92,14 +89,8 @@ function NewLeadDialogBody({
   const [cidade, setCidade] = useState<string | null>(null);
   const [estado, setEstado] = useState<string | null>(null);
   const [fonte, setFonte] = useState<LeadFonte | null>(null);
-  const [produto, setProduto] = useState<LeadProduto | null>(null);
   const [valor, setValor] = useState("");
 
-  // Ao escolher o produto, pré-preenche o valor sugerido (editável depois).
-  function handleProduto(p: LeadProduto | null) {
-    setProduto(p);
-    if (p) setValor(String(PRODUTO_VALORES[p]));
-  }
   // SDR responsável = usuário logado (quem está cadastrando). Closer só é
   // definido depois, ao agendar a reunião (não pré-atribui aqui).
   const [sdrResp, setSdrResp] = useState<string | null>(() => currentMember?.name ?? null);
@@ -136,7 +127,6 @@ function NewLeadDialogBody({
     setNome(""); setTelefone(""); setEmpresa(""); setInstagram("");
     setSegmento(null);
     setCidade(null); setEstado(null); setFonte(null);
-    setProduto(null);
     setValor("");
     setSdrResp(currentMember?.name ?? null);
     setCloserResp(null);
@@ -176,10 +166,6 @@ function NewLeadDialogBody({
       return;
     }
     if (!quick) {
-      if (!produto) {
-        setError("Selecione o produto ofertado.");
-        return;
-      }
       if (!experiencia || !situacao || !canalVendas || !estoque || !historico || !estrutura) {
         setError("Preencha toda a qualificação (experiência, situação, canal, estoque, histórico, estrutura).");
         return;
@@ -205,7 +191,6 @@ function NewLeadDialogBody({
         cidade: quick ? null : (cidade?.trim() || null),
         estado: quick ? null : estado,
         fonte: quick ? null : fonte,
-        produto: quick ? null : produto,
         valor: quick ? null : (parsedValor != null && !Number.isNaN(parsedValor) ? parsedValor : null),
         sdr_responsavel: sdrResp,
         closer_responsavel: closerResp,
@@ -329,14 +314,16 @@ function NewLeadDialogBody({
                   <SegmentoSelect value={segmento} onChange={setSegmento} />
                 </Field>
               </div>
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field label="Cidade *">
-                  <CidadeSelect
-                    cidade={cidade}
+              <div className="mt-3">
+                <Field label="Estado e cidade *">
+                  <EstadoCidadeSelect
                     estado={estado}
-                    onChange={(v) => { setCidade(v.cidade); setEstado(v.estado); }}
+                    cidade={cidade}
+                    onChange={(v) => { setEstado(v.estado); setCidade(v.cidade); }}
                   />
                 </Field>
+              </div>
+              <div className="mt-3">
                 <Field label="Origem (fonte) *">
                   <select
                     value={fonte ?? ""}
@@ -357,12 +344,6 @@ function NewLeadDialogBody({
           {/* Qualificação */}
           <Section title="Qualificação *" hint="Toque rápido nas opções">
             <div className="space-y-3">
-              <PillRow
-                label="🏷️ Produto ofertado"
-                value={produto}
-                options={Object.entries(PRODUTO_LABELS).map(([v, l]) => ({ value: v as LeadProduto, label: l }))}
-                onChange={handleProduto}
-              />
               <PillRow
                 label="Experiência (tempo de mercado)"
                 value={experiencia}

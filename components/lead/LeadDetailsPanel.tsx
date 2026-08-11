@@ -9,7 +9,7 @@ import { DateTimePicker, busyStartsForDate, joinIso, splitIso } from "@/componen
 import { LocalSelect } from "@/components/ui/LocalSelect";
 import { PersonSelect } from "@/components/ui/PersonSelect";
 import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
-import { CidadeSelect } from "@/components/ui/CidadeSelect";
+import { EstadoCidadeSelect } from "@/components/ui/EstadoCidadeSelect";
 import { LeadTasks } from "@/components/tasks/LeadTasks";
 import { CreativeCodePicker, formatCreativeCode } from "@/components/lead/CreativeCodeDialog";
 import { useLeadEvents } from "@/lib/hooks/useLeads";
@@ -29,9 +29,6 @@ import {
   HISTORICO_LABELS,
   LOCAL_ICONS,
   LOCAL_LABELS,
-  PRODUTO_LABELS,
-  PRODUTO_OPTIONS,
-  PRODUTO_VALORES,
   STATUS_COLORS,
   STATUS_LABELS,
   STATUS_ORDER,
@@ -45,7 +42,6 @@ import {
   type HistoricoTrafego,
   type Lead,
   type LeadFonte,
-  type LeadProduto,
   type LeadStatus,
   type LocalReuniao,
   type Owner,
@@ -76,16 +72,7 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
   const [cidade, setCidade] = useState<string | null>(lead.cidade);
   const [estado, setEstado] = useState<string | null>(lead.estado);
   const [fonte, setFonte] = useState<LeadFonte | null>(lead.fonte);
-  const [produto, setProduto] = useState<LeadProduto | null>(lead.produto);
   const [valor, setValor] = useState(lead.valor != null ? String(lead.valor) : "");
-
-  // Ao trocar o produto, pré-preenche o valor sugerido se o campo estiver vazio
-  // (não sobrescreve um valor já digitado).
-  function handleProduto(p: LeadProduto | null) {
-    setProduto(p);
-    setDirty(true);
-    if (p && !valor.trim()) setValor(String(PRODUTO_VALORES[p]));
-  }
   const [observacoes, setObservacoes] = useState(lead.observacoes ?? "");
   const [sdrResp, setSdrResp] = useState<string | null>(lead.sdr_responsavel);
   const [closerResp, setCloserResp] = useState<string | null>(lead.closer_responsavel);
@@ -131,7 +118,6 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
         cidade: cidade?.trim() || null,
         estado,
         fonte,
-        produto,
         valor: parsedValor != null && !Number.isNaN(parsedValor) ? parsedValor : null,
         observacoes: observacoes.trim() || null,
         sdr_responsavel: sdrResp,
@@ -253,11 +239,11 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
             <Field label="Segmento da confecção">
               <SegmentoSelect value={segmento} onChange={(v) => { setSegmento(v); setDirty(true); }} />
             </Field>
-            <Field label="Cidade">
-              <CidadeSelect
-                cidade={cidade}
+            <Field label="Estado e cidade">
+              <EstadoCidadeSelect
                 estado={estado}
-                onChange={(v) => { setCidade(v.cidade); setEstado(v.estado); setDirty(true); }}
+                cidade={cidade}
+                onChange={(v) => { setEstado(v.estado); setCidade(v.cidade); setDirty(true); }}
               />
             </Field>
             <Field label="Origem">
@@ -269,18 +255,6 @@ export function LeadDetailsPanel({ lead, onClose, onUpdate, onDelete }: Props) {
                 <option value="">Selecionar…</option>
                 {FONTE_OPTIONS.map((f) => (
                   <option key={f} value={f}>{FONTE_LABELS[f]}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Produto">
-              <select
-                value={produto ?? ""}
-                onChange={(e) => handleProduto((e.target.value || null) as LeadProduto | null)}
-                className="ds-input [color-scheme:dark]"
-              >
-                <option value="">Selecionar…</option>
-                {PRODUTO_OPTIONS.map((p) => (
-                  <option key={p} value={p}>{PRODUTO_LABELS[p]}</option>
                 ))}
               </select>
             </Field>

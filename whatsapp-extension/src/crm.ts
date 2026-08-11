@@ -1,6 +1,23 @@
 // Espelho enxuto dos tipos/labels/regras do app (lib/types.ts + kanban). Só o que
 // a extensão usa. Mantenha em sincronia se o funil/qualificação mudar.
 
+import cidadesData from "../../lib/data/cidades-br.json";
+
+// Municípios do IBGE por UF (mesmo dataset do app) — pro seletor estado→cidade.
+const CIDADES_BR = cidadesData as Record<string, string[]>;
+export function cidadesForUf(uf: string | null): string[] {
+  return uf ? (CIDADES_BR[uf] ?? []) : [];
+}
+export const UF_LABELS: Record<string, string> = {
+  AC: "Acre", AL: "Alagoas", AP: "Amapá", AM: "Amazonas", BA: "Bahia", CE: "Ceará",
+  DF: "Distrito Federal", ES: "Espírito Santo", GO: "Goiás", MA: "Maranhão", MT: "Mato Grosso",
+  MS: "Mato Grosso do Sul", MG: "Minas Gerais", PA: "Pará", PB: "Paraíba", PR: "Paraná",
+  PE: "Pernambuco", PI: "Piauí", RJ: "Rio de Janeiro", RN: "Rio Grande do Norte",
+  RS: "Rio Grande do Sul", RO: "Rondônia", RR: "Roraima", SC: "Santa Catarina",
+  SP: "São Paulo", SE: "Sergipe", TO: "Tocantins",
+};
+export const ESTADO_OPTIONS = Object.keys(UF_LABELS);
+
 export type LeadStatus =
   | "qualificado"
   | "pre_qualificado"
@@ -214,7 +231,7 @@ export const BUSINESS_STAGES: LeadStatus[] = [
 ];
 
 export function isPreQualComplete(l: Lead): boolean {
-  return !!(l.nome && l.empresa && l.instagram && l.segmento);
+  return !!(l.nome && l.empresa && l.instagram && l.segmento && l.estado && l.cidade);
 }
 
 export function needsBusinessInfo(lead: Lead, target: LeadStatus): boolean {
@@ -223,7 +240,7 @@ export function needsBusinessInfo(lead: Lead, target: LeadStatus): boolean {
 
 export function isQualComplete(l: Lead): boolean {
   return !!(
-    l.cidade && l.estado && l.fonte &&
+    l.fonte &&
     l.experiencia && l.situacao && l.canal_vendas && l.estoque && l.historico && l.estrutura &&
     l.bant_budget && l.bant_authority && l.bant_need && l.bant_timing
   );

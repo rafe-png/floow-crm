@@ -12,7 +12,9 @@ import {
   FONTE_OPTIONS,
   CALL_OUTCOME_LABELS,
   QUAL_FIELDS,
-  CIDADE_ALVO,
+  ESTADO_OPTIONS,
+  UF_LABELS,
+  cidadesForUf,
   SEGMENTO_LABELS,
   SEGMENTO_OPTIONS,
   MOTIVO_PERDA_LABELS,
@@ -449,8 +451,6 @@ function openModal<T>(title: string, build: (api: ModalApi<T>) => HTMLElement): 
 function askQualification(lead: Lead): Promise<Record<string, string> | null> {
   const vals: Record<string, string> = {};
   for (const f of QUAL_FIELDS) { const v = lead[f.key] as string | null; if (v) vals[f.key as string] = v; }
-  if (lead.cidade) vals.cidade = lead.cidade;
-  if (lead.estado) vals.estado = lead.estado;
   return openModal("Qualificação obrigatória", (api) => {
     const wrap = h("div", {});
     wrap.append(h("div", { class: "floow-hint", style: "margin-bottom:8px" }, ["Preencha pra avançar (igual ao app)."]));
@@ -467,23 +467,10 @@ function askQualification(lead: Lead): Promise<Record<string, string> | null> {
       }
       wrap.append(h("div", { class: "floow-qlabel" }, [f.label]), pills);
     }
-    // Cidade (localização) — pills das cidades-alvo; cada uma já leva a UF.
-    const cidadePills = h("div", { class: "floow-pills" });
-    for (const c of CIDADE_ALVO) {
-      const b = h("button", { class: "floow-pill" + (vals.cidade === c.cidade ? " sel" : "") }, [`${c.cidade} · ${c.uf}`]);
-      b.addEventListener("click", () => {
-        vals.cidade = c.cidade; vals.estado = c.uf;
-        cidadePills.querySelectorAll(".floow-pill").forEach((x) => x.classList.remove("sel"));
-        b.classList.add("sel");
-      });
-      cidadePills.append(b);
-    }
-    wrap.append(h("div", { class: "floow-qlabel" }, ["📍 Cidade"]), cidadePills);
 
     const confirm = h("button", { class: "floow-btn floow-btn-primary", style: "margin-top:10px" }, ["Confirmar qualificação"]);
     confirm.addEventListener("click", () => {
       for (const f of QUAL_FIELDS) if (!vals[f.key as string]) { api.setError("Falta: " + f.label); return; }
-      if (!vals.cidade || !vals.estado) { api.setError("Falta: Cidade"); return; }
       api.done({ ...vals });
     });
     wrap.append(confirm);
@@ -512,11 +499,33 @@ function askBusinessInfo(lead: Lead): Promise<Record<string, string> | null> {
       seg.append(opt);
     }
 
+    // Estado → cidade (municípios reais do estado selecionado).
+    const uf = h("select", { class: "floow-input" }) as HTMLSelectElement;
+    uf.append(h("option", { value: "" }, ["Estado…"]));
+    for (const u of ESTADO_OPTIONS) {
+      const opt = h("option", { value: u }, [`${u} — ${UF_LABELS[u]}`]);
+      if (lead.estado === u) opt.setAttribute("selected", "true");
+      uf.append(opt);
+    }
+    const cidadeSel = h("select", { class: "floow-input" }) as HTMLSelectElement;
+    const fillCidades = (estado: string, selected: string | null) => {
+      cidadeSel.innerHTML = "";
+      cidadeSel.append(h("option", { value: "" }, [estado ? "Cidade…" : "Escolha o estado primeiro"]));
+      for (const c of cidadesForUf(estado)) {
+        const opt = h("option", { value: c }, [c]);
+        if (selected === c) opt.setAttribute("selected", "true");
+        cidadeSel.append(opt);
+      }
+    };
+    fillCidades(lead.estado || "", lead.cidade || null);
+    uf.addEventListener("change", () => fillCidades(uf.value, null));
+
     const confirm = h("button", { class: "floow-btn floow-btn-primary", style: "margin-top:10px" }, ["Confirmar"]);
     confirm.addEventListener("click", () => {
       const n = nome.value.trim(), e = empresa.value.trim(), i = insta.value.trim().replace(/^@/, ""), sg = seg.value;
       if (!n || !e || !i || !sg) { api.setError("Preencha decisor, empresa, Instagram e segmento."); return; }
-      api.done({ nome: n, empresa: e, instagram: i, segmento: sg });
+      if (!uf.value || !cidadeSel.value) { api.setError("Selecione o estado e a cidade."); return; }
+      api.done({ nome: n, empresa: e, instagram: i, segmento: sg, estado: uf.value, cidade: cidadeSel.value });
     });
 
     wrap.append(
@@ -524,6 +533,8 @@ function askBusinessInfo(lead: Lead): Promise<Record<string, string> | null> {
       h("div", { class: "floow-qlabel" }, ["Empresa"]), empresa,
       h("div", { class: "floow-qlabel" }, ["Instagram"]), insta,
       h("div", { class: "floow-qlabel" }, ["Segmento"]), seg,
+      h("div", { class: "floow-qlabel" }, ["Estado"]), uf,
+      h("div", { class: "floow-qlabel" }, ["Cidade"]), cidadeSel,
       confirm,
     );
     return wrap;
