@@ -7,6 +7,13 @@ import {
   MOTIVO_PERDA_LABELS,
   STATUS_LABELS,
   UF_LABELS,
+  SEGMENTO_LABELS,
+  EXPERIENCIA_LABELS,
+  SITUACAO_LABELS,
+  CANAL_VENDAS_LABELS,
+  ESTOQUE_LABELS,
+  HISTORICO_LABELS,
+  ESTRUTURA_LABELS,
   type Lead,
   type LeadFonte,
   type LeadStatus,
@@ -435,6 +442,87 @@ export function buildCloserInsights(leads: Lead[], range: ResolvedRange): Closer
       conversao: v.realizadas > 0 ? (v.ganhos / v.realizadas) * 100 : 0,
     }))
     .sort((a, b) => b.ganhos - a.ganhos);
+}
+
+// ============================================================
+// Segmento + Perfil dos leads (pra calibrar campanhas de marketing)
+// ============================================================
+
+export type SegmentStat = {
+  key: string;
+  label: string;
+  leads: number;
+  qualificados: number;
+  agendamentos: number;
+  ganhos: number;
+  faturamento: number;
+  convRate: number; // ganhos ÷ leads (%)
+};
+
+/** Agrupa os leads por SEGMENTO da confecção: volume, qualificação, agend., ganhos. */
+export function buildSegmentStats(leads: Lead[]): SegmentStat[] {
+  const map = new Map<string, SegmentStat>();
+  for (const l of leads) {
+    const k = l.segmento ?? "sem_segmento";
+    const cur = map.get(k) ?? {
+      key: k,
+      label: k === "sem_segmento" ? "Sem segmento" : (SEGMENTO_LABELS[l.segmento!] ?? k),
+      leads: 0, qualificados: 0, agendamentos: 0, ganhos: 0, faturamento: 0, convRate: 0,
+    };
+    cur.leads++;
+    if (wasQualified(l)) cur.qualificados++;
+    if (l.agendado_em) cur.agendamentos++;
+    if (l.status === "negocio_ganho") {
+      cur.ganhos++;
+      if (l.valor) cur.faturamento += Number(l.valor);
+    }
+    map.set(k, cur);
+  }
+  return Array.from(map.values())
+    .map((s) => ({ ...s, convRate: s.leads > 0 ? (s.ganhos / s.leads) * 100 : 0 }))
+    .sort((a, b) => b.leads - a.leads);
+}
+
+// Distribuição dos leads por uma dimensão de qualificação (pro "Perfil dos leads").
+export type ProfileItem = { value: string; label: string; count: number; ganhos: number; pct: number };
+export type ProfileDim = { key: string; label: string; total: number; items: ProfileItem[] };
+
+function distribution(
+  leads: Lead[],
+  get: (l: Lead) => string | null,
+  labels: Record<string, string>,
+): { total: number; items: ProfileItem[] } {
+  const map = new Map<string, { count: number; ganhos: number }>();
+  let withValue = 0;
+  for (const l of leads) {
+    const v = get(l);
+    if (!v) continue;
+    withValue++;
+    const cur = map.get(v) ?? { count: 0, ganhos: 0 };
+    cur.count++;
+    if (l.status === "negocio_ganho") cur.ganhos++;
+    map.set(v, cur);
+  }
+  const items = Array.from(map.entries())
+    .map(([value, v]) => ({ value, label: labels[value] ?? value, count: v.count, ganhos: v.ganhos, pct: withValue > 0 ? (v.count / withValue) * 100 : 0 }))
+    .sort((a, b) => b.count - a.count);
+  return { total: withValue, items };
+}
+
+/** Perfil dos leads: distribuição em cada dimensão de qualificação (calibra público). */
+export function buildProfileStats(leads: Lead[]): ProfileDim[] {
+  const dims: { key: string; label: string; get: (l: Lead) => string | null; labels: Record<string, string> }[] = [
+    { key: "experiencia", label: "Tempo de mercado", get: (l) => l.experiencia, labels: EXPERIENCIA_LABELS },
+    { key: "situacao", label: "Situação atual", get: (l) => l.situacao, labels: SITUACAO_LABELS },
+    { key: "canal_vendas", label: "Canal de vendas", get: (l) => l.canal_vendas, labels: CANAL_VENDAS_LABELS },
+    { key: "estoque", label: "Estoque pronta entrega", get: (l) => l.estoque, labels: ESTOQUE_LABELS },
+    { key: "historico", label: "Histórico de tráfego pago", get: (l) => l.historico, labels: HISTORICO_LABELS },
+    { key: "estrutura", label: "Estrutura comercial", get: (l) => l.estrutura, labels: ESTRUTURA_LABELS },
+  ];
+  return dims.map((d) => {
+    const { total, items } = distribution(leads, d.get, d.labels);
+    return { key: d.key, label: d.label, total, items };
+  });
 }
 
 // ============================================================
