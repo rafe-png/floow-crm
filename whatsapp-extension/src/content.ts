@@ -31,7 +31,7 @@ import {
   samePhone,
   looksLikePhone,
 } from "./crm";
-import { readActiveChatPhone, readActiveChatTitle, readChatDebug, startNativeCall } from "./whatsapp";
+import { readActiveChatPhone, readActiveChatTitle, readChatDebug, startNativeCall, openWhatsAppChat } from "./whatsapp";
 
 // ============================================================
 // Estado
@@ -206,11 +206,22 @@ function renderStageList() {
   body.append(h("div", { class: "floow-section" }, [wrap]));
 }
 
-// Abre a conversa do lead no WhatsApp Web (recarrega). Guarda a etapa pra o
-// botão "voltar ao funil" reaparecer depois do reload.
+// Abre a conversa do lead. Tenta SEM recarregar (busca interna do WhatsApp);
+// só recarrega por URL se a busca falhar (fallback). Sem reload, a extensão e o
+// funil ficam intactos → "voltar ao funil" é instantâneo.
 async function openConversation(lead: Lead) {
   const digits = leadDigits(lead);
   if (!digits) { flash("Lead sem número real — não dá pra abrir a conversa."); return; }
+  returnStage = lead.status; // pra "voltar ao funil"
+  flash("Abrindo conversa…");
+  const ok = await openWhatsAppChat(digits, lead.empresa || lead.nome || "");
+  if (ok) {
+    view = "lead";
+    render();          // a extensão continua carregada; o chat watcher casa o lead
+    return;
+  }
+  // Fallback: recarrega por URL (mais lento e reseta a extensão, mas garante abrir).
+  flash("Abrindo pelo recarregamento…");
   try { await chrome.storage.local.set({ floow_nav_stage: lead.status }); } catch {}
   window.location.href = `https://web.whatsapp.com/send?phone=${digits}`;
 }

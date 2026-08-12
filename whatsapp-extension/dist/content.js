@@ -21412,6 +21412,59 @@ ${suffix}`;
     }
     return false;
   }
+  function getSearchBox() {
+    const side = document.querySelector("#side");
+    if (!side) return null;
+    return side.querySelector('div[contenteditable="true"][role="textbox"]') || side.querySelector('div[contenteditable="true"]');
+  }
+  function typeInSearch(box, text) {
+    box.focus();
+    try {
+      document.execCommand("selectAll", false);
+      document.execCommand("delete", false);
+      if (text) document.execCommand("insertText", false, text);
+    } catch {
+      box.textContent = text;
+      box.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    }
+  }
+  function firstResultRow() {
+    const pane = document.querySelector("#pane-side");
+    if (!pane) return null;
+    return pane.querySelector('[role="listitem"]') || pane.querySelector('[role="row"]');
+  }
+  var wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  function tailMatch(a, b) {
+    const da = (a || "").replace(/\D/g, "");
+    const db = (b || "").replace(/\D/g, "");
+    if (da.length < 8 || db.length < 8) return false;
+    return da.slice(-8) === db.slice(-8);
+  }
+  async function openWhatsAppChat(digits, name) {
+    const box = getSearchBox();
+    if (!box) return false;
+    const attempt = async (q) => {
+      typeInSearch(box, q);
+      for (let i = 0; i < 10; i++) {
+        await wait(180);
+        const row = firstResultRow();
+        if (row) {
+          row.click();
+          for (let j = 0; j < 10; j++) {
+            await wait(150);
+            if (tailMatch(readActiveChatPhone(), digits)) return true;
+          }
+          return false;
+        }
+      }
+      return false;
+    };
+    let ok = await attempt(digits);
+    if (!ok && name && name.trim().length >= 3) ok = await attempt(name.trim());
+    typeInSearch(box, "");
+    box.blur();
+    return ok;
+  }
   function readChatDebug() {
     return { mainFound: !!document.querySelector("#main"), phone: readActiveChatPhone(), title: readActiveChatTitle() };
   }
@@ -21571,6 +21624,15 @@ ${suffix}`;
       flash("Lead sem n\xFAmero real \u2014 n\xE3o d\xE1 pra abrir a conversa.");
       return;
     }
+    returnStage = lead.status;
+    flash("Abrindo conversa\u2026");
+    const ok = await openWhatsAppChat(digits, lead.empresa || lead.nome || "");
+    if (ok) {
+      view = "lead";
+      render();
+      return;
+    }
+    flash("Abrindo pelo recarregamento\u2026");
     try {
       await chrome.storage.local.set({ floow_nav_stage: lead.status });
     } catch {
