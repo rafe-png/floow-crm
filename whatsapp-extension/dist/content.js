@@ -21569,7 +21569,7 @@ ${suffix}`;
   function funnelLeads() {
     const me = member.name;
     if (!me) return [];
-    return leads.filter((l) => l.sdr_responsavel === me || l.closer_responsavel === me);
+    return leads.filter((l) => l.sdr_responsavel === me);
   }
   function renderFunnel() {
     const back = h("button", { class: "floow-link" }, ["\u2190 Conversa atual"]);

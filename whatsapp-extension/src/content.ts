@@ -164,12 +164,14 @@ function renderNav(): Node {
   return h("div", { class: "floow-nav" }, [btn]);
 }
 
-// Funil = lista de trabalho PESSOAL: cada um vê só os SEUS leads (inclusive admin).
-// (Pra ver tudo, use o CRM.) Casa por sdr_responsavel OU closer_responsavel.
+// Funil = lista de trabalho PESSOAL do SDR: cada um vê só os leads onde é o
+// SDR responsável (a origem). NÃO inclui leads de outro SDR onde você é só o
+// Closer — senão os leads da Mariana apareceriam pro Rafe (closer). Pra ver
+// tudo, use o CRM.
 function funnelLeads(): Lead[] {
   const me = member.name;
   if (!me) return [];
-  return leads.filter((l) => l.sdr_responsavel === me || l.closer_responsavel === me);
+  return leads.filter((l) => l.sdr_responsavel === me);
 }
 
 // Etapas do funil, com contador de leads em cada uma.
