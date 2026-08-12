@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertCircle, Check, ExternalLink, LogOut, X } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
+import { AdCodesCard } from "@/components/configuracoes/AdCodesCard";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { getSupabase } from "@/lib/supabase/client";
 import { TEAM_ROLE_LABELS, type TeamMember, type TeamRole } from "@/lib/types";
@@ -121,6 +122,9 @@ function ConfiguracoesContent() {
               </p>
             </Card>
           )}
+
+          {/* Códigos de anúncio — só o admin gerencia */}
+          {isAdmin && <AdCodesCard />}
 
           {/* Conta */}
           <Card title="Conta" subtitle="Sessão atual">

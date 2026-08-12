@@ -93,18 +93,34 @@ export async function POST(request: Request) {
 
   const admin = getAdminSupabase();
 
-  // Lê o código do criativo [NN] de QUALQUER mensagem (ex: "[7]", "[07]", "[100]").
-  let criativo: number | null = null;
+  // Lê o código entre colchetes da mensagem (numérico OU alfanumérico: [08], [C1-25], [08V2]).
+  // Só vale se estiver CADASTRADO e ativo em `ad_codes` (gerenciado em Configurações).
+  let criativo: number | null = null;       // código numérico (relatório de criativos)
+  let criativoTxt: string | null = null;    // código cadastrado (texto), como veio no cadastro
   if (text) {
-    const m = text.match(/\[\s*(\d{1,3})\s*\]/);
-    if (m) criativo = parseInt(m[1], 10);
+    const m = text.match(/\[\s*([A-Za-z0-9][A-Za-z0-9\-]{0,15})\s*\]/);
+    if (m) {
+      const raw = m[1].trim().toUpperCase();
+      const { data: codes, error: codesErr } = await admin.from("ad_codes").select("code").eq("active", true);
+      if (codesErr) {
+        // Tabela `ad_codes` ainda não existe (migração 044 não rodou) → segurança:
+        // aceita código numérico como antes, pra não parar de capturar leads.
+        if (/^\d{1,3}$/.test(raw)) { criativoTxt = raw; criativo = parseInt(raw, 10); }
+      } else {
+        const hit = (codes ?? []).find((c) => String(c.code).trim().toUpperCase() === raw);
+        if (hit) {
+          criativoTxt = String(hit.code).trim();
+          if (/^\d+$/.test(criativoTxt)) criativo = parseInt(criativoTxt, 10);
+        }
+      }
+    }
   }
 
   // Procura lead já existente por telefone/LID (bloqueia duplicação).
   const target = normPhone(phoneRaw);
   const { data: existing } = await admin
     .from("leads")
-    .select("id, telefone, criativo_codigo, sdr_responsavel, status");
+    .select("id, telefone, criativo_codigo, criativo_codigo_txt, sdr_responsavel, status");
   const match = (existing ?? []).find((l) => l.telefone && normPhone(l.telefone as string) === target);
 
   if (match) {
@@ -114,6 +130,9 @@ export async function POST(request: Request) {
     // (a) vincula o criativo se veio e ele ainda não tem (código pode chegar depois).
     if (criativo != null && (match.criativo_codigo as number | null) == null) {
       patch.criativo_codigo = criativo;
+    }
+    if (criativoTxt != null && (match.criativo_codigo_txt as string | null) == null) {
+      patch.criativo_codigo_txt = criativoTxt;
     }
 
     // NÃO reatribui o SDR. A atribuição é FIXA na origem (o número que recebeu a
@@ -131,10 +150,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, duplicate: true });
   }
 
-  // Número novo: só vira lead se a mensagem trouxe o código do anúncio [NN].
+  // Número novo: só vira lead se a mensagem trouxe um código CADASTRADO (ativo).
   // (Assim contato comum / fornecedor que manda mensagem não vira lead.)
-  if (criativo == null) {
-    return NextResponse.json({ ok: true, skipped: "sem código do anúncio" });
+  if (criativoTxt == null) {
+    return NextResponse.json({ ok: true, skipped: "código do anúncio ausente ou não cadastrado" });
   }
 
   const sdr = sdrForNumber(body.connectedPhone, false);
@@ -144,7 +163,8 @@ export async function POST(request: Request) {
     telefone: phoneRaw,
     status: "qualificado", // etapa "Entrada"
     sdr_responsavel: sdr,
-    criativo_codigo: criativo,
+    criativo_codigo: criativo,          // numérico (se o código for número)
+    criativo_codigo_txt: criativoTxt,   // código cadastrado (texto)
     origem: "whatsapp",
     fonte: "meta_ads", // leads da automação vêm do anúncio (Meta Ads) por padrão
     observacoes: text ? `1ª mensagem (WhatsApp): ${text}` : "Entrou pelo WhatsApp (anúncio).",

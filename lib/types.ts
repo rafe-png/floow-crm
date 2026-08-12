@@ -200,6 +200,9 @@ export type Lead = {
 
   // Rastreio de criativo (qual anúncio trouxe o cliente) — preenchido ao ganhar.
   criativo_codigo: number | null;
+  // Código do anúncio como TEXTO (alfanumérico: 'C1-25', '08V2') — vem do webhook
+  // conforme o cadastro em `ad_codes`. Numéricos preenchem também `criativo_codigo`.
+  criativo_codigo_txt: string | null;
 
   // Origem do lead: 'manual' (cadastrado à mão) | 'whatsapp' (entrou pelo anúncio).
   // Uso interno (filtro/roteamento), não confundir com `fonte` (marketing).
