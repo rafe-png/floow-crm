@@ -283,6 +283,25 @@ function NewLeadDialogBody({
                 <input value={telefone} onChange={(e) => setTelefone(e.target.value)} className="ds-input" placeholder="(11) 91234-5678" inputMode="tel" />
               </Field>
             </div>
+            <div className="mt-3">
+              <Field label="Criativo / anúncio (opcional)">
+                <select
+                  value={criativo}
+                  onChange={(e) => setCriativo(e.target.value)}
+                  className="ds-input [color-scheme:dark]"
+                >
+                  <option value="">Nenhum / não sei</option>
+                  {adCodes.map((c) => (
+                    <option key={c.id} value={c.code}>
+                      [{c.code}]{c.label ? ` — ${c.label}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <p className="mt-1 text-[11px] text-zinc-500">
+                De qual anúncio esse lead veio. Cadastre novos códigos em Configurações.
+              </p>
+            </div>
           </Section>
 
           {/* Responsáveis */}
