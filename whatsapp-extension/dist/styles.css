@@ -211,3 +211,39 @@
   opacity: 0; transform: translateY(10px); transition: all .2s cubic-bezier(.22,1,.36,1); pointer-events: none;
 }
 #floow-flash.show { opacity: 1; transform: translateY(0); }
+
+/* ===== Navegação / funil de vendas dentro da extensão ===== */
+#floow-panel .floow-nav { padding: 8px 12px 0; }
+#floow-panel .floow-nav-btn {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 12px; border-radius: 10px; cursor: pointer;
+  background: rgba(245,197,24,0.12); border: 1px solid rgba(245,197,24,0.4);
+  color: #f5c518; font-size: 13px; font-weight: 700; transition: all .13s;
+}
+#floow-panel .floow-nav-btn:hover { background: rgba(245,197,24,0.2); border-color: rgba(245,197,24,0.65); }
+
+#floow-panel .floow-funnel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+#floow-panel .floow-funnel-stage {
+  display: flex; align-items: center; gap: 6px; text-align: left; cursor: pointer;
+  padding: 8px 10px; border-radius: 8px; background: #16181d; border: 1px solid #2a2f3a;
+  color: #e7e9ee; font-size: 12px; transition: all .12s;
+}
+#floow-panel .floow-funnel-stage:hover { border-color: #f5c518aa; background: #1c1f26; }
+#floow-panel .floow-funnel-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#floow-panel .floow-funnel-count { font-weight: 700; color: #9aa4b2; font-size: 12px; }
+
+#floow-panel .floow-stagelist { display: flex; flex-direction: column; gap: 5px; max-height: 60vh; overflow-y: auto; }
+#floow-panel .floow-leaditem {
+  display: flex; flex-direction: column; gap: 2px; text-align: left; cursor: pointer;
+  padding: 9px 11px; border-radius: 9px; background: #16181d; border: 1px solid #2a2f3a; transition: all .12s;
+}
+#floow-panel .floow-leaditem:hover { border-color: #25d366aa; background: #1a1f1c; }
+#floow-panel .floow-leaditem.nodial { opacity: .5; cursor: default; }
+#floow-panel .floow-leaditem-name { font-size: 13px; font-weight: 600; color: #e7e9ee; }
+#floow-panel .floow-leaditem-sub { font-size: 11px; color: #7a8290; }
+
+#floow-panel .floow-back-funnel {
+  width: 100%; padding: 7px 10px; border-radius: 8px; cursor: pointer;
+  background: #16181d; border: 1px solid #2a2f3a; color: #9aa4b2; font-size: 12px; font-weight: 600; transition: all .12s;
+}
+#floow-panel .floow-back-funnel:hover { border-color: #f5c518aa; color: #e7e9ee; }

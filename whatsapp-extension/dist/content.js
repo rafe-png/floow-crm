@@ -5633,20 +5633,20 @@ Suggested solution: ${env.workaround}`;
       }
       const metaLength = this.USER_BROADCAST_PUSH_META_LENGTH + joinRef.length + ref.length + topic.length + userEvent.length + metadata.length;
       const header = new ArrayBuffer(this.HEADER_LENGTH + metaLength);
-      let view = new DataView(header);
+      let view2 = new DataView(header);
       let offset = 0;
-      view.setUint8(offset++, this.KINDS.userBroadcastPush);
-      view.setUint8(offset++, joinRef.length);
-      view.setUint8(offset++, ref.length);
-      view.setUint8(offset++, topic.length);
-      view.setUint8(offset++, userEvent.length);
-      view.setUint8(offset++, metadata.length);
-      view.setUint8(offset++, encodingType);
-      Array.from(joinRef, (char) => view.setUint8(offset++, char.charCodeAt(0)));
-      Array.from(ref, (char) => view.setUint8(offset++, char.charCodeAt(0)));
-      Array.from(topic, (char) => view.setUint8(offset++, char.charCodeAt(0)));
-      Array.from(userEvent, (char) => view.setUint8(offset++, char.charCodeAt(0)));
-      Array.from(metadata, (char) => view.setUint8(offset++, char.charCodeAt(0)));
+      view2.setUint8(offset++, this.KINDS.userBroadcastPush);
+      view2.setUint8(offset++, joinRef.length);
+      view2.setUint8(offset++, ref.length);
+      view2.setUint8(offset++, topic.length);
+      view2.setUint8(offset++, userEvent.length);
+      view2.setUint8(offset++, metadata.length);
+      view2.setUint8(offset++, encodingType);
+      Array.from(joinRef, (char) => view2.setUint8(offset++, char.charCodeAt(0)));
+      Array.from(ref, (char) => view2.setUint8(offset++, char.charCodeAt(0)));
+      Array.from(topic, (char) => view2.setUint8(offset++, char.charCodeAt(0)));
+      Array.from(userEvent, (char) => view2.setUint8(offset++, char.charCodeAt(0)));
+      Array.from(metadata, (char) => view2.setUint8(offset++, char.charCodeAt(0)));
       var combined = new Uint8Array(header.byteLength + encodedPayload.byteLength);
       combined.set(new Uint8Array(header), 0);
       combined.set(new Uint8Array(encodedPayload), header.byteLength);
@@ -5665,19 +5665,19 @@ Suggested solution: ${env.workaround}`;
       return callback({});
     }
     _binaryDecode(buffer) {
-      const view = new DataView(buffer);
-      const kind = view.getUint8(0);
+      const view2 = new DataView(buffer);
+      const kind = view2.getUint8(0);
       const decoder = new TextDecoder();
       switch (kind) {
         case this.KINDS.userBroadcast:
-          return this._decodeUserBroadcast(buffer, view, decoder);
+          return this._decodeUserBroadcast(buffer, view2, decoder);
       }
     }
-    _decodeUserBroadcast(buffer, view, decoder) {
-      const topicSize = view.getUint8(1);
-      const userEventSize = view.getUint8(2);
-      const metadataSize = view.getUint8(3);
-      const payloadEncoding = view.getUint8(4);
+    _decodeUserBroadcast(buffer, view2, decoder) {
+      const topicSize = view2.getUint8(1);
+      const userEventSize = view2.getUint8(2);
+      const metadataSize = view2.getUint8(3);
+      const payloadEncoding = view2.getUint8(4);
       let offset = this.HEADER_LENGTH + 4;
       const topic = decoder.decode(buffer.slice(offset, offset + topicSize));
       offset = offset + topicSize;
@@ -6894,17 +6894,17 @@ Suggested solution: ${env.workaround}`;
       let { join_ref, ref, event, topic, payload } = message;
       let metaLength = this.META_LENGTH + join_ref.length + ref.length + topic.length + event.length;
       let header = new ArrayBuffer(this.HEADER_LENGTH + metaLength);
-      let view = new DataView(header);
+      let view2 = new DataView(header);
       let offset = 0;
-      view.setUint8(offset++, this.KINDS.push);
-      view.setUint8(offset++, join_ref.length);
-      view.setUint8(offset++, ref.length);
-      view.setUint8(offset++, topic.length);
-      view.setUint8(offset++, event.length);
-      Array.from(join_ref, (char) => view.setUint8(offset++, char.charCodeAt(0)));
-      Array.from(ref, (char) => view.setUint8(offset++, char.charCodeAt(0)));
-      Array.from(topic, (char) => view.setUint8(offset++, char.charCodeAt(0)));
-      Array.from(event, (char) => view.setUint8(offset++, char.charCodeAt(0)));
+      view2.setUint8(offset++, this.KINDS.push);
+      view2.setUint8(offset++, join_ref.length);
+      view2.setUint8(offset++, ref.length);
+      view2.setUint8(offset++, topic.length);
+      view2.setUint8(offset++, event.length);
+      Array.from(join_ref, (char) => view2.setUint8(offset++, char.charCodeAt(0)));
+      Array.from(ref, (char) => view2.setUint8(offset++, char.charCodeAt(0)));
+      Array.from(topic, (char) => view2.setUint8(offset++, char.charCodeAt(0)));
+      Array.from(event, (char) => view2.setUint8(offset++, char.charCodeAt(0)));
       var combined = new Uint8Array(header.byteLength + payload.byteLength);
       combined.set(new Uint8Array(header), 0);
       combined.set(new Uint8Array(payload), header.byteLength);
@@ -6914,23 +6914,23 @@ Suggested solution: ${env.workaround}`;
     * @private
     */
     binaryDecode(buffer) {
-      let view = new DataView(buffer);
-      let kind = view.getUint8(0);
+      let view2 = new DataView(buffer);
+      let kind = view2.getUint8(0);
       let decoder = new TextDecoder();
       switch (kind) {
         case this.KINDS.push:
-          return this.decodePush(buffer, view, decoder);
+          return this.decodePush(buffer, view2, decoder);
         case this.KINDS.reply:
-          return this.decodeReply(buffer, view, decoder);
+          return this.decodeReply(buffer, view2, decoder);
         case this.KINDS.broadcast:
-          return this.decodeBroadcast(buffer, view, decoder);
+          return this.decodeBroadcast(buffer, view2, decoder);
       }
     },
     /** @private */
-    decodePush(buffer, view, decoder) {
-      let joinRefSize = view.getUint8(1);
-      let topicSize = view.getUint8(2);
-      let eventSize = view.getUint8(3);
+    decodePush(buffer, view2, decoder) {
+      let joinRefSize = view2.getUint8(1);
+      let topicSize = view2.getUint8(2);
+      let eventSize = view2.getUint8(3);
       let offset = this.HEADER_LENGTH + this.META_LENGTH - 1;
       let joinRef = decoder.decode(buffer.slice(offset, offset + joinRefSize));
       offset = offset + joinRefSize;
@@ -6942,11 +6942,11 @@ Suggested solution: ${env.workaround}`;
       return { join_ref: joinRef, ref: null, topic, event, payload: data };
     },
     /** @private */
-    decodeReply(buffer, view, decoder) {
-      let joinRefSize = view.getUint8(1);
-      let refSize = view.getUint8(2);
-      let topicSize = view.getUint8(3);
-      let eventSize = view.getUint8(4);
+    decodeReply(buffer, view2, decoder) {
+      let joinRefSize = view2.getUint8(1);
+      let refSize = view2.getUint8(2);
+      let topicSize = view2.getUint8(3);
+      let eventSize = view2.getUint8(4);
       let offset = this.HEADER_LENGTH + this.META_LENGTH;
       let joinRef = decoder.decode(buffer.slice(offset, offset + joinRefSize));
       offset = offset + joinRefSize;
@@ -6961,9 +6961,9 @@ Suggested solution: ${env.workaround}`;
       return { join_ref: joinRef, ref, topic, event: CHANNEL_EVENTS2.reply, payload };
     },
     /** @private */
-    decodeBroadcast(buffer, view, decoder) {
-      let topicSize = view.getUint8(1);
-      let eventSize = view.getUint8(2);
+    decodeBroadcast(buffer, view2, decoder) {
+      let topicSize = view2.getUint8(1);
+      let eventSize = view2.getUint8(2);
       let offset = this.HEADER_LENGTH + 2;
       let topic = decoder.decode(buffer.slice(offset, offset + topicSize));
       offset = offset + topicSize;
@@ -21430,6 +21430,16 @@ ${suffix}`;
   var searchMode = false;
   var lastTitle = null;
   var lastKey = "";
+  var view = "lead";
+  var stageFilter = null;
+  var returnStage = null;
+  function leadDigits(lead) {
+    if (!lead.telefone || lead.telefone.includes("@lid")) return null;
+    let d = lead.telefone.replace(/\D/g, "");
+    if (!d) return null;
+    if (d.length <= 11) d = "55" + d.replace(/^55/, "");
+    return d;
+  }
   function h(tag, props = {}, children = []) {
     const el = document.createElement(tag);
     for (const [k, v] of Object.entries(props)) {
@@ -21474,7 +21484,98 @@ ${suffix}`;
     body.replaceChildren();
     if (!authed) return renderAuth();
     if (searchMode) return renderSearch();
+    if (view === "funnel") return renderFunnel();
+    if (view === "stage") return renderStageList();
     renderLead();
+  }
+  function renderNav() {
+    const btn = h("button", { class: "floow-nav-btn" }, ["\u{1F4CB} Ir para funil de vendas"]);
+    btn.addEventListener("click", () => {
+      view = "funnel";
+      render();
+    });
+    return h("div", { class: "floow-nav" }, [btn]);
+  }
+  function funnelLeads() {
+    if (member.isAdmin) return leads;
+    return leads.filter((l) => l.sdr_responsavel === member.name || l.closer_responsavel === member.name);
+  }
+  function renderFunnel() {
+    const back = h("button", { class: "floow-link" }, ["\u2190 Conversa atual"]);
+    back.addEventListener("click", () => {
+      view = "lead";
+      render();
+    });
+    body.append(h("div", { class: "floow-section" }, [
+      h("div", { class: "floow-row" }, [h("div", { class: "floow-title" }, ["Funil de vendas"]), back]),
+      h("div", { class: "floow-hint", style: "margin-bottom:8px" }, ["Escolha a etapa pra ver os leads."])
+    ]));
+    const mine = funnelLeads();
+    const grid = h("div", { class: "floow-funnel-grid" });
+    for (const s of STATUS_ORDER) {
+      const n = mine.filter((l) => l.status === s).length;
+      const b = h("button", { class: "floow-funnel-stage" }, [
+        h("span", { class: "floow-dot", style: `background:${STATUS_DOT[s]}` }),
+        h("span", { class: "floow-funnel-label" }, [STATUS_LABELS[s]]),
+        h("span", { class: "floow-funnel-count" }, [String(n)])
+      ]);
+      b.addEventListener("click", () => {
+        stageFilter = s;
+        view = "stage";
+        render();
+      });
+      grid.append(b);
+    }
+    body.append(h("div", { class: "floow-section" }, [grid]));
+  }
+  function renderStageList() {
+    const s = stageFilter;
+    if (!s) {
+      view = "funnel";
+      return renderFunnel();
+    }
+    const back = h("button", { class: "floow-link" }, ["\u2190 Etapas"]);
+    back.addEventListener("click", () => {
+      view = "funnel";
+      render();
+    });
+    const list = funnelLeads().filter((l) => l.status === s).sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""));
+    body.append(h("div", { class: "floow-section" }, [
+      h("div", { class: "floow-row" }, [
+        h("div", { class: "floow-title" }, [
+          h("span", { class: "floow-dot", style: `background:${STATUS_DOT[s]}` }),
+          ` ${STATUS_LABELS[s]} (${list.length})`
+        ]),
+        back
+      ])
+    ]));
+    if (list.length === 0) {
+      body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-hint" }, ["Nenhum lead nesta etapa."])]));
+      return;
+    }
+    const wrap = h("div", { class: "floow-stagelist" });
+    for (const lead of list) {
+      const digits = leadDigits(lead);
+      const card = h("button", { class: "floow-leaditem" + (digits ? "" : " nodial") }, [
+        h("span", { class: "floow-leaditem-name" }, [lead.empresa || lead.nome || "\u2014"]),
+        h("span", { class: "floow-leaditem-sub" }, [digits ? "abrir conversa \u203A" : "sem n\xFAmero"])
+      ]);
+      if (digits) card.addEventListener("click", () => openConversation(lead));
+      wrap.append(card);
+    }
+    body.append(h("div", { class: "floow-section" }, [wrap]));
+  }
+  async function openConversation(lead) {
+    const digits = leadDigits(lead);
+    if (!digits) {
+      flash("Lead sem n\xFAmero real \u2014 n\xE3o d\xE1 pra abrir a conversa.");
+      return;
+    }
+    try {
+      await chrome.storage.local.set({ floow_nav_stage: lead.status });
+    } catch {
+    }
+    window.location.href = `https://web.whatsapp.com/send?phone=${digits}`;
   }
   function renderAuth() {
     const email = h("input", { type: "email", placeholder: "E-mail", class: "floow-input" });
@@ -21590,6 +21691,17 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
   function renderLead() {
     const lead = currentLead();
     body.append(renderHealthBanner());
+    body.append(renderNav());
+    if (returnStage) {
+      const rs = returnStage;
+      const b = h("button", { class: "floow-back-funnel" }, [`\u2190 Voltar ao funil \xB7 ${STATUS_LABELS[rs]}`]);
+      b.addEventListener("click", () => {
+        stageFilter = rs;
+        view = "stage";
+        render();
+      });
+      body.append(h("div", { class: "floow-section" }, [b]));
+    }
     body.append(
       h("div", { class: "floow-section" }, [
         h("div", { class: "floow-row" }, [
@@ -22267,6 +22379,12 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
     await loadLeads();
     subscribeRealtime();
     matchFromChat();
+    try {
+      const nav = await chrome.storage.local.get("floow_nav_stage");
+      returnStage = nav?.floow_nav_stage ?? null;
+    } catch {
+      returnStage = null;
+    }
     render();
   }
   async function loadLeads() {

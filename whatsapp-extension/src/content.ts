@@ -49,6 +49,19 @@ let collapsed = true;
 let searchMode = false;
 let lastTitle: string | null = null;
 let lastKey = "";
+// Navegação do "funil de vendas" dentro da extensão.
+let view: "lead" | "funnel" | "stage" = "lead";
+let stageFilter: LeadStatus | null = null;   // etapa cuja lista está aberta
+let returnStage: LeadStatus | null = null;    // pra "voltar ao funil" após abrir a conversa
+
+// Número discável (com 55) do lead. null se for @lid (sem número real).
+function leadDigits(lead: Lead): string | null {
+  if (!lead.telefone || lead.telefone.includes("@lid")) return null;
+  let d = lead.telefone.replace(/\D/g, "");
+  if (!d) return null;
+  if (d.length <= 11) d = "55" + d.replace(/^55/, "");
+  return d;
+}
 
 // ============================================================
 // Helper de DOM
@@ -113,7 +126,93 @@ function render() {
   body.replaceChildren();
   if (!authed) return renderAuth();
   if (searchMode) return renderSearch();
+  if (view === "funnel") return renderFunnel();
+  if (view === "stage") return renderStageList();
   renderLead();
+}
+
+// Barra de navegação (topo do corpo). Por enquanto: 1 botão pro funil.
+function renderNav(): Node {
+  const btn = h("button", { class: "floow-nav-btn" }, ["📋 Ir para funil de vendas"]);
+  btn.addEventListener("click", () => { view = "funnel"; render(); });
+  return h("div", { class: "floow-nav" }, [btn]);
+}
+
+// Leads visíveis no funil: admin vê todos; SDR/Closer só os seus (igual ao CRM).
+function funnelLeads(): Lead[] {
+  if (member.isAdmin) return leads;
+  return leads.filter((l) => l.sdr_responsavel === member.name || l.closer_responsavel === member.name);
+}
+
+// Etapas do funil, com contador de leads em cada uma.
+function renderFunnel() {
+  const back = h("button", { class: "floow-link" }, ["← Conversa atual"]);
+  back.addEventListener("click", () => { view = "lead"; render(); });
+  body.append(h("div", { class: "floow-section" }, [
+    h("div", { class: "floow-row" }, [h("div", { class: "floow-title" }, ["Funil de vendas"]), back]),
+    h("div", { class: "floow-hint", style: "margin-bottom:8px" }, ["Escolha a etapa pra ver os leads."]),
+  ]));
+  const mine = funnelLeads();
+  const grid = h("div", { class: "floow-funnel-grid" });
+  for (const s of STATUS_ORDER) {
+    const n = mine.filter((l) => l.status === s).length;
+    const b = h("button", { class: "floow-funnel-stage" }, [
+      h("span", { class: "floow-dot", style: `background:${STATUS_DOT[s]}` }),
+      h("span", { class: "floow-funnel-label" }, [STATUS_LABELS[s]]),
+      h("span", { class: "floow-funnel-count" }, [String(n)]),
+    ]);
+    b.addEventListener("click", () => { stageFilter = s; view = "stage"; render(); });
+    grid.append(b);
+  }
+  body.append(h("div", { class: "floow-section" }, [grid]));
+}
+
+// Lista enxuta dos leads de uma etapa. Clicar → abre a conversa no WhatsApp.
+function renderStageList() {
+  const s = stageFilter;
+  if (!s) { view = "funnel"; return renderFunnel(); }
+  const back = h("button", { class: "floow-link" }, ["← Etapas"]);
+  back.addEventListener("click", () => { view = "funnel"; render(); });
+
+  const list = funnelLeads()
+    .filter((l) => l.status === s)
+    .sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""));
+
+  body.append(h("div", { class: "floow-section" }, [
+    h("div", { class: "floow-row" }, [
+      h("div", { class: "floow-title" }, [
+        h("span", { class: "floow-dot", style: `background:${STATUS_DOT[s]}` }),
+        ` ${STATUS_LABELS[s]} (${list.length})`,
+      ]),
+      back,
+    ]),
+  ]));
+
+  if (list.length === 0) {
+    body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-hint" }, ["Nenhum lead nesta etapa."])]));
+    return;
+  }
+
+  const wrap = h("div", { class: "floow-stagelist" });
+  for (const lead of list) {
+    const digits = leadDigits(lead);
+    const card = h("button", { class: "floow-leaditem" + (digits ? "" : " nodial") }, [
+      h("span", { class: "floow-leaditem-name" }, [lead.empresa || lead.nome || "—"]),
+      h("span", { class: "floow-leaditem-sub" }, [digits ? "abrir conversa ›" : "sem número"]),
+    ]);
+    if (digits) card.addEventListener("click", () => openConversation(lead));
+    wrap.append(card);
+  }
+  body.append(h("div", { class: "floow-section" }, [wrap]));
+}
+
+// Abre a conversa do lead no WhatsApp Web (recarrega). Guarda a etapa pra o
+// botão "voltar ao funil" reaparecer depois do reload.
+async function openConversation(lead: Lead) {
+  const digits = leadDigits(lead);
+  if (!digits) { flash("Lead sem número real — não dá pra abrir a conversa."); return; }
+  try { await chrome.storage.local.set({ floow_nav_stage: lead.status }); } catch {}
+  window.location.href = `https://web.whatsapp.com/send?phone=${digits}`;
 }
 
 function renderAuth() {
@@ -231,6 +330,17 @@ function renderLead() {
 
   // Aviso de possível quebra (layout do WhatsApp mudou) — no topo, bem visível.
   body.append(renderHealthBanner());
+
+  // Navegação (funil de vendas).
+  body.append(renderNav());
+
+  // Voltar pra lista da etapa que estava navegando (após abrir a conversa).
+  if (returnStage) {
+    const rs = returnStage;
+    const b = h("button", { class: "floow-back-funnel" }, [`← Voltar ao funil · ${STATUS_LABELS[rs]}`]);
+    b.addEventListener("click", () => { stageFilter = rs; view = "stage"; render(); });
+    body.append(h("div", { class: "floow-section" }, [b]));
+  }
 
   body.append(
     h("div", { class: "floow-section" }, [
@@ -902,6 +1012,13 @@ async function afterAuth() {
   await loadLeads();
   subscribeRealtime();
   matchFromChat();
+
+  // Se abriu uma conversa a partir do funil, guarda a etapa pra "voltar ao funil".
+  try {
+    const nav = await chrome.storage.local.get("floow_nav_stage");
+    returnStage = (nav?.floow_nav_stage as LeadStatus) ?? null;
+  } catch { returnStage = null; }
+
   render();
 }
 

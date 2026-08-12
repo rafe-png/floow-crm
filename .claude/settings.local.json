@@ -142,7 +142,9 @@
       "Bash(awk '/export function buildCreativeReport/,/^}/' lib/reports.ts)",
       "Bash(curl -s --max-time 30 \"https://servicodados.ibge.gov.br/api/v1/localidades/municipios?orderBy=nome\" -o /tmp/ibge_mun.json)",
       "Bash(echo \"exit: $?\")",
-      "Bash(npx --yes vercel@latest env pull /tmp/floow_prod_env --environment=production)"
+      "Bash(npx --yes vercel@latest env pull /tmp/floow_prod_env --environment=production)",
+      "Bash(npx --yes vercel@latest env pull /tmp/fe --environment=production)",
+      "Bash(curl -s --max-time 20 https://api.z-api.io/instances/3F4BD66472A1D296BDD58E188FA16A21/token/A9D2F0E2C340279BF9D408A9/status -H 'Client-Token: F84c409dd72f74627a0ec63724b8eddb0S')"
     ],
     "additionalDirectories": [
       "/tmp"
