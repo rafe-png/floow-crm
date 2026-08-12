@@ -525,6 +525,9 @@ function renderLead() {
   }
   body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Mover para"]), grid]));
 
+  // Tarefas (lista de pendentes + criar) — igual ao CRM.
+  body.append(renderTaskSection(lead));
+
   // Observações
   const ta = h("textarea", { class: "floow-input floow-textarea", placeholder: "Observações…" }) as HTMLTextAreaElement;
   ta.value = lead.observacoes ?? "";
@@ -552,6 +555,65 @@ function renderLead() {
   body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Jornada no funil"]), journey]));
 
   renderFooter(lead);
+}
+
+// Seção de tarefas do lead: lista os pendentes + formulário pra criar uma nova.
+function renderTaskSection(lead: Lead): Node {
+  const sec = h("div", { class: "floow-section" });
+  sec.append(h("div", { class: "floow-title" }, ["Tarefas"]));
+
+  const listNode = h("div", { class: "floow-tasklist" }, [h("div", { class: "floow-hint" }, ["carregando…"])]);
+  refreshTasks(lead.id, listNode);
+  sec.append(listNode);
+
+  const titulo = h("input", { class: "floow-input", placeholder: "Nova tarefa (ex: Ligar amanhã 10h)" }) as HTMLInputElement;
+  const due = h("input", { class: "floow-input", type: "datetime-local", style: "color-scheme:dark" }) as HTMLInputElement;
+  const btn = h("button", { class: "floow-btn floow-btn-primary" }, ["Criar tarefa"]) as HTMLButtonElement;
+  btn.addEventListener("click", async () => {
+    const t = titulo.value.trim();
+    if (!t) { flash("Digite o título da tarefa."); return; }
+    btn.disabled = true; btn.textContent = "Criando…";
+    const due_at = due.value ? new Date(due.value).toISOString() : null;
+    const { error } = await supabase.from("tasks").insert({
+      lead_id: lead.id, titulo: t, due_at, assignee: member.name, notify: true, created_by: member.name,
+    });
+    btn.disabled = false; btn.textContent = "Criar tarefa";
+    if (error) { flash("Erro ao criar tarefa: " + error.message); return; }
+    flash("Tarefa criada ✓");
+    titulo.value = ""; due.value = "";
+    refreshTasks(lead.id, listNode);
+  });
+  sec.append(titulo, due, btn);
+  return sec;
+}
+
+async function refreshTasks(leadId: string, node: HTMLElement) {
+  const { data } = await supabase
+    .from("tasks")
+    .select("id,titulo,due_at,done")
+    .eq("lead_id", leadId)
+    .eq("done", false)
+    .order("due_at", { ascending: true, nullsFirst: false });
+  node.replaceChildren();
+  const rows = (data ?? []) as { id: string; titulo: string; due_at: string | null }[];
+  if (rows.length === 0) { node.append(h("div", { class: "floow-hint", style: "margin:0 0 8px" }, ["Nenhuma tarefa pendente."])); return; }
+  const fmt = (iso: string) => {
+    const d = new Date(iso); const p = (n: number) => String(n).padStart(2, "0");
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
+  for (const t of rows) {
+    const check = h("button", { class: "floow-task-check", title: "Concluir" }, ["○"]);
+    check.addEventListener("click", async () => {
+      check.textContent = "…";
+      await supabase.from("tasks").update({ done: true }).eq("id", t.id);
+      refreshTasks(leadId, node);
+    });
+    node.append(h("div", { class: "floow-task-row" }, [
+      check,
+      h("span", { class: "floow-task-title" }, [t.titulo]),
+      t.due_at ? h("span", { class: "floow-task-due" }, [fmt(t.due_at)]) : document.createTextNode(""),
+    ]));
+  }
 }
 
 // Histórico de etapas do lead (created + status_change), do mais antigo ao recente.
