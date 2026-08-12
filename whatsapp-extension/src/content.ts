@@ -54,6 +54,32 @@ let view: "lead" | "funnel" | "stage" = "lead";
 let stageFilter: LeadStatus | null = null;   // etapa cuja lista está aberta
 let returnStage: LeadStatus | null = null;    // pra "voltar ao funil" após abrir a conversa
 
+// Ligações de HOJE por lead (id → contagem). Colore os cards do funil.
+let callsToday = new Map<string, number>();
+
+async function loadCallsToday() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const { data } = await supabase
+    .from("lead_events")
+    .select("lead_id")
+    .eq("tipo", "ligacao")
+    .gte("created_at", start.toISOString());
+  const m = new Map<string, number>();
+  for (const e of (data ?? []) as { lead_id: string }[]) m.set(e.lead_id, (m.get(e.lead_id) ?? 0) + 1);
+  callsToday = m;
+}
+
+// Cor do card conforme nº de ligações HOJE: 0 frio(azul) · 1 amarelo · 2 laranja
+// · 3 vermelho · 4+ vinho.
+function callHeat(n: number): string {
+  if (n >= 4) return "#8b1a2b"; // vinho
+  if (n === 3) return "#ef4444"; // vermelho
+  if (n === 2) return "#f97316"; // laranja
+  if (n === 1) return "#eab308"; // amarelo
+  return "#3b82f6";              // azul (frio)
+}
+
 // Número discável (com 55) do lead. null se for @lid (sem número real).
 function leadDigits(lead: Lead): string | null {
   if (!lead.telefone || lead.telefone.includes("@lid")) return null;
@@ -134,14 +160,16 @@ function render() {
 // Barra de navegação (topo do corpo). Por enquanto: 1 botão pro funil.
 function renderNav(): Node {
   const btn = h("button", { class: "floow-nav-btn" }, ["📋 Ir para funil de vendas"]);
-  btn.addEventListener("click", () => { view = "funnel"; render(); });
+  btn.addEventListener("click", async () => { await loadCallsToday(); view = "funnel"; render(); });
   return h("div", { class: "floow-nav" }, [btn]);
 }
 
-// Leads visíveis no funil: admin vê todos; SDR/Closer só os seus (igual ao CRM).
+// Funil = lista de trabalho PESSOAL: cada um vê só os SEUS leads (inclusive admin).
+// (Pra ver tudo, use o CRM.) Casa por sdr_responsavel OU closer_responsavel.
 function funnelLeads(): Lead[] {
-  if (member.isAdmin) return leads;
-  return leads.filter((l) => l.sdr_responsavel === member.name || l.closer_responsavel === member.name);
+  const me = member.name;
+  if (!me) return [];
+  return leads.filter((l) => l.sdr_responsavel === me || l.closer_responsavel === me);
 }
 
 // Etapas do funil, com contador de leads em cada uma.
@@ -196,9 +224,21 @@ function renderStageList() {
   const wrap = h("div", { class: "floow-stagelist" });
   for (const lead of list) {
     const digits = leadDigits(lead);
-    const card = h("button", { class: "floow-leaditem" + (digits ? "" : " nodial") }, [
-      h("span", { class: "floow-leaditem-name" }, [lead.empresa || lead.nome || "—"]),
-      h("span", { class: "floow-leaditem-sub" }, [digits ? "abrir conversa ›" : "sem número"]),
+    const n = callsToday.get(lead.id) ?? 0;
+    const color = callHeat(n);
+    const card = h("button", {
+      class: "floow-leaditem" + (digits ? "" : " nodial"),
+      style: `border-left:4px solid ${color}; background:${color}14;`,
+    }, [
+      h("div", { class: "floow-leaditem-main" }, [
+        h("span", { class: "floow-leaditem-name" }, [lead.empresa || lead.nome || "—"]),
+        h("span", { class: "floow-leaditem-sub" }, [digits ? "abrir conversa ›" : "sem número"]),
+      ]),
+      h("span", {
+        class: "floow-heatbadge",
+        title: `${n} liga${n === 1 ? "ção" : "ções"} hoje`,
+        style: `background:${color}22; color:${color}; border:1px solid ${color}66;`,
+      }, [`📞 ${n}`]),
     ]);
     if (digits) card.addEventListener("click", () => openConversation(lead));
     wrap.append(card);
@@ -504,7 +544,42 @@ function renderLead() {
   });
   body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Observações"]), ta, saveBtn]));
 
+  // Jornada no funil (histórico de etapas do lead).
+  const journey = h("div", { class: "floow-journey" }, [h("div", { class: "floow-hint" }, ["carregando…"])]);
+  renderJourney(lead.id, journey);
+  body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Jornada no funil"]), journey]));
+
   renderFooter(lead);
+}
+
+// Histórico de etapas do lead (created + status_change), do mais antigo ao recente.
+async function renderJourney(leadId: string, node: HTMLElement) {
+  const { data, error } = await supabase
+    .from("lead_events")
+    .select("tipo, from_status, to_status, created_at")
+    .eq("lead_id", leadId)
+    .in("tipo", ["created", "status_change"])
+    .order("created_at", { ascending: true });
+  node.replaceChildren();
+  if (error) return;
+  const rows = (data ?? []) as { tipo: string; to_status: LeadStatus | null; created_at: string }[];
+  if (rows.length === 0) { node.append(h("div", { class: "floow-hint" }, ["Sem histórico de etapas."])); return; }
+
+  const fmt = (iso: string) => {
+    const d = new Date(iso); const p = (n: number) => String(n).padStart(2, "0");
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
+  for (const ev of rows) {
+    const st = ev.to_status;
+    if (!st) continue;
+    node.append(h("div", { class: "floow-journey-row" }, [
+      h("span", { class: "floow-dot", style: `background:${STATUS_DOT[st]}` }),
+      h("span", { class: "floow-journey-label" }, [
+        ev.tipo === "created" ? `Entrou · ${STATUS_LABELS[st]}` : STATUS_LABELS[st],
+      ]),
+      h("span", { class: "floow-journey-date" }, [fmt(ev.created_at)]),
+    ]));
+  }
 }
 
 // Abre o CRM SEMPRE na MESMA janela/aba (nomeada "floow_crm") e traz ela pra
@@ -751,6 +826,8 @@ async function logCall(lead: Lead, outcome: string) {
   });
   if (error) { flash("Não registrou a ligação: " + error.message); return; }
   flash(`Ligação registrada (${CALL_OUTCOME_LABELS[outcome] ?? outcome}) ✓`);
+  // Conta essa ligação no termômetro do dia (colore o card na hora).
+  callsToday.set(lead.id, (callsToday.get(lead.id) ?? 0) + 1);
   // Atualiza o contador na hora.
   const info = panel?.querySelector(".floow-callinfo") as HTMLElement | null;
   if (info) refreshCallHistory(lead.id, info);
@@ -1021,6 +1098,7 @@ async function afterAuth() {
   audios = ((au as AudioSnippet[]) ?? []).filter((a) => !a.owner || a.owner === member.name);
 
   await loadLeads();
+  await loadCallsToday();
   subscribeRealtime();
   matchFromChat();
 

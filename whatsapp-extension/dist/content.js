@@ -21486,6 +21486,22 @@ ${suffix}`;
   var view = "lead";
   var stageFilter = null;
   var returnStage = null;
+  var callsToday = /* @__PURE__ */ new Map();
+  async function loadCallsToday() {
+    const start = /* @__PURE__ */ new Date();
+    start.setHours(0, 0, 0, 0);
+    const { data } = await supabase.from("lead_events").select("lead_id").eq("tipo", "ligacao").gte("created_at", start.toISOString());
+    const m = /* @__PURE__ */ new Map();
+    for (const e of data ?? []) m.set(e.lead_id, (m.get(e.lead_id) ?? 0) + 1);
+    callsToday = m;
+  }
+  function callHeat(n) {
+    if (n >= 4) return "#8b1a2b";
+    if (n === 3) return "#ef4444";
+    if (n === 2) return "#f97316";
+    if (n === 1) return "#eab308";
+    return "#3b82f6";
+  }
   function leadDigits(lead) {
     if (!lead.telefone || lead.telefone.includes("@lid")) return null;
     let d = lead.telefone.replace(/\D/g, "");
@@ -21543,15 +21559,17 @@ ${suffix}`;
   }
   function renderNav() {
     const btn = h("button", { class: "floow-nav-btn" }, ["\u{1F4CB} Ir para funil de vendas"]);
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
+      await loadCallsToday();
       view = "funnel";
       render();
     });
     return h("div", { class: "floow-nav" }, [btn]);
   }
   function funnelLeads() {
-    if (member.isAdmin) return leads;
-    return leads.filter((l) => l.sdr_responsavel === member.name || l.closer_responsavel === member.name);
+    const me = member.name;
+    if (!me) return [];
+    return leads.filter((l) => l.sdr_responsavel === me || l.closer_responsavel === me);
   }
   function renderFunnel() {
     const back = h("button", { class: "floow-link" }, ["\u2190 Conversa atual"]);
@@ -21609,9 +21627,21 @@ ${suffix}`;
     const wrap = h("div", { class: "floow-stagelist" });
     for (const lead of list) {
       const digits = leadDigits(lead);
-      const card = h("button", { class: "floow-leaditem" + (digits ? "" : " nodial") }, [
-        h("span", { class: "floow-leaditem-name" }, [lead.empresa || lead.nome || "\u2014"]),
-        h("span", { class: "floow-leaditem-sub" }, [digits ? "abrir conversa \u203A" : "sem n\xFAmero"])
+      const n = callsToday.get(lead.id) ?? 0;
+      const color = callHeat(n);
+      const card = h("button", {
+        class: "floow-leaditem" + (digits ? "" : " nodial"),
+        style: `border-left:4px solid ${color}; background:${color}14;`
+      }, [
+        h("div", { class: "floow-leaditem-main" }, [
+          h("span", { class: "floow-leaditem-name" }, [lead.empresa || lead.nome || "\u2014"]),
+          h("span", { class: "floow-leaditem-sub" }, [digits ? "abrir conversa \u203A" : "sem n\xFAmero"])
+        ]),
+        h("span", {
+          class: "floow-heatbadge",
+          title: `${n} liga${n === 1 ? "\xE7\xE3o" : "\xE7\xF5es"} hoje`,
+          style: `background:${color}22; color:${color}; border:1px solid ${color}66;`
+        }, [`\u{1F4DE} ${n}`])
       ]);
       if (digits) card.addEventListener("click", () => openConversation(lead));
       wrap.append(card);
@@ -21905,7 +21935,36 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
       flash("Observa\xE7\xF5es salvas \u2713");
     });
     body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Observa\xE7\xF5es"]), ta, saveBtn]));
+    const journey = h("div", { class: "floow-journey" }, [h("div", { class: "floow-hint" }, ["carregando\u2026"])]);
+    renderJourney(lead.id, journey);
+    body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Jornada no funil"]), journey]));
     renderFooter(lead);
+  }
+  async function renderJourney(leadId, node) {
+    const { data, error } = await supabase.from("lead_events").select("tipo, from_status, to_status, created_at").eq("lead_id", leadId).in("tipo", ["created", "status_change"]).order("created_at", { ascending: true });
+    node.replaceChildren();
+    if (error) return;
+    const rows = data ?? [];
+    if (rows.length === 0) {
+      node.append(h("div", { class: "floow-hint" }, ["Sem hist\xF3rico de etapas."]));
+      return;
+    }
+    const fmt = (iso) => {
+      const d = new Date(iso);
+      const p = (n) => String(n).padStart(2, "0");
+      return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    };
+    for (const ev of rows) {
+      const st = ev.to_status;
+      if (!st) continue;
+      node.append(h("div", { class: "floow-journey-row" }, [
+        h("span", { class: "floow-dot", style: `background:${STATUS_DOT[st]}` }),
+        h("span", { class: "floow-journey-label" }, [
+          ev.tipo === "created" ? `Entrou \xB7 ${STATUS_LABELS[st]}` : STATUS_LABELS[st]
+        ]),
+        h("span", { class: "floow-journey-date" }, [fmt(ev.created_at)])
+      ]));
+    }
   }
   function openCrm(e, url) {
     e.preventDefault();
@@ -22163,6 +22222,7 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
       return;
     }
     flash(`Liga\xE7\xE3o registrada (${CALL_OUTCOME_LABELS[outcome] ?? outcome}) \u2713`);
+    callsToday.set(lead.id, (callsToday.get(lead.id) ?? 0) + 1);
     const info = panel?.querySelector(".floow-callinfo");
     if (info) refreshCallHistory(lead.id, info);
   }
@@ -22439,6 +22499,7 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
     const { data: au } = await supabase.from("audio_snippets").select("id,name,urls,emoji,active,ordem,owner").eq("active", true).order("ordem");
     audios = (au ?? []).filter((a) => !a.owner || a.owner === member.name);
     await loadLeads();
+    await loadCallsToday();
     subscribeRealtime();
     matchFromChat();
     try {
