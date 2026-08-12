@@ -24,8 +24,6 @@ export type NewLeadInput = Omit<
   | "reuniao_realizada_em"
   | "ganho_em"
   | "perdido_em"
-  | "criativo_codigo"
-  | "criativo_codigo_txt"
   | "origem"
   | "agendado_por"
   | "no_show_count"

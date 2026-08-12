@@ -10,6 +10,7 @@ import { SegmentoSelect } from "@/components/ui/SegmentoSelect";
 import { EstadoCidadeSelect } from "@/components/ui/EstadoCidadeSelect";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
+import { useAdCodes, codeToLeadFields } from "@/lib/hooks/useAdCodes";
 import {
   BANT_AUTHORITY_LABELS,
   BANT_BUDGET_LABELS,
@@ -80,6 +81,7 @@ function NewLeadDialogBody({
 }) {
   const { currentMember } = useTeamContext();
   const { leads } = useLeadsContext();
+  const adCodes = useAdCodes();
 
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -89,6 +91,7 @@ function NewLeadDialogBody({
   const [cidade, setCidade] = useState<string | null>(null);
   const [estado, setEstado] = useState<string | null>(null);
   const [fonte, setFonte] = useState<LeadFonte | null>(null);
+  const [criativo, setCriativo] = useState<string>(""); // código do anúncio (opcional)
   const [valor, setValor] = useState("");
 
   // SDR responsável = usuário logado (quem está cadastrando). Closer só é
@@ -126,7 +129,7 @@ function NewLeadDialogBody({
   function reset() {
     setNome(""); setTelefone(""); setEmpresa(""); setInstagram("");
     setSegmento(null);
-    setCidade(null); setEstado(null); setFonte(null);
+    setCidade(null); setEstado(null); setFonte(null); setCriativo("");
     setValor("");
     setSdrResp(currentMember?.name ?? null);
     setCloserResp(null);
@@ -191,6 +194,7 @@ function NewLeadDialogBody({
         cidade: quick ? null : (cidade?.trim() || null),
         estado: quick ? null : estado,
         fonte: quick ? null : fonte,
+        ...codeToLeadFields(criativo), // criativo/anúncio (opcional) — vale nos 2 modos
         valor: quick ? null : (parsedValor != null && !Number.isNaN(parsedValor) ? parsedValor : null),
         sdr_responsavel: sdrResp,
         closer_responsavel: closerResp,

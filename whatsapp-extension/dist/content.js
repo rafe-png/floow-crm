@@ -22298,30 +22298,18 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
     if (t.length < 3) return void 0;
     const tWords = t.split(" ").filter(Boolean);
     const tNoSpace = t.replace(/\s/g, "");
-    const byEmpresa = leads.filter((l) => {
-      const e = normName(l.empresa || "").replace(/\s/g, "");
-      return e.length >= 4 && tNoSpace.includes(e);
-    });
-    if (byEmpresa.length === 1) return byEmpresa[0];
-    if (byEmpresa.length > 1) return void 0;
-    const exact = leads.filter((l) => {
-      const n = normName(l.nome);
-      return n.length >= 3 && n === t;
-    });
-    if (exact.length === 1) return exact[0];
-    if (exact.length > 1) return void 0;
-    const byWord = leads.filter((l) => {
-      const n = normName(l.nome);
-      return n.length >= 3 && tWords.includes(n);
-    });
-    if (byWord.length === 1) return byWord[0];
-    if (byWord.length > 1) return void 0;
-    const byMulti = leads.filter((l) => {
-      const words = normName(l.nome).split(" ").filter((w) => w.length >= 3);
-      if (words.length < 2) return false;
-      return words.filter((w) => tWords.includes(w)).length >= 2;
-    });
-    if (byMulti.length === 1) return byMulti[0];
+    for (const lead of leads) {
+      const e = normName(lead.empresa || "").replace(/\s/g, "");
+      if (e.length >= 4 && tNoSpace.includes(e)) return lead;
+    }
+    for (const lead of leads) {
+      const n = normName(lead.nome);
+      if (n.length >= 3 && (n === t || tWords.includes(n))) return lead;
+    }
+    for (const lead of leads) {
+      const words = normName(lead.nome).split(" ").filter((w) => w.length >= 3);
+      if (words.length >= 2 && words.filter((w) => tWords.includes(w)).length >= 2) return lead;
+    }
     return void 0;
   }
   function matchFromChat() {
