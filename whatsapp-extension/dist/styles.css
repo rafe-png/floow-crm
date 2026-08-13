@@ -263,3 +263,14 @@
 #floow-panel .floow-task-check:hover { border-color: #34d399; color: #34d399; }
 #floow-panel .floow-task-title { flex: 1; min-width: 0; font-size: 12.5px; color: #e7e9ee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #floow-panel .floow-task-due { flex: 0 0 auto; font-size: 10px; color: #f5c518; }
+
+/* Trava de edição (lead de outra pessoa) + seletor de SDR (admin) */
+#floow-panel .floow-lock {
+  margin-top: 10px; padding: 7px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 600;
+  background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.4); color: #fbbf24;
+}
+#floow-panel .floow-sdrsel {
+  width: 100%; box-sizing: border-box; margin: 2px 0; padding: 5px 8px; border-radius: 7px;
+  background: #121218; border: 1px solid #2a2a33; color: #e7e9ee; font-size: 12px; outline: none; color-scheme: dark;
+}
+#floow-panel .floow-sdrsel:focus { border-color: #f5c518; }

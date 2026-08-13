@@ -21475,6 +21475,7 @@ ${suffix}`;
   var member = { name: null, role: null, isAdmin: false };
   var leads = [];
   var closers = [];
+  var sdrs = [];
   var audios = [];
   var currentLeadId = null;
   var matchInfo = "";
@@ -21522,6 +21523,10 @@ ${suffix}`;
   }
   function currentLead() {
     return leads.find((l) => l.id === currentLeadId) ?? null;
+  }
+  function canEditLead(lead) {
+    if (member.isAdmin) return true;
+    return lead.sdr_responsavel === member.name || lead.closer_responsavel === member.name;
   }
   var panel;
   var body;
@@ -21830,6 +21835,7 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
       return;
     }
     const fonte = lead.fonte ? FONTE_LABELS[lead.fonte] ?? lead.fonte : null;
+    const editable = canEditLead(lead);
     const waDigits = (() => {
       if (!lead.telefone || lead.telefone.includes("@lid")) return null;
       let d = lead.telefone.replace(/\D/g, "");
@@ -21838,7 +21844,7 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
       return d;
     })();
     let waButton = document.createTextNode("");
-    if (waDigits) {
+    if (waDigits && editable) {
       const btn = h("button", {
         class: "floow-btn floow-wa",
         title: "Liga pelo WhatsApp e registra no hist\xF3rico"
@@ -21862,6 +21868,8 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
       a.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg><span>@${handle}</span>`;
       igLink = a;
     }
+    const sdrRow = member.isAdmin ? buildSdrSelect(lead) : lead.sdr_responsavel ? h("div", {}, [`SDR: ${lead.sdr_responsavel}`]) : document.createTextNode("");
+    const lockBanner = !editable ? h("div", { class: "floow-lock" }, [`\u{1F512} Lead de ${lead.sdr_responsavel || "outro respons\xE1vel"} \u2014 somente leitura`]) : document.createTextNode("");
     body.append(
       h("div", { class: "floow-section" }, [
         h("div", { class: "floow-leadname" }, [lead.empresa || lead.nome]),
@@ -21870,8 +21878,9 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
           h("span", { class: "floow-dot", style: `background:${STATUS_DOT[lead.status]}` }),
           STATUS_LABELS[lead.status]
         ]),
+        lockBanner,
         h("div", { class: "floow-meta" }, [
-          lead.sdr_responsavel ? h("div", {}, [`SDR: ${lead.sdr_responsavel}`]) : document.createTextNode(""),
+          sdrRow,
           lead.closer_responsavel ? h("div", {}, [`Closer: ${lead.closer_responsavel}`]) : document.createTextNode(""),
           fonte ? h("div", {}, [`Origem: ${fonte}`]) : document.createTextNode(""),
           lead.cidade ? h("div", {}, [`\u{1F4CD} ${lead.cidade}${lead.estado ? " \xB7 " + lead.estado : ""}`]) : document.createTextNode(""),
@@ -21883,7 +21892,7 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
         callInfo
       ])
     );
-    if (waDigits && audios.length > 0) {
+    if (waDigits && editable && audios.length > 0) {
       const wrap = h("div", { class: "floow-pills" });
       for (const a of audios) {
         const btn = h("button", { class: "floow-audio" }, [`${a.emoji ? a.emoji + " " : "\u{1F3A4} "}${a.name}`]);
@@ -21898,19 +21907,20 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
     const grid = h("div", { class: "floow-grid" });
     for (const s of STATUS_ORDER) {
       const active = s === lead.status;
-      const allowed = active || canMoveTo(s, member);
+      const allowed = active || editable && canMoveTo(s, member);
       const b = h("button", {
         class: `floow-stage${active ? " active" : ""}${!allowed ? " locked" : ""}`,
         style: active ? `border-color:${STATUS_DOT[s]}55;color:${STATUS_DOT[s]}` : "",
-        title: !allowed ? "Etapa do Closer \u2014 sem permiss\xE3o" : ""
+        title: !editable ? "Lead de outro respons\xE1vel \u2014 s\xF3 leitura" : !allowed ? "Etapa do Closer \u2014 sem permiss\xE3o" : ""
       }, [h("span", { class: "floow-dot", style: `background:${STATUS_DOT[s]}` }), STATUS_LABELS[s]]);
       if (!active && allowed) b.addEventListener("click", () => beginMove(lead, s));
       grid.append(b);
     }
     body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Mover para"]), grid]));
-    body.append(renderTaskSection(lead));
+    body.append(renderTaskSection(lead, editable));
     const ta = h("textarea", { class: "floow-input floow-textarea", placeholder: "Observa\xE7\xF5es\u2026" });
     ta.value = lead.observacoes ?? "";
+    if (!editable) ta.setAttribute("readonly", "true");
     const saveBtn = h("button", { class: "floow-btn floow-btn-primary", disabled: "true" }, ["Salvar observa\xE7\xF5es"]);
     ta.addEventListener("input", () => {
       saveBtn.disabled = ta.value === (lead.observacoes ?? "");
@@ -21935,18 +21945,44 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
       });
       flash("Observa\xE7\xF5es salvas \u2713");
     });
-    body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Observa\xE7\xF5es"]), ta, saveBtn]));
+    body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Observa\xE7\xF5es"]), ta, editable ? saveBtn : document.createTextNode("")]));
     const journey = h("div", { class: "floow-journey" }, [h("div", { class: "floow-hint" }, ["carregando\u2026"])]);
     renderJourney(lead.id, journey);
     body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Jornada no funil"]), journey]));
     renderFooter(lead);
   }
-  function renderTaskSection(lead) {
+  function buildSdrSelect(lead) {
+    const sel = h("select", { class: "floow-sdrsel" });
+    sel.append(h("option", { value: "" }, ["SDR: (nenhum)"]));
+    for (const s of sdrs) {
+      const o = h("option", { value: s.name }, [`SDR: ${s.name}`]);
+      if (lead.sdr_responsavel === s.name) o.setAttribute("selected", "true");
+      sel.append(o);
+    }
+    if (lead.sdr_responsavel && !sdrs.some((s) => s.name === lead.sdr_responsavel)) {
+      const o = h("option", { value: lead.sdr_responsavel }, [`SDR: ${lead.sdr_responsavel}`]);
+      o.setAttribute("selected", "true");
+      sel.append(o);
+    }
+    sel.addEventListener("change", async () => {
+      const novo = sel.value || null;
+      const { error } = await supabase.from("leads").update({ sdr_responsavel: novo }).eq("id", lead.id);
+      if (error) {
+        flash("Erro ao trocar SDR: " + error.message);
+        return;
+      }
+      lead.sdr_responsavel = novo;
+      flash(`SDR respons\xE1vel: ${novo ?? "nenhum"} \u2713`);
+    });
+    return sel;
+  }
+  function renderTaskSection(lead, editable) {
     const sec = h("div", { class: "floow-section" });
     sec.append(h("div", { class: "floow-title" }, ["Tarefas"]));
     const listNode = h("div", { class: "floow-tasklist" }, [h("div", { class: "floow-hint" }, ["carregando\u2026"])]);
-    refreshTasks(lead.id, listNode);
+    refreshTasks(lead.id, listNode, editable);
     sec.append(listNode);
+    if (!editable) return sec;
     const titulo = h("input", { class: "floow-input", placeholder: "Nova tarefa (ex: Ligar amanh\xE3 10h)" });
     const due = h("input", { class: "floow-input", type: "datetime-local", style: "color-scheme:dark" });
     const btn = h("button", { class: "floow-btn floow-btn-primary" }, ["Criar tarefa"]);
@@ -21981,7 +22017,7 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
     sec.append(titulo, due, btn);
     return sec;
   }
-  async function refreshTasks(leadId, node) {
+  async function refreshTasks(leadId, node, editable = true) {
     const { data } = await supabase.from("tasks").select("id,titulo,due_at,done").eq("lead_id", leadId).eq("done", false).order("due_at", { ascending: true, nullsFirst: false });
     node.replaceChildren();
     const rows = data ?? [];
@@ -21995,11 +22031,11 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
       return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
     };
     for (const t of rows) {
-      const check = h("button", { class: "floow-task-check", title: "Concluir" }, ["\u25CB"]);
-      check.addEventListener("click", async () => {
+      const check = editable ? h("button", { class: "floow-task-check", title: "Concluir" }, ["\u25CB"]) : h("span", { class: "floow-task-check", style: "cursor:default" }, ["\u25CB"]);
+      if (editable) check.addEventListener("click", async () => {
         check.textContent = "\u2026";
         await supabase.from("tasks").update({ done: true }).eq("id", t.id);
-        refreshTasks(leadId, node);
+        refreshTasks(leadId, node, editable);
       });
       node.append(h("div", { class: "floow-task-row" }, [
         check,
@@ -22564,6 +22600,9 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
     member = { name: m?.name ?? null, role: m?.role ?? null, isAdmin: !!m?.is_admin || sessionEmail?.toLowerCase() === ADMIN_EMAIL };
     const { data: cl } = await supabase.from("team_members").select("id,name").eq("role", "Closer").eq("active", true).order("name");
     closers = cl ?? [];
+    const { data: sd } = await supabase.from("team_members").select("id,name").eq("role", "SDR").eq("active", true).order("name");
+    const seenS = /* @__PURE__ */ new Set();
+    sdrs = (sd ?? []).filter((s) => seenS.has(s.name) ? false : (seenS.add(s.name), true));
     const { data: au } = await supabase.from("audio_snippets").select("id,name,urls,emoji,active,ordem,owner").eq("active", true).order("ordem");
     audios = (au ?? []).filter((a) => !a.owner || a.owner === member.name);
     await loadLeads();

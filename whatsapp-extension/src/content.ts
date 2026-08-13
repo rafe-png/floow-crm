@@ -41,6 +41,7 @@ let sessionEmail: string | null = null;
 let member: { name: string | null; role: string | null; isAdmin: boolean } = { name: null, role: null, isAdmin: false };
 let leads: Lead[] = [];
 let closers: { id: string; name: string }[] = [];
+let sdrs: { id: string; name: string }[] = [];
 let audios: AudioSnippet[] = [];
 let currentLeadId: string | null = null;
 let matchInfo = "";
@@ -110,6 +111,13 @@ function h<K extends keyof HTMLElementTagNameMap>(
 
 function currentLead(): Lead | null {
   return leads.find((l) => l.id === currentLeadId) ?? null;
+}
+
+// Pode editar o lead? Admin sempre; senão só o SDR/Closer responsável. Se for de
+// outra pessoa, trava (só leitura).
+function canEditLead(lead: Lead): boolean {
+  if (member.isAdmin) return true;
+  return lead.sdr_responsavel === member.name || lead.closer_responsavel === member.name;
 }
 
 // ============================================================
@@ -427,6 +435,7 @@ function renderLead() {
   }
 
   const fonte = lead.fonte ? (FONTE_LABELS[lead.fonte] ?? lead.fonte) : null;
+  const editable = canEditLead(lead); // trava edição se o lead for de outra pessoa
   // Número discável pro whatsapp:// (leads @lid não têm número real → sem botão).
   const waDigits = (() => {
     if (!lead.telefone || lead.telefone.includes("@lid")) return null;
@@ -439,7 +448,7 @@ function renderLead() {
   // se não achar o botão nativo, abre o app desktop (fallback). Em qualquer caso,
   // ao terminar pergunta o resultado e REGISTRA no histórico do lead.
   let waButton: Node = document.createTextNode("");
-  if (waDigits) {
+  if (waDigits && editable) {
     const btn = h("button", {
       class: "floow-btn floow-wa",
       title: "Liga pelo WhatsApp e registra no histórico",
@@ -475,6 +484,15 @@ function renderLead() {
     igLink = a;
   }
 
+  // Linha do SDR: admin troca por um seletor; os demais só veem o nome.
+  const sdrRow: Node = member.isAdmin
+    ? buildSdrSelect(lead)
+    : (lead.sdr_responsavel ? h("div", {}, [`SDR: ${lead.sdr_responsavel}`]) : document.createTextNode(""));
+
+  const lockBanner: Node = !editable
+    ? h("div", { class: "floow-lock" }, [`🔒 Lead de ${lead.sdr_responsavel || "outro responsável"} — somente leitura`])
+    : document.createTextNode("");
+
   body.append(
     h("div", { class: "floow-section" }, [
       h("div", { class: "floow-leadname" }, [lead.empresa || lead.nome]),
@@ -482,8 +500,9 @@ function renderLead() {
       h("div", { class: "floow-badge", style: `border-color:${STATUS_DOT[lead.status]}55;color:${STATUS_DOT[lead.status]}` }, [
         h("span", { class: "floow-dot", style: `background:${STATUS_DOT[lead.status]}` }), STATUS_LABELS[lead.status],
       ]),
+      lockBanner,
       h("div", { class: "floow-meta" }, [
-        lead.sdr_responsavel ? h("div", {}, [`SDR: ${lead.sdr_responsavel}`]) : document.createTextNode(""),
+        sdrRow,
         lead.closer_responsavel ? h("div", {}, [`Closer: ${lead.closer_responsavel}`]) : document.createTextNode(""),
         fonte ? h("div", {}, [`Origem: ${fonte}`]) : document.createTextNode(""),
         lead.cidade ? h("div", {}, [`📍 ${lead.cidade}${lead.estado ? " · " + lead.estado : ""}`]) : document.createTextNode(""),
@@ -496,8 +515,8 @@ function renderLead() {
     ]),
   );
 
-  // Áudios prontos (biblioteca) — só se o lead tem número real.
-  if (waDigits && audios.length > 0) {
+  // Áudios prontos (biblioteca) — só se o lead tem número real e é seu.
+  if (waDigits && editable && audios.length > 0) {
     const wrap = h("div", { class: "floow-pills" });
     for (const a of audios) {
       const btn = h("button", { class: "floow-audio" }, [`${a.emoji ? a.emoji + " " : "🎤 "}${a.name}`]);
@@ -514,11 +533,11 @@ function renderLead() {
   const grid = h("div", { class: "floow-grid" });
   for (const s of STATUS_ORDER) {
     const active = s === lead.status;
-    const allowed = active || canMoveTo(s, member);
+    const allowed = active || (editable && canMoveTo(s, member));
     const b = h("button", {
       class: `floow-stage${active ? " active" : ""}${!allowed ? " locked" : ""}`,
       style: active ? `border-color:${STATUS_DOT[s]}55;color:${STATUS_DOT[s]}` : "",
-      title: !allowed ? "Etapa do Closer — sem permissão" : "",
+      title: !editable ? "Lead de outro responsável — só leitura" : (!allowed ? "Etapa do Closer — sem permissão" : ""),
     }, [h("span", { class: "floow-dot", style: `background:${STATUS_DOT[s]}` }), STATUS_LABELS[s]]);
     if (!active && allowed) b.addEventListener("click", () => beginMove(lead, s));
     grid.append(b);
@@ -526,11 +545,12 @@ function renderLead() {
   body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Mover para"]), grid]));
 
   // Tarefas (lista de pendentes + criar) — igual ao CRM.
-  body.append(renderTaskSection(lead));
+  body.append(renderTaskSection(lead, editable));
 
   // Observações
   const ta = h("textarea", { class: "floow-input floow-textarea", placeholder: "Observações…" }) as HTMLTextAreaElement;
   ta.value = lead.observacoes ?? "";
+  if (!editable) ta.setAttribute("readonly", "true");
   const saveBtn = h("button", { class: "floow-btn floow-btn-primary", disabled: "true" }, ["Salvar observações"]) as HTMLButtonElement;
   ta.addEventListener("input", () => { saveBtn.disabled = ta.value === (lead.observacoes ?? ""); });
   saveBtn.addEventListener("click", async () => {
@@ -547,7 +567,7 @@ function renderLead() {
     });
     flash("Observações salvas ✓");
   });
-  body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Observações"]), ta, saveBtn]));
+  body.append(h("div", { class: "floow-section" }, [h("div", { class: "floow-title" }, ["Observações"]), ta, editable ? saveBtn : document.createTextNode("")]));
 
   // Jornada no funil (histórico de etapas do lead).
   const journey = h("div", { class: "floow-journey" }, [h("div", { class: "floow-hint" }, ["carregando…"])]);
@@ -557,14 +577,41 @@ function renderLead() {
   renderFooter(lead);
 }
 
+// Seletor de SDR responsável (só admin) — troca o dono do lead.
+function buildSdrSelect(lead: Lead): Node {
+  const sel = h("select", { class: "floow-sdrsel" }) as HTMLSelectElement;
+  sel.append(h("option", { value: "" }, ["SDR: (nenhum)"]));
+  for (const s of sdrs) {
+    const o = h("option", { value: s.name }, [`SDR: ${s.name}`]);
+    if (lead.sdr_responsavel === s.name) o.setAttribute("selected", "true");
+    sel.append(o);
+  }
+  // Garante a opção do SDR atual mesmo que não esteja na lista de ativos.
+  if (lead.sdr_responsavel && !sdrs.some((s) => s.name === lead.sdr_responsavel)) {
+    const o = h("option", { value: lead.sdr_responsavel }, [`SDR: ${lead.sdr_responsavel}`]);
+    o.setAttribute("selected", "true");
+    sel.append(o);
+  }
+  sel.addEventListener("change", async () => {
+    const novo = sel.value || null;
+    const { error } = await supabase.from("leads").update({ sdr_responsavel: novo }).eq("id", lead.id);
+    if (error) { flash("Erro ao trocar SDR: " + error.message); return; }
+    lead.sdr_responsavel = novo;
+    flash(`SDR responsável: ${novo ?? "nenhum"} ✓`);
+  });
+  return sel;
+}
+
 // Seção de tarefas do lead: lista os pendentes + formulário pra criar uma nova.
-function renderTaskSection(lead: Lead): Node {
+function renderTaskSection(lead: Lead, editable: boolean): Node {
   const sec = h("div", { class: "floow-section" });
   sec.append(h("div", { class: "floow-title" }, ["Tarefas"]));
 
   const listNode = h("div", { class: "floow-tasklist" }, [h("div", { class: "floow-hint" }, ["carregando…"])]);
-  refreshTasks(lead.id, listNode);
+  refreshTasks(lead.id, listNode, editable);
   sec.append(listNode);
+
+  if (!editable) return sec; // lead de outra pessoa → só lista, sem criar
 
   const titulo = h("input", { class: "floow-input", placeholder: "Nova tarefa (ex: Ligar amanhã 10h)" }) as HTMLInputElement;
   const due = h("input", { class: "floow-input", type: "datetime-local", style: "color-scheme:dark" }) as HTMLInputElement;
@@ -587,7 +634,7 @@ function renderTaskSection(lead: Lead): Node {
   return sec;
 }
 
-async function refreshTasks(leadId: string, node: HTMLElement) {
+async function refreshTasks(leadId: string, node: HTMLElement, editable = true) {
   const { data } = await supabase
     .from("tasks")
     .select("id,titulo,due_at,done")
@@ -602,11 +649,13 @@ async function refreshTasks(leadId: string, node: HTMLElement) {
     return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
   };
   for (const t of rows) {
-    const check = h("button", { class: "floow-task-check", title: "Concluir" }, ["○"]);
-    check.addEventListener("click", async () => {
+    const check = editable
+      ? h("button", { class: "floow-task-check", title: "Concluir" }, ["○"])
+      : h("span", { class: "floow-task-check", style: "cursor:default" }, ["○"]);
+    if (editable) check.addEventListener("click", async () => {
       check.textContent = "…";
       await supabase.from("tasks").update({ done: true }).eq("id", t.id);
-      refreshTasks(leadId, node);
+      refreshTasks(leadId, node, editable);
     });
     node.append(h("div", { class: "floow-task-row" }, [
       check,
@@ -1156,6 +1205,11 @@ async function afterAuth() {
 
   const { data: cl } = await supabase.from("team_members").select("id,name").eq("role", "Closer").eq("active", true).order("name");
   closers = (cl as { id: string; name: string }[]) ?? [];
+
+  const { data: sd } = await supabase.from("team_members").select("id,name").eq("role", "SDR").eq("active", true).order("name");
+  // De-duplica por nome (pode haver 2 linhas com o mesmo nome).
+  const seenS = new Set<string>();
+  sdrs = ((sd as { id: string; name: string }[]) ?? []).filter((s) => (seenS.has(s.name) ? false : (seenS.add(s.name), true)));
 
   const { data: au } = await supabase.from("audio_snippets").select("id,name,urls,emoji,active,ordem,owner").eq("active", true).order("ordem");
   // Só os áudios "de todos" (owner null) + os do próprio SDR logado.
