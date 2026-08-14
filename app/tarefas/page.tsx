@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { NewTaskDialog } from "@/components/tasks/NewTaskDialog";
 import { TaskItem } from "@/components/tasks/TaskItem";
+import { TaskAgenda } from "@/components/tasks/TaskAgenda";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTasksContext } from "@/lib/contexts/TasksContext";
 import type { Task } from "@/lib/types";
@@ -85,6 +86,7 @@ function groupTasks(tasks: Task[]): { label: string; items: Task[] }[] {
 export default function TarefasPage() {
   const { tasks } = useTasksContext();
   const { leads } = useLeadsContext();
+  const [mode, setMode] = useState<"agenda" | "lista">("agenda");
   const [filter, setFilter] = useState<FilterKey>("abertas");
   const [newOpen, setNewOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
@@ -105,8 +107,18 @@ export default function TarefasPage() {
       <TopBar title="Tarefas" />
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-900 px-4 py-2.5 sm:px-6">
-        <div className="flex flex-wrap gap-1">
-          {FILTERS.map((f) => (
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Alternador Agenda | Lista */}
+          <div className="flex rounded-md border border-zinc-800 bg-zinc-900 p-0.5 text-xs">
+            {(["agenda", "lista"] as const).map((m) => (
+              <button key={m} onClick={() => setMode(m)}
+                className={`rounded px-3 py-1 capitalize transition-colors ${mode === m ? "bg-[#f5c518] font-semibold text-zinc-950" : "text-zinc-400 hover:text-zinc-200"}`}>
+                {m}
+              </button>
+            ))}
+          </div>
+
+          {mode === "lista" && FILTERS.map((f) => (
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
@@ -131,31 +143,37 @@ export default function TarefasPage() {
         </button>
       </div>
 
-      <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
-        <div className="mx-auto max-w-2xl space-y-6">
-          {filtered.length === 0 ? (
-            <div className="rounded-xl border border-zinc-900 bg-zinc-950/40 px-6 py-12 text-center text-sm text-zinc-500">
-              Nenhuma tarefa.
-            </div>
-          ) : (
-            groups.map(({ label, items }) => (
-              <section key={label}>
-                <h2 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                  {label}
-                  <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] text-zinc-400">
-                    {items.length}
-                  </span>
-                </h2>
-                <div className="space-y-1.5">
-                  {items.map((t) => (
-                    <TaskItem key={t.id} task={t} onEdit={setEditing} />
-                  ))}
-                </div>
-              </section>
-            ))
-          )}
-        </div>
-      </main>
+      {mode === "agenda" ? (
+        <main className="flex flex-1 flex-col overflow-hidden px-2 py-2 sm:px-4">
+          <TaskAgenda tasks={tasks} onClickTask={setEditing} />
+        </main>
+      ) : (
+        <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+          <div className="mx-auto max-w-2xl space-y-6">
+            {filtered.length === 0 ? (
+              <div className="rounded-xl border border-zinc-900 bg-zinc-950/40 px-6 py-12 text-center text-sm text-zinc-500">
+                Nenhuma tarefa.
+              </div>
+            ) : (
+              groups.map(({ label, items }) => (
+                <section key={label}>
+                  <h2 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                    {label}
+                    <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] text-zinc-400">
+                      {items.length}
+                    </span>
+                  </h2>
+                  <div className="space-y-1.5">
+                    {items.map((t) => (
+                      <TaskItem key={t.id} task={t} onEdit={setEditing} />
+                    ))}
+                  </div>
+                </section>
+              ))
+            )}
+          </div>
+        </main>
+      )}
 
       <NewTaskDialog
         open={newOpen}
