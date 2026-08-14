@@ -126,6 +126,39 @@ export const CALL_OUTCOME_LABELS: Record<string, string> = {
 };
 export const CALL_OUTCOME_OPTIONS = Object.keys(CALL_OUTCOME_LABELS);
 
+// ---- Tarefas tipadas (espelho do app) ----
+export type TaskTipo = "qualificar" | "agendar" | "lembrete_reuniao" | "follow_up" | "pos_venda" | "outro";
+export const TASK_TIPO_LABELS: Record<string, string> = {
+  qualificar: "Qualificar", agendar: "Agendar", lembrete_reuniao: "Lembrete de reunião",
+  follow_up: "Follow-up", pos_venda: "Pós-venda", outro: "Outro",
+};
+export const TASK_TIPO_ICONS: Record<string, string> = {
+  qualificar: "🔍", agendar: "📅", lembrete_reuniao: "⏰", follow_up: "🔁", pos_venda: "🎁", outro: "📌",
+};
+export const TASK_TIPO_COLORS: Record<string, string> = {
+  qualificar: "#38bdf8", agendar: "#f5c518", lembrete_reuniao: "#a78bfa", follow_up: "#fb923c", pos_venda: "#34d399", outro: "#71717a",
+};
+export const TASK_TIPO_OPTIONS = ["qualificar", "agendar", "lembrete_reuniao", "follow_up", "pos_venda"];
+
+export const STAGE_TASK_TIPO: Record<string, string> = {
+  qualificado: "qualificar", pre_qualificado: "qualificar",
+  em_agendamento: "agendar", agendando: "agendar",
+  reuniao_agendada: "lembrete_reuniao", no_show: "follow_up", follow_up: "follow_up",
+  negocio_ganho: "pos_venda",
+};
+
+// Prazo sugerido (ISO) — só Pós-venda (+7d 9h) e Lembrete (dia da reunião 9h).
+export function suggestedTaskDue(tipo: string, lead?: { data_agendamento?: string | null } | null): string | null {
+  const at9 = (base: Date) => { const x = new Date(base); x.setHours(9, 0, 0, 0); return x; };
+  if (tipo === "pos_venda") { const d = new Date(); d.setDate(d.getDate() + 7); return at9(d).toISOString(); }
+  if (tipo === "lembrete_reuniao") { return lead?.data_agendamento ? at9(new Date(lead.data_agendamento)).toISOString() : null; }
+  return null;
+}
+export function taskTitleFor(tipo: string, lead?: { empresa?: string | null; nome?: string | null } | null): string {
+  const alvo = lead?.empresa || lead?.nome || "";
+  return alvo ? `${TASK_TIPO_LABELS[tipo]} — ${alvo}` : TASK_TIPO_LABELS[tipo];
+}
+
 // Cidades-alvo (igual CIDADE_ALVO do app) — cada uma já carrega a UF.
 export const CIDADE_ALVO: { cidade: string; uf: string }[] = [
   { cidade: "Santa Cruz do Capibaribe", uf: "PE" },

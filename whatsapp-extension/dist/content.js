@@ -21185,6 +21185,61 @@ ${suffix}`;
     nao_chamou: "N\xE3o chamou"
   };
   var CALL_OUTCOME_OPTIONS = Object.keys(CALL_OUTCOME_LABELS);
+  var TASK_TIPO_LABELS = {
+    qualificar: "Qualificar",
+    agendar: "Agendar",
+    lembrete_reuniao: "Lembrete de reuni\xE3o",
+    follow_up: "Follow-up",
+    pos_venda: "P\xF3s-venda",
+    outro: "Outro"
+  };
+  var TASK_TIPO_ICONS = {
+    qualificar: "\u{1F50D}",
+    agendar: "\u{1F4C5}",
+    lembrete_reuniao: "\u23F0",
+    follow_up: "\u{1F501}",
+    pos_venda: "\u{1F381}",
+    outro: "\u{1F4CC}"
+  };
+  var TASK_TIPO_COLORS = {
+    qualificar: "#38bdf8",
+    agendar: "#f5c518",
+    lembrete_reuniao: "#a78bfa",
+    follow_up: "#fb923c",
+    pos_venda: "#34d399",
+    outro: "#71717a"
+  };
+  var TASK_TIPO_OPTIONS = ["qualificar", "agendar", "lembrete_reuniao", "follow_up", "pos_venda"];
+  var STAGE_TASK_TIPO = {
+    qualificado: "qualificar",
+    pre_qualificado: "qualificar",
+    em_agendamento: "agendar",
+    agendando: "agendar",
+    reuniao_agendada: "lembrete_reuniao",
+    no_show: "follow_up",
+    follow_up: "follow_up",
+    negocio_ganho: "pos_venda"
+  };
+  function suggestedTaskDue(tipo, lead) {
+    const at9 = (base) => {
+      const x = new Date(base);
+      x.setHours(9, 0, 0, 0);
+      return x;
+    };
+    if (tipo === "pos_venda") {
+      const d = /* @__PURE__ */ new Date();
+      d.setDate(d.getDate() + 7);
+      return at9(d).toISOString();
+    }
+    if (tipo === "lembrete_reuniao") {
+      return lead?.data_agendamento ? at9(new Date(lead.data_agendamento)).toISOString() : null;
+    }
+    return null;
+  }
+  function taskTitleFor(tipo, lead) {
+    const alvo = lead?.empresa || lead?.nome || "";
+    return alvo ? `${TASK_TIPO_LABELS[tipo]} \u2014 ${alvo}` : TASK_TIPO_LABELS[tipo];
+  }
   var EXPERIENCIA_LABELS = {
     menos_6m: "Menos de 6 meses",
     "6m_1ano": "6 meses a 1 ano",
@@ -21560,16 +21615,87 @@ ${suffix}`;
     if (searchMode) return renderSearch();
     if (view === "funnel") return renderFunnel();
     if (view === "stage") return renderStageList();
+    if (view === "tasks") return renderTasksAgenda();
     renderLead();
   }
   function renderNav() {
-    const btn = h("button", { class: "floow-nav-btn" }, ["\u{1F4CB} Ir para funil de vendas"]);
-    btn.addEventListener("click", async () => {
+    const funil = h("button", { class: "floow-nav-btn" }, ["\u{1F4CB} Ir para funil de vendas"]);
+    funil.addEventListener("click", async () => {
       await loadCallsToday();
       view = "funnel";
       render();
     });
-    return h("div", { class: "floow-nav" }, [btn]);
+    const agenda = h("button", { class: "floow-nav-btn floow-nav-tasks" }, ["\u{1F5D3}\uFE0F Minhas tarefas de hoje"]);
+    agenda.addEventListener("click", () => {
+      view = "tasks";
+      render();
+    });
+    return h("div", { class: "floow-nav" }, [funil, agenda]);
+  }
+  async function renderTasksAgenda() {
+    const back = h("button", { class: "floow-link" }, ["\u2190 Conversa atual"]);
+    back.addEventListener("click", () => {
+      view = "lead";
+      render();
+    });
+    const head2 = h("div", { class: "floow-section" }, [
+      h("div", { class: "floow-row" }, [h("div", { class: "floow-title" }, ["Minhas tarefas de hoje"]), back])
+    ]);
+    body.append(head2);
+    const container = h("div", { class: "floow-section" }, [h("div", { class: "floow-hint" }, ["carregando\u2026"])]);
+    body.append(container);
+    const end = /* @__PURE__ */ new Date();
+    end.setHours(23, 59, 59, 999);
+    const { data } = await supabase.from("tasks").select("id,titulo,due_at,tipo,lead_id").eq("done", false).eq("assignee", member.name).lte("due_at", end.toISOString()).order("due_at", { ascending: true });
+    const rows = data ?? [];
+    container.replaceChildren();
+    if (rows.length === 0) {
+      container.append(h("div", { class: "floow-hint" }, ["Nenhuma tarefa pra hoje. \u{1F389}"]));
+      return;
+    }
+    const today0 = /* @__PURE__ */ new Date();
+    today0.setHours(0, 0, 0, 0);
+    const fmt = (iso) => {
+      if (!iso) return "";
+      const d = new Date(iso);
+      const p = (n) => String(n).padStart(2, "0");
+      return `${p(d.getHours())}:${p(d.getMinutes())}`;
+    };
+    const groups = [
+      { label: "Atrasadas", items: rows.filter((t) => t.due_at && new Date(t.due_at) < today0) },
+      { label: "Hoje", items: rows.filter((t) => !t.due_at || new Date(t.due_at) >= today0) }
+    ];
+    for (const g of groups) {
+      if (g.items.length === 0) continue;
+      const wrap = h("div", { style: "margin-bottom:10px" }, [
+        h("div", { class: "floow-title", style: g.label === "Atrasadas" ? "color:#fb7185" : "" }, [`${g.label} (${g.items.length})`])
+      ]);
+      for (const t of g.items) {
+        const lead = t.lead_id ? leads.find((l) => l.id === t.lead_id) : null;
+        const color = TASK_TIPO_COLORS[t.tipo] || "#71717a";
+        const check = h("button", { class: "floow-task-check", title: "Concluir" }, ["\u25CB"]);
+        check.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          check.textContent = "\u2026";
+          await supabase.from("tasks").update({ done: true }).eq("id", t.id);
+          renderTasksAgenda_refresh();
+        });
+        const row = h("div", { class: "floow-task-row", style: `border-left:3px solid ${color}; cursor:${lead ? "pointer" : "default"}` }, [
+          check,
+          h("div", { style: "flex:1;min-width:0" }, [
+            h("div", { class: "floow-task-title" }, [`${TASK_TIPO_ICONS[t.tipo] || "\u{1F4CC}"} ${t.titulo}`]),
+            lead ? h("div", { class: "floow-leaditem-sub" }, [lead.empresa || lead.nome || ""]) : document.createTextNode("")
+          ]),
+          t.due_at ? h("span", { class: "floow-task-due" }, [fmt(t.due_at)]) : document.createTextNode("")
+        ]);
+        if (lead) row.addEventListener("click", () => openConversation(lead));
+        wrap.append(row);
+      }
+      container.append(wrap);
+    }
+  }
+  function renderTasksAgenda_refresh() {
+    if (view === "tasks") render();
   }
   function funnelLeads() {
     const me = member.name;
@@ -21983,8 +22109,25 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
     refreshTasks(lead.id, listNode, editable);
     sec.append(listNode);
     if (!editable) return sec;
-    const titulo = h("input", { class: "floow-input", placeholder: "Nova tarefa (ex: Ligar amanh\xE3 10h)" });
+    let tipo = "outro";
+    const titulo = h("input", { class: "floow-input", placeholder: "T\xEDtulo da tarefa" });
     const due = h("input", { class: "floow-input", type: "datetime-local", style: "color-scheme:dark" });
+    const pills = h("div", { class: "floow-pills", style: "margin-bottom:8px" });
+    const paint = () => pills.querySelectorAll(".floow-pill").forEach((el) => {
+      const on = el.dataset.tipo === tipo;
+      el.style.cssText = on ? `border-color:${TASK_TIPO_COLORS[tipo]}88;background:${TASK_TIPO_COLORS[tipo]}22;color:${TASK_TIPO_COLORS[tipo]}` : "";
+    });
+    for (const tp of TASK_TIPO_OPTIONS) {
+      const b = h("button", { class: "floow-pill", "data-tipo": tp }, [`${TASK_TIPO_ICONS[tp]} ${TASK_TIPO_LABELS[tp]}`]);
+      b.addEventListener("click", () => {
+        if (!titulo.value.trim() || titulo.value === taskTitleFor(tipo, lead)) titulo.value = taskTitleFor(tp, lead);
+        const sug = suggestedTaskDue(tp, lead);
+        if (sug && !due.value) due.value = toLocalInput(sug);
+        tipo = tp;
+        paint();
+      });
+      pills.append(b);
+    }
     const btn = h("button", { class: "floow-btn floow-btn-primary" }, ["Criar tarefa"]);
     btn.addEventListener("click", async () => {
       const t = titulo.value.trim();
@@ -21992,15 +22135,19 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
         flash("Digite o t\xEDtulo da tarefa.");
         return;
       }
+      if (!due.value) {
+        flash("Defina o prazo da tarefa.");
+        return;
+      }
       btn.disabled = true;
       btn.textContent = "Criando\u2026";
-      const due_at = due.value ? new Date(due.value).toISOString() : null;
       const { error } = await supabase.from("tasks").insert({
         lead_id: lead.id,
         titulo: t,
-        due_at,
+        due_at: new Date(due.value).toISOString(),
         assignee: member.name,
         notify: true,
+        tipo,
         created_by: member.name
       });
       btn.disabled = false;
@@ -22012,10 +22159,17 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
       flash("Tarefa criada \u2713");
       titulo.value = "";
       due.value = "";
+      tipo = "outro";
+      paint();
       refreshTasks(lead.id, listNode);
     });
-    sec.append(titulo, due, btn);
+    sec.append(pills, titulo, due, btn);
     return sec;
+  }
+  function toLocalInput(iso) {
+    const d = new Date(iso);
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
   }
   async function refreshTasks(leadId, node, editable = true) {
     const { data } = await supabase.from("tasks").select("id,titulo,due_at,done").eq("lead_id", leadId).eq("done", false).order("due_at", { ascending: true, nullsFirst: false });
@@ -22442,6 +22596,70 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
       else if (r?.ok && r.action === "deleted") flash("Removido do Google Agenda \u2713");
       else if (r && !r.ok) flash("Movido \u2713 \u2014 Google Agenda: " + (r.error || "falhou"));
     }
+    const taskTipo = STAGE_TASK_TIPO[target];
+    if (taskTipo) {
+      await openTaskModal(lead, taskTipo);
+      render();
+    }
+  }
+  function openTaskModal(lead, initialTipo) {
+    return openModal("Criar tarefa", (api) => {
+      let tipo = initialTipo;
+      const wrap = h("div", {});
+      wrap.append(h("div", { class: "floow-hint", style: "margin-bottom:8px" }, ["Sugerida pela etapa. Edite ou feche pra pular."]));
+      const titulo = h("input", { class: "floow-input" });
+      titulo.value = taskTitleFor(tipo, lead);
+      const due = h("input", { class: "floow-input", type: "datetime-local", style: "color-scheme:dark" });
+      const sug = suggestedTaskDue(tipo, lead);
+      if (sug) due.value = toLocalInput(sug);
+      const pills = h("div", { class: "floow-pills", style: "margin-bottom:8px" });
+      const paint = () => pills.querySelectorAll(".floow-pill").forEach((el) => {
+        const on = el.dataset.tipo === tipo;
+        el.style.cssText = on ? `border-color:${TASK_TIPO_COLORS[tipo]}88;background:${TASK_TIPO_COLORS[tipo]}22;color:${TASK_TIPO_COLORS[tipo]}` : "";
+      });
+      for (const tp of TASK_TIPO_OPTIONS) {
+        const b = h("button", { class: "floow-pill", "data-tipo": tp }, [`${TASK_TIPO_ICONS[tp]} ${TASK_TIPO_LABELS[tp]}`]);
+        b.addEventListener("click", () => {
+          if (!titulo.value.trim() || titulo.value === taskTitleFor(tipo, lead)) titulo.value = taskTitleFor(tp, lead);
+          const s = suggestedTaskDue(tp, lead);
+          if (s && !due.value) due.value = toLocalInput(s);
+          tipo = tp;
+          paint();
+        });
+        pills.append(b);
+      }
+      paint();
+      const ok = h("button", { class: "floow-btn floow-btn-primary", style: "margin-top:6px" }, ["Criar tarefa"]);
+      ok.addEventListener("click", async () => {
+        if (!titulo.value.trim()) {
+          api.setError("T\xEDtulo obrigat\xF3rio.");
+          return;
+        }
+        if (!due.value) {
+          api.setError("Defina o prazo.");
+          return;
+        }
+        const { error } = await supabase.from("tasks").insert({
+          lead_id: lead.id,
+          titulo: titulo.value.trim(),
+          due_at: new Date(due.value).toISOString(),
+          assignee: member.name,
+          notify: true,
+          tipo,
+          created_by: member.name
+        });
+        if (error) {
+          api.setError(error.message);
+          return;
+        }
+        flash("Tarefa criada \u2713");
+        api.done(null);
+      });
+      const skip = h("button", { class: "floow-btn", style: "margin-top:6px" }, ["Pular"]);
+      skip.addEventListener("click", () => api.done(null));
+      wrap.append(h("div", { class: "floow-qlabel" }, ["Tipo"]), pills, titulo, due, ok, skip);
+      return wrap;
+    });
   }
   function openCreateForm(prefill) {
     return openModal("Novo lead", (api) => {

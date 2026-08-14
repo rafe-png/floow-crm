@@ -274,3 +274,7 @@
   background: #121218; border: 1px solid #2a2a33; color: #e7e9ee; font-size: 12px; outline: none; color-scheme: dark;
 }
 #floow-panel .floow-sdrsel:focus { border-color: #f5c518; }
+
+/* Nav: botão de tarefas */
+#floow-panel .floow-nav-tasks { margin-top: 6px; background: rgba(167,139,250,0.12); border-color: rgba(167,139,250,0.4); color: #c4b5fd; }
+#floow-panel .floow-nav-tasks:hover { background: rgba(167,139,250,0.2); border-color: rgba(167,139,250,0.65); }
