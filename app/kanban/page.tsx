@@ -21,7 +21,7 @@ import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 import { useStickyState } from "@/lib/hooks/useStickyState";
 import { resolveRange, type PeriodPreset } from "@/lib/reports";
-import { FONTE_LABELS, FONTE_OPTIONS, SEGMENTO_LABELS, type Lead, type LeadFonte, type LeadStatus, type LocalReuniao, type MotivoCarteira, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao } from "@/lib/types";
+import { FONTE_LABELS, FONTE_OPTIONS, SEGMENTO_LABELS, STAGE_TASK_TIPO, type Lead, type LeadFonte, type LeadStatus, type LocalReuniao, type MotivoCarteira, type MotivoDesqualificacao, type MotivoPerda, type SegmentoConfeccao, type TaskTipo } from "@/lib/types";
 import { computeLeadScore, PRIORITY_SHORT, type LeadPriority } from "@/lib/lead-score";
 
 // Info do negócio (empresa, instagram, decisor, segmento) — obrigatória de
@@ -104,6 +104,18 @@ function KanbanContent() {
   function triggerCelebration(status: LeadStatus | undefined) {
     const kind = celebrationFor(status);
     if (kind) setCelebration(kind);
+  }
+
+  // Após concluir um move: celebra e, se a etapa sugere tarefa, abre o popup
+  // pré-preenchido (tipo + prazo sugerido) — o usuário confirma, edita ou pula.
+  const [pendingTask, setPendingTask] = useState<{ lead: Lead; tipo: TaskTipo } | null>(null);
+  function afterMove(target: LeadStatus, leadId: string) {
+    triggerCelebration(target);
+    const tipo = STAGE_TASK_TIPO[target];
+    if (tipo) {
+      const l = leads.find((x) => x.id === leadId);
+      if (l) setPendingTask({ lead: l, tipo });
+    }
   }
 
   // Quantos filtros estão ativos (pro contador e o botão "Limpar").
@@ -211,8 +223,9 @@ function KanbanContent() {
       local,
       agendado_por: currentMember?.name ?? null, // quem realizou o agendamento
     });
+    const id = pendingCloser.id;
     setPendingCloser(null);
-    triggerCelebration("reuniao_agendada");
+    afterMove("reuniao_agendada", id);
   }
 
   async function handleConfirmWin(criativo: number | null) {
@@ -220,8 +233,9 @@ function KanbanContent() {
     const patch =
       criativo != null ? { ...pendingWin.patch, criativo_codigo: criativo } : pendingWin.patch;
     await updateLead(pendingWin.id, patch);
+    const id = pendingWin.id;
     setPendingWin(null);
-    triggerCelebration("negocio_ganho");
+    afterMove("negocio_ganho", id);
   }
 
   // Lead selecionado: clicado no board, OU via ?lead=<id> (link da extensão/tarefa)
@@ -277,7 +291,7 @@ function KanbanContent() {
       return;
     }
     await updateLead(lead.id, { ...basePatch, status: target });
-    triggerCelebration(target);
+    afterMove(target, lead.id);
   }
 
   async function handleMove(id: string, newStatus: LeadStatus) {
@@ -446,6 +460,14 @@ function KanbanContent() {
         open={taskForLead != null}
         lead={taskForLead}
         onClose={() => setTaskForLead(null)}
+      />
+
+      {/* Tarefa sugerida ao mover pra etapa mapeada (pré-preenchida, pode pular). */}
+      <NewTaskDialog
+        open={pendingTask != null}
+        lead={pendingTask?.lead}
+        initialTipo={pendingTask?.tipo}
+        onClose={() => setPendingTask(null)}
       />
 
       {pendingPreQual && (

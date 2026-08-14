@@ -6,7 +6,7 @@ import { Calendar, ExternalLink, Pencil, Trash2, User } from "lucide-react";
 import Link from "next/link";
 import { useTasksContext } from "@/lib/contexts/TasksContext";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
-import type { Task } from "@/lib/types";
+import { TASK_TIPO_ICONS, TASK_TIPO_LABELS, TASK_TIPO_COLORS, type Task } from "@/lib/types";
 
 type Props = {
   task: Task;
@@ -46,6 +46,14 @@ export function TaskItem({ task, showLead = true, onEdit }: Props) {
       </button>
 
       <div className="min-w-0 flex-1">
+        {task.tipo && task.tipo !== "outro" && (
+          <span
+            className="mb-1 mr-1.5 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold"
+            style={{ color: TASK_TIPO_COLORS[task.tipo], background: `${TASK_TIPO_COLORS[task.tipo]}1f` }}
+          >
+            {TASK_TIPO_ICONS[task.tipo]} {TASK_TIPO_LABELS[task.tipo]}
+          </span>
+        )}
         <div className={`text-sm ${task.done ? "text-zinc-500 line-through" : "text-zinc-100"}`}>
           {task.titulo}
         </div>

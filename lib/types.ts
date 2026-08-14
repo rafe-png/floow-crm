@@ -319,6 +319,7 @@ export type Task = {
   done_at: string | null;
   assignee: string | null;
   notify: boolean;
+  tipo: TaskTipo;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -331,7 +332,65 @@ export type NewTaskInput = {
   due_at?: string | null;
   assignee?: string | null;
   notify?: boolean;
+  tipo?: TaskTipo;
 };
+
+// ============================================================
+// Tarefas tipadas (agenda + tarefa que nasce do funil)
+// ============================================================
+export type TaskTipo = "qualificar" | "agendar" | "lembrete_reuniao" | "follow_up" | "pos_venda" | "outro";
+
+export const TASK_TIPO_LABELS: Record<TaskTipo, string> = {
+  qualificar: "Qualificar",
+  agendar: "Agendar",
+  lembrete_reuniao: "Lembrete de reunião",
+  follow_up: "Follow-up",
+  pos_venda: "Pós-venda",
+  outro: "Outro",
+};
+export const TASK_TIPO_ICONS: Record<TaskTipo, string> = {
+  qualificar: "🔍", agendar: "📅", lembrete_reuniao: "⏰", follow_up: "🔁", pos_venda: "🎁", outro: "📌",
+};
+export const TASK_TIPO_COLORS: Record<TaskTipo, string> = {
+  qualificar: "#38bdf8", agendar: "#f5c518", lembrete_reuniao: "#a78bfa", follow_up: "#fb923c", pos_venda: "#34d399", outro: "#71717a",
+};
+// Tipos oferecidos nos seletores (Outro fica de fora do fluxo padrão).
+export const TASK_TIPO_OPTIONS: TaskTipo[] = ["qualificar", "agendar", "lembrete_reuniao", "follow_up", "pos_venda"];
+
+// Ao mover o lead pra essa etapa, sugere criar uma tarefa desse tipo (popup).
+export const STAGE_TASK_TIPO: Partial<Record<LeadStatus, TaskTipo>> = {
+  qualificado: "qualificar",
+  pre_qualificado: "qualificar",
+  em_agendamento: "agendar",
+  agendando: "agendar",
+  reuniao_agendada: "lembrete_reuniao",
+  no_show: "follow_up",
+  follow_up: "follow_up",
+  negocio_ganho: "pos_venda",
+};
+
+// Prazo SUGERIDO (ISO) por tipo — só onde faz sentido. null = deixa em branco
+// pro usuário escolher (Qualificar/Agendar/Follow-up variam demais).
+//   - Pós-venda: 7 dias após o ganho (agora), às 09h.
+//   - Lembrete de reunião: no DIA da reunião, às 09h (puxa data_agendamento do lead).
+export function suggestedTaskDue(tipo: TaskTipo, lead?: { data_agendamento?: string | null } | null): string | null {
+  const atTime = (base: Date, h: number, m = 0) => { const x = new Date(base); x.setHours(h, m, 0, 0); return x; };
+  if (tipo === "pos_venda") {
+    const d = new Date(); d.setDate(d.getDate() + 7);
+    return atTime(d, 9).toISOString();
+  }
+  if (tipo === "lembrete_reuniao") {
+    if (!lead?.data_agendamento) return null;
+    return atTime(new Date(lead.data_agendamento), 9).toISOString(); // dia da reunião, 09h
+  }
+  return null; // qualificar / agendar / follow_up / outro → sem sugestão
+}
+
+// Título padrão da tarefa: "{Tipo} — {empresa/nome}".
+export function taskTitleFor(tipo: TaskTipo, lead?: { empresa?: string | null; nome?: string | null } | null): string {
+  const alvo = lead?.empresa || lead?.nome || "";
+  return alvo ? `${TASK_TIPO_LABELS[tipo]} — ${alvo}` : TASK_TIPO_LABELS[tipo];
+}
 
 // Investimento em ads lançado pelo gestor de tráfego (por período).
 // periodo_inicio/periodo_fim são datas (YYYY-MM-DD), inclusivas.

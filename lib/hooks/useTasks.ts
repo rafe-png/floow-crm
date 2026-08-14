@@ -70,6 +70,7 @@ export function useTasksImpl() {
         due_at: input.due_at ?? null,
         assignee: input.assignee ?? null,
         notify: input.notify ?? true,
+        tipo: input.tipo ?? "outro",
         created_by: createdBy ?? null,
       })
       .select()

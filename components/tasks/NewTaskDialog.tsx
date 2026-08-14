@@ -6,7 +6,17 @@ import { DateTimePicker, joinIso, splitIso } from "@/components/ui/DateTimePicke
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useTasksContext } from "@/lib/contexts/TasksContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
-import type { Lead, Task } from "@/lib/types";
+import {
+  TASK_TIPO_OPTIONS,
+  TASK_TIPO_LABELS,
+  TASK_TIPO_ICONS,
+  TASK_TIPO_COLORS,
+  suggestedTaskDue,
+  taskTitleFor,
+  type Lead,
+  type Task,
+  type TaskTipo,
+} from "@/lib/types";
 
 type Props = {
   open: boolean;
@@ -17,9 +27,11 @@ type Props = {
   leadsForPicker?: Lead[];
   /** Se passado, abre em modo edição dessa tarefa */
   task?: Task | null;
+  /** Tipo pré-selecionado (ex: ao mover o lead no funil) */
+  initialTipo?: TaskTipo | null;
 };
 
-export function NewTaskDialog({ open, onClose, lead, leadsForPicker, task }: Props) {
+export function NewTaskDialog({ open, onClose, lead, leadsForPicker, task, initialTipo }: Props) {
   if (!open) return null;
   return (
     <Body
@@ -27,6 +39,7 @@ export function NewTaskDialog({ open, onClose, lead, leadsForPicker, task }: Pro
       lead={lead ?? null}
       leadsForPicker={leadsForPicker ?? []}
       task={task ?? null}
+      initialTipo={initialTipo ?? null}
     />
   );
 }
@@ -36,23 +49,36 @@ function Body({
   lead,
   leadsForPicker,
   task,
+  initialTipo,
 }: {
   onClose: () => void;
   lead: Lead | null;
   leadsForPicker: Lead[];
   task: Task | null;
+  initialTipo: TaskTipo | null;
 }) {
   const { createTask, updateTask } = useTasksContext();
   const { members, currentMember } = useTeamContext();
   const { user } = useAuth();
 
   const editing = task != null;
-  const initialDue = splitIso(task?.due_at ?? null);
+  const startTipo: TaskTipo = task?.tipo ?? initialTipo ?? "outro";
+  const startDue = task?.due_at ?? (initialTipo ? suggestedTaskDue(initialTipo, lead) : null);
+  const initialDue = splitIso(startDue);
 
-  const [titulo, setTitulo] = useState(task?.titulo ?? "");
+  const [tipo, setTipo] = useState<TaskTipo>(startTipo);
+  const [titulo, setTitulo] = useState(task?.titulo ?? (initialTipo ? taskTitleFor(initialTipo, lead) : ""));
   const [descricao, setDescricao] = useState(task?.descricao ?? "");
   const [dateStr, setDateStr] = useState(initialDue.date);
   const [timeStr, setTimeStr] = useState(initialDue.time);
+
+  // Trocar o tipo: auto-preenche título (se ainda no padrão) e prazo sugerido (se vazio).
+  function pickTipo(t: TaskTipo) {
+    if (!titulo.trim() || titulo === taskTitleFor(tipo, lead)) setTitulo(taskTitleFor(t, lead));
+    const sug = suggestedTaskDue(t, lead);
+    if (sug && !dateStr && !timeStr) { const s = splitIso(sug); setDateStr(s.date); setTimeStr(s.time); }
+    setTipo(t);
+  }
   const [assignee, setAssignee] = useState<string | null>(
     task ? task.assignee : currentMember?.name ?? null,
   );
@@ -67,27 +93,39 @@ function Body({
       setError("Título é obrigatório.");
       return;
     }
+    const dueIso = joinIso(dateStr, timeStr);
+    if (!dueIso) {
+      setError("Defina o prazo da tarefa (data e hora).");
+      return;
+    }
+    const finalLead = leadId ?? lead?.id ?? null;
+    if (!finalLead) {
+      setError("Vincule a tarefa a um lead.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       if (editing && task) {
         await updateTask(task.id, {
-          lead_id: leadId,
+          lead_id: finalLead,
           titulo: titulo.trim(),
           descricao: descricao.trim() || null,
-          due_at: joinIso(dateStr, timeStr),
+          due_at: dueIso,
           assignee,
           notify,
+          tipo,
         });
       } else {
         await createTask(
           {
-            lead_id: leadId,
+            lead_id: finalLead,
             titulo: titulo.trim(),
             descricao: descricao.trim() || null,
-            due_at: joinIso(dateStr, timeStr),
+            due_at: dueIso,
             assignee,
             notify,
+            tipo,
           },
           user?.email ?? null,
         );
@@ -126,6 +164,28 @@ function Body({
         </header>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-4 px-5 py-4">
+          <Field label="Tipo de tarefa">
+            <div className="flex flex-wrap gap-1.5">
+              {TASK_TIPO_OPTIONS.map((t) => {
+                const sel = tipo === t;
+                const c = TASK_TIPO_COLORS[t];
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => pickTipo(t)}
+                    className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors"
+                    style={sel
+                      ? { borderColor: `${c}88`, background: `${c}22`, color: c }
+                      : { borderColor: "#2a2f3a", background: "#0f1218", color: "#9aa4b2" }}
+                  >
+                    {TASK_TIPO_ICONS[t]} {TASK_TIPO_LABELS[t]}
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+
           <Field label="Título *">
             <input
               autoFocus
@@ -146,7 +206,7 @@ function Body({
             />
           </Field>
 
-          <Field label="Quando">
+          <Field label="Quando *">
             <DateTimePicker
               date={dateStr}
               time={timeStr}
@@ -190,13 +250,13 @@ function Body({
           </Field>
 
           {!lead && leadsForPicker.length > 0 && (
-            <Field label="Vincular a um lead (opcional)">
+            <Field label="Vincular a um lead *">
               <select
                 value={leadId ?? ""}
                 onChange={(e) => setLeadId(e.target.value || null)}
                 className="ds-task-input"
               >
-                <option value="">— Sem lead —</option>
+                <option value="">— Selecione o lead —</option>
                 {leadsForPicker.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.empresa || l.nome}
