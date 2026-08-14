@@ -1,10 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { TASK_TIPO_COLORS, TASK_TIPO_ICONS, TASK_TIPO_LABELS, type Task } from "@/lib/types";
+import { TASK_TIPO_ICONS, TASK_TIPO_LABELS, type Task } from "@/lib/types";
+
+// Cor por STATUS de prazo (não pelo tipo):
+//   feita = verde · atrasada = vermelho · hoje = amarelo · em dia (futuro) = azul.
+const C_DONE = "#34d399", C_LATE = "#ef4444", C_TODAY = "#f5c518", C_FUTURE = "#3b82f6";
+function taskColor(t: Task): string {
+  if (t.done) return C_DONE;
+  if (!t.due_at) return C_FUTURE;
+  const d = startOfDay(new Date(t.due_at));
+  const today = startOfDay(new Date());
+  if (d.getTime() < today.getTime()) return C_LATE;
+  if (d.getTime() === today.getTime()) return C_TODAY;
+  return C_FUTURE;
+}
 
 type ViewMode = "dia" | "semana" | "mes";
 
@@ -58,9 +71,29 @@ export function TaskAgenda({ tasks, onClickTask }: { tasks: Task[]; onClickTask:
         </div>
       </div>
 
+      <Legend />
       {view === "mes" && <MonthGrid cursor={cursor} tasks={dated} onClickTask={onClickTask} />}
       {view === "semana" && <Timeline days={weekDays(cursor)} tasks={dated} onClickTask={onClickTask} />}
       {view === "dia" && <Timeline days={[startOfDay(cursor)]} tasks={dated} onClickTask={onClickTask} />}
+    </div>
+  );
+}
+
+// Legenda das cores por status de prazo.
+function Legend() {
+  const items = [
+    { c: C_FUTURE, label: "Em dia" },
+    { c: C_TODAY, label: "Hoje" },
+    { c: C_LATE, label: "Atrasada" },
+    { c: C_DONE, label: "Feita" },
+  ];
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-2 py-1.5 text-[10px] text-zinc-500">
+      {items.map((i) => (
+        <span key={i.label} className="flex items-center gap-1">
+          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: i.c }} /> {i.label}
+        </span>
+      ))}
     </div>
   );
 }
@@ -71,7 +104,7 @@ function weekDays(cursor: Date): Date[] {
 }
 
 function TaskChip({ t, onClick }: { t: Task; onClick: () => void }) {
-  const c = TASK_TIPO_COLORS[t.tipo] || "#71717a";
+  const c = taskColor(t);
   return (
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
@@ -140,10 +173,17 @@ function Timeline({ days, tasks, onClickTask }: { days: Date[]; tasks: Task[]; o
   const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
   const today = new Date();
 
+  // Relógio do "agora" (atualiza de minuto em minuto).
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const id = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(id); }, []);
+
   function posTop(d: Date) {
     const min = Math.max(0, Math.min((END_HOUR - START_HOUR) * 60, (d.getHours() - START_HOUR) * 60 + d.getMinutes()));
     return (min / 60) * HOUR_HEIGHT;
   }
+  const nowInRange = now.getHours() >= START_HOUR && now.getHours() < END_HOUR;
+  const nowIncluded = days.some((d) => isSameDay(d, now));
+  const nowTop = nowInRange && nowIncluded ? posTop(now) : null;
 
   return (
     <div className="flex-1 overflow-hidden">
@@ -163,6 +203,16 @@ function Timeline({ days, tasks, onClickTask }: { days: Date[]; tasks: Task[]; o
 
       <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
         <div className="relative grid" style={{ gridTemplateColumns: `48px repeat(${days.length}, 1fr)`, height: hours.length * HOUR_HEIGHT }}>
+          {/* Linha do "agora" */}
+          {nowTop != null && (
+            <>
+              <div className="pointer-events-none absolute z-20 flex items-center" style={{ top: nowTop - 8, left: 0, width: 48 }}>
+                <span className="ml-auto mr-1.5 rounded bg-rose-500 px-1 py-0.5 text-[9px] font-bold leading-none text-white">{format(now, "HH:mm")}</span>
+              </div>
+              <div className="pointer-events-none absolute z-10 h-px bg-rose-500" style={{ top: nowTop, left: 48, right: 0 }} />
+              <div className="pointer-events-none absolute z-20 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-rose-500" style={{ top: nowTop, left: 48 - 5 }} />
+            </>
+          )}
           {/* coluna de horas */}
           <div className="border-r border-zinc-900">
             {hours.map((hr) => <div key={hr} className="flex items-start justify-end pr-2 text-[10px] text-zinc-600" style={{ height: HOUR_HEIGHT }}>{hr}h</div>)}
@@ -177,8 +227,8 @@ function Timeline({ days, tasks, onClickTask }: { days: Date[]; tasks: Task[]; o
                 {hours.map((hr) => <div key={hr} className="border-b border-zinc-900/60" style={{ height: HOUR_HEIGHT }} />)}
                 {dayTasks.map((t, i) => {
                   const dt = new Date(t.due_at!);
-                  const c = TASK_TIPO_COLORS[t.tipo] || "#71717a";
-                  const overdue = !t.done && dt.getTime() < Date.now();
+                  const c = taskColor(t);
+                  const overdue = !t.done && c === C_LATE;
                   return (
                     <button
                       key={t.id}
