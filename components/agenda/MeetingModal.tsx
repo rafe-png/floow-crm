@@ -8,6 +8,7 @@ import {
   Calendar,
   Check,
   ExternalLink,
+  Lock,
   Pencil,
   Phone,
   Star,
@@ -40,8 +41,12 @@ import {
   SITUACAO_LABELS,
   STATUS_COLORS,
   STATUS_LABELS,
+  STATUS_ORDER,
+  canMoveTo,
   type Lead,
+  type LeadStatus,
   type LocalReuniao,
+  type Owner,
   type SegmentoConfeccao,
   whatsappLink,
   WHATSAPP_TAB,
@@ -57,7 +62,8 @@ type Props = {
 
 export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
   const { leads } = useLeadsContext();
-  const { isAdmin } = useTeamContext();
+  const { isAdmin, currentMember } = useTeamContext();
+  const viewerRole = isAdmin || currentMember?.role === "Trafego" ? null : currentMember?.role ?? null;
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const initialDateTime = splitIso(lead.data_agendamento);
@@ -253,7 +259,7 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
               observacoes={observacoes} setObservacoes={setObservacoes}
             />
           ) : (
-            <SummaryView lead={lead} />
+            <SummaryView lead={lead} onUpdate={onUpdate} viewerRole={viewerRole as Owner | null} isAdmin={isAdmin} />
           )}
         </div>
       </div>
@@ -264,7 +270,12 @@ export function MeetingModal({ lead, onClose, onUpdate, onDelete }: Props) {
 // ============================================================
 // Summary (view mode) — leitura limpa pro Closer
 // ============================================================
-function SummaryView({ lead }: { lead: Lead }) {
+function SummaryView({ lead, onUpdate, viewerRole, isAdmin }: {
+  lead: Lead;
+  onUpdate: (id: string, patch: Partial<Lead>) => Promise<void>;
+  viewerRole: Owner | null;
+  isAdmin: boolean;
+}) {
   return (
     <div className="space-y-5">
       {/* Agendamento */}
@@ -390,6 +401,34 @@ function SummaryView({ lead }: { lead: Lead }) {
           </div>
         </>
       )}
+
+      {/* Mover etapa do funil (gerenciar direto da agenda) */}
+      <SectionTitle>Mover para</SectionTitle>
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+        {STATUS_ORDER.map((s) => {
+          const c = STATUS_COLORS[s];
+          const active = s === lead.status;
+          const locked = !active && !canMoveTo(s, { role: viewerRole, isAdmin });
+          return (
+            <button
+              key={s}
+              onClick={() => { if (!active && !locked) onUpdate(lead.id, { status: s as LeadStatus }); }}
+              disabled={active || locked}
+              title={locked ? "Etapa do Closer — só o Closer move pra cá" : undefined}
+              className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs transition-colors ${
+                active
+                  ? `${c.bg} ${c.border} ${c.text} cursor-default`
+                  : locked
+                    ? "cursor-not-allowed border-zinc-900 bg-black/40 text-zinc-600"
+                    : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+              }`}
+            >
+              {locked ? <Lock size={11} className="shrink-0 text-zinc-700" /> : <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${c.dot}`} />}
+              <span className="truncate">{STATUS_LABELS[s]}</span>
+            </button>
+          );
+        })}
+      </div>
 
       {/* Tarefas */}
       <LeadTasks lead={lead} />
