@@ -6,7 +6,8 @@ import { Calendar, ExternalLink, Pencil, Trash2, User } from "lucide-react";
 import Link from "next/link";
 import { useTasksContext } from "@/lib/contexts/TasksContext";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
-import { TASK_TIPO_ICONS, TASK_TIPO_LABELS, TASK_TIPO_COLORS, type Task } from "@/lib/types";
+import { WhatsAppIcon } from "@/components/icons/BrandIcons";
+import { TASK_TIPO_ICONS, TASK_TIPO_LABELS, TASK_TIPO_COLORS, WHATSAPP_TAB, whatsappLink, type Task } from "@/lib/types";
 
 type Props = {
   task: Task;
@@ -85,6 +86,17 @@ export function TaskItem({ task, showLead = true, onEdit }: Props) {
               <ExternalLink size={9} />
               {lead.empresa || lead.nome}
             </Link>
+          )}
+          {lead && lead.telefone && !lead.telefone.includes("@lid") && (
+            <a
+              href={whatsappLink(lead.telefone)}
+              target={WHATSAPP_TAB}
+              className="flex items-center gap-1 rounded bg-[#25D366]/10 px-1.5 py-0.5 font-medium text-[#25D366] hover:bg-[#25D366]/20"
+              title="Abrir conversa no WhatsApp"
+            >
+              <WhatsAppIcon size={10} />
+              WhatsApp
+            </a>
           )}
         </div>
       </div>

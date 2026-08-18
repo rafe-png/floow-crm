@@ -6,7 +6,10 @@ import { DateTimePicker, joinIso, splitIso } from "@/components/ui/DateTimePicke
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useTasksContext } from "@/lib/contexts/TasksContext";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
+import { WhatsAppIcon } from "@/components/icons/BrandIcons";
 import {
+  WHATSAPP_TAB,
+  whatsappLink,
   TASK_TIPO_OPTIONS,
   TASK_TIPO_LABELS,
   TASK_TIPO_ICONS,
@@ -83,6 +86,7 @@ function Body({
     task ? task.assignee : currentMember?.name ?? null,
   );
   const [leadId, setLeadId] = useState<string | null>(task ? task.lead_id : lead?.id ?? null);
+  const linkedLead = lead ?? leadsForPicker.find((l) => l.id === leadId) ?? null;
   const [notify, setNotify] = useState(task ? task.notify : true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -158,9 +162,22 @@ function Body({
               </p>
             )}
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300" aria-label="Fechar">
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            {linkedLead && linkedLead.telefone && !linkedLead.telefone.includes("@lid") && (
+              <a
+                href={whatsappLink(linkedLead.telefone)}
+                target={WHATSAPP_TAB}
+                className="flex items-center gap-1.5 rounded-md border border-[#25D366]/40 bg-[#25D366]/10 px-2.5 py-1.5 text-xs font-semibold text-[#25D366] hover:bg-[#25D366]/20"
+                title="Abrir conversa no WhatsApp"
+              >
+                <WhatsAppIcon size={14} />
+                WhatsApp
+              </a>
+            )}
+            <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300" aria-label="Fechar">
+              <X size={18} />
+            </button>
+          </div>
         </header>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-4 px-5 py-4">
