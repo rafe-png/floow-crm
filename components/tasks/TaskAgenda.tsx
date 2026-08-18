@@ -73,8 +73,8 @@ export function TaskAgenda({ tasks, onClickTask }: { tasks: Task[]; onClickTask:
 
       <Legend />
       {view === "mes" && <MonthGrid cursor={cursor} tasks={dated} onClickTask={onClickTask} />}
-      {view === "semana" && <Timeline days={weekDays(cursor)} tasks={dated} onClickTask={onClickTask} />}
-      {view === "dia" && <Timeline days={[startOfDay(cursor)]} tasks={dated} onClickTask={onClickTask} />}
+      {view === "semana" && <DayColumns days={weekDays(cursor)} tasks={dated} onClickTask={onClickTask} />}
+      {view === "dia" && <DayColumns days={[startOfDay(cursor)]} tasks={dated} onClickTask={onClickTask} />}
     </div>
   );
 }
@@ -164,32 +164,20 @@ function MonthGrid({ cursor, tasks, onClickTask }: { cursor: Date; tasks: Task[]
   );
 }
 
-// ---- Semana / Dia (linha do tempo 7h–21h) ----
-const START_HOUR = 7;
-const END_HOUR = 21;
-const HOUR_HEIGHT = 46;
-
-function Timeline({ days, tasks, onClickTask }: { days: Date[]; tasks: Task[]; onClickTask: (t: Task) => void }) {
-  const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
+// ---- Semana / Dia: COLUNA-LISTA por dia (sem sobreposição) ----
+// Cada dia é uma coluna com as tarefas em lista (ordenadas por hora). Legível
+// mesmo com várias no mesmo horário. Marcador "agora" separa passado/futuro no dia.
+function DayColumns({ days, tasks, onClickTask }: { days: Date[]; tasks: Task[]; onClickTask: (t: Task) => void }) {
   const today = new Date();
-
-  // Relógio do "agora" (atualiza de minuto em minuto).
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const id = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(id); }, []);
 
-  function posTop(d: Date) {
-    const min = Math.max(0, Math.min((END_HOUR - START_HOUR) * 60, (d.getHours() - START_HOUR) * 60 + d.getMinutes()));
-    return (min / 60) * HOUR_HEIGHT;
-  }
-  const nowInRange = now.getHours() >= START_HOUR && now.getHours() < END_HOUR;
-  const nowIncluded = days.some((d) => isSameDay(d, now));
-  const nowTop = nowInRange && nowIncluded ? posTop(now) : null;
+  const single = days.length === 1;
 
   return (
-    <div className="flex-1 overflow-hidden">
+    <div className="flex flex-1 flex-col overflow-hidden">
       {/* Cabeçalho dos dias */}
-      <div className="grid border-b border-zinc-900 bg-zinc-950/50" style={{ gridTemplateColumns: `48px repeat(${days.length}, 1fr)` }}>
-        <div />
+      <div className="grid border-b border-zinc-900 bg-zinc-950/50" style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
         {days.map((d) => {
           const isToday = isSameDay(d, today);
           return (
@@ -201,52 +189,60 @@ function Timeline({ days, tasks, onClickTask }: { days: Date[]; tasks: Task[]; o
         })}
       </div>
 
-      <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
-        <div className="relative grid" style={{ gridTemplateColumns: `48px repeat(${days.length}, 1fr)`, height: hours.length * HOUR_HEIGHT }}>
-          {/* Linha do "agora" */}
-          {nowTop != null && (
-            <>
-              <div className="pointer-events-none absolute z-20 flex items-center" style={{ top: nowTop - 8, left: 0, width: 48 }}>
-                <span className="ml-auto mr-1.5 rounded bg-rose-500 px-1 py-0.5 text-[9px] font-bold leading-none text-white">{format(now, "HH:mm")}</span>
-              </div>
-              <div className="pointer-events-none absolute z-10 h-px bg-rose-500" style={{ top: nowTop, left: 48, right: 0 }} />
-              <div className="pointer-events-none absolute z-20 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-rose-500" style={{ top: nowTop, left: 48 - 5 }} />
-            </>
-          )}
-          {/* coluna de horas */}
-          <div className="border-r border-zinc-900">
-            {hours.map((hr) => <div key={hr} className="flex items-start justify-end pr-2 text-[10px] text-zinc-600" style={{ height: HOUR_HEIGHT }}>{hr}h</div>)}
-          </div>
-          {/* colunas de dias */}
-          {days.map((d) => {
-            const dayTasks = tasks
-              .filter((t) => isSameDay(new Date(t.due_at!), d))
-              .sort((a, b) => (a.due_at || "").localeCompare(b.due_at || ""));
-            return (
-              <div key={d.toISOString()} className="relative border-r border-zinc-900">
-                {hours.map((hr) => <div key={hr} className="border-b border-zinc-900/60" style={{ height: HOUR_HEIGHT }} />)}
-                {dayTasks.map((t, i) => {
-                  const dt = new Date(t.due_at!);
-                  const c = taskColor(t);
-                  const overdue = !t.done && c === C_LATE;
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => onClickTask(t)}
-                      title={`${format(dt, "HH:mm")} · ${TASK_TIPO_LABELS[t.tipo]} · ${t.titulo}`}
-                      className={`absolute left-1 right-1 overflow-hidden rounded border px-1.5 py-1 text-left ${t.done ? "opacity-50" : ""}`}
-                      style={{ top: posTop(dt) + i * 2, minHeight: 34, background: `${c}1f`, borderColor: `${c}66`, zIndex: 1 }}
-                    >
-                      <div className="text-[10px] font-semibold" style={{ color: c }}>{format(dt, "HH:mm")} {TASK_TIPO_ICONS[t.tipo]}{overdue ? " ⚠️" : ""}</div>
-                      <div className={`truncate text-[11px] text-zinc-200 ${t.done ? "line-through" : ""}`}>{t.titulo}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
+      <div className="grid flex-1 overflow-y-auto" style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
+        {days.map((d) => {
+          const dayTasks = tasks
+            .filter((t) => isSameDay(new Date(t.due_at!), d))
+            .sort((a, b) => (a.due_at || "").localeCompare(b.due_at || ""));
+          const isToday = isSameDay(d, today);
+          // Posição do marcador "agora": índice da 1ª tarefa com hora > agora.
+          let nowIdx = -1;
+          if (isToday) { nowIdx = dayTasks.findIndex((t) => new Date(t.due_at!).getTime() > now.getTime()); if (nowIdx === -1) nowIdx = dayTasks.length; }
+          return (
+            <div key={d.toISOString()} className={`min-h-full space-y-1 border-r border-zinc-900 p-1.5 ${isToday ? "bg-[#f5c518]/[0.03]" : ""}`}>
+              {dayTasks.length === 0 && <div className="pt-4 text-center text-[10px] text-zinc-700">—</div>}
+              {dayTasks.map((t, i) => (
+                <div key={t.id}>
+                  {isToday && i === nowIdx && <NowMarker now={now} />}
+                  <TaskRow t={t} single={single} onClick={() => onClickTask(t)} />
+                </div>
+              ))}
+              {isToday && nowIdx === dayTasks.length && dayTasks.length > 0 && <NowMarker now={now} />}
+            </div>
+          );
+        })}
       </div>
     </div>
+  );
+}
+
+function NowMarker({ now }: { now: Date }) {
+  return (
+    <div className="my-1 flex items-center gap-1.5">
+      <span className="rounded bg-rose-500 px-1 py-0.5 text-[9px] font-bold leading-none text-white">{format(now, "HH:mm")}</span>
+      <div className="h-px flex-1 bg-rose-500" />
+    </div>
+  );
+}
+
+// Uma tarefa na coluna-lista: hora + ícone do tipo + título, cor por status.
+function TaskRow({ t, single, onClick }: { t: Task; single: boolean; onClick: () => void }) {
+  const c = taskColor(t);
+  const dt = new Date(t.due_at!);
+  const overdue = !t.done && c === C_LATE;
+  return (
+    <button
+      onClick={onClick}
+      title={`${format(dt, "HH:mm")} · ${TASK_TIPO_LABELS[t.tipo]} · ${t.titulo}`}
+      className={`flex w-full items-start gap-1.5 overflow-hidden rounded border px-1.5 py-1 text-left ${t.done ? "opacity-60" : ""}`}
+      style={{ background: `${c}1f`, borderColor: `${c}66` }}
+    >
+      <span className="shrink-0 text-[10px] font-bold tabular-nums" style={{ color: c }}>{format(dt, "HH:mm")}</span>
+      <span className="min-w-0 flex-1">
+        <span className={`block ${single ? "text-xs" : "text-[11px]"} text-zinc-100 ${t.done ? "line-through" : ""} ${single ? "" : "truncate"}`}>
+          {TASK_TIPO_ICONS[t.tipo]} {t.titulo}{overdue ? " ⚠️" : ""}
+        </span>
+      </span>
+    </button>
   );
 }

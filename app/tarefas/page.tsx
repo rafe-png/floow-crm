@@ -8,6 +8,7 @@ import { TaskItem } from "@/components/tasks/TaskItem";
 import { TaskAgenda } from "@/components/tasks/TaskAgenda";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useTasksContext } from "@/lib/contexts/TasksContext";
+import { useTeamContext } from "@/lib/contexts/TeamContext";
 import type { Task } from "@/lib/types";
 
 type FilterKey = "abertas" | "hoje" | "atrasadas" | "concluidas" | "todas";
@@ -84,12 +85,20 @@ function groupTasks(tasks: Task[]): { label: string; items: Task[] }[] {
 }
 
 export default function TarefasPage() {
-  const { tasks } = useTasksContext();
+  const { tasks: allTasks } = useTasksContext();
   const { leads } = useLeadsContext();
+  const { members } = useTeamContext();
   const [mode, setMode] = useState<"agenda" | "lista">("agenda");
   const [filter, setFilter] = useState<FilterKey>("abertas");
+  const [assignee, setAssignee] = useState<string | null>(null); // null = todos
   const [newOpen, setNewOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
+
+  // Filtro por responsável (aplica na agenda e na lista).
+  const tasks = useMemo(
+    () => (assignee ? allTasks.filter((t) => t.assignee === assignee) : allTasks),
+    [allTasks, assignee],
+  );
 
   const filtered = useMemo(() => filterTasks(tasks, filter), [tasks, filter]);
   const groups = useMemo(() => groupTasks(filtered), [filtered]);
@@ -117,6 +126,19 @@ export default function TarefasPage() {
               </button>
             ))}
           </div>
+
+          {/* Filtro por responsável */}
+          <select
+            value={assignee ?? ""}
+            onChange={(e) => setAssignee(e.target.value || null)}
+            className="rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-300 outline-none [color-scheme:dark] hover:border-zinc-700 focus:border-[#f5c518]"
+            title="Filtrar por responsável"
+          >
+            <option value="">👤 Todos os responsáveis</option>
+            {members.map((m) => (
+              <option key={m.id} value={m.name}>{m.name}</option>
+            ))}
+          </select>
 
           {mode === "lista" && FILTERS.map((f) => (
             <button
