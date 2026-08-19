@@ -21542,6 +21542,21 @@ ${suffix}`;
   var view = "lead";
   var stageFilter = null;
   var returnStage = null;
+  var pinned = false;
+  function chatMatchesLead(lead) {
+    const p = (readActiveChatPhone() || "").replace(/\D/g, "");
+    const lp = (lead.telefone || "").replace(/\D/g, "");
+    if (p.length < 8 || lp.length < 8) return false;
+    return p.slice(-8) === lp.slice(-8);
+  }
+  function openLeadDetail(lead) {
+    currentLeadId = lead.id;
+    pinned = true;
+    returnStage = lead.status;
+    matchInfo = "aberto pelo funil";
+    view = "lead";
+    render();
+  }
   var callsToday = /* @__PURE__ */ new Map();
   async function loadCallsToday() {
     const start = /* @__PURE__ */ new Date();
@@ -21760,21 +21775,27 @@ ${suffix}`;
       const digits = leadDigits(lead);
       const n = callsToday.get(lead.id) ?? 0;
       const color = callHeat(n);
-      const card = h("button", {
-        class: "floow-leaditem" + (digits ? "" : " nodial"),
-        style: `border-left:4px solid ${color}; background:${color}14;`
+      const waBtn = digits ? h("button", { class: "floow-leaditem-wa", title: "Abrir conversa no WhatsApp" }, ["\u{1F4AC}"]) : document.createTextNode("");
+      if (digits) waBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openConversation(lead);
+      });
+      const card = h("div", {
+        class: "floow-leaditem",
+        style: `border-left:4px solid ${color}; background:${color}14; cursor:pointer;`
       }, [
         h("div", { class: "floow-leaditem-main" }, [
           h("span", { class: "floow-leaditem-name" }, [lead.empresa || lead.nome || "\u2014"]),
-          h("span", { class: "floow-leaditem-sub" }, [digits ? "abrir conversa \u203A" : "sem n\xFAmero"])
+          h("span", { class: "floow-leaditem-sub" }, ["ver detalhes \u203A"])
         ]),
         h("span", {
           class: "floow-heatbadge",
           title: `${n} liga${n === 1 ? "\xE7\xE3o" : "\xE7\xF5es"} hoje`,
           style: `background:${color}22; color:${color}; border:1px solid ${color}66;`
-        }, [`\u{1F4DE} ${n}`])
+        }, [`\u{1F4DE} ${n}`]),
+        waBtn
       ]);
-      if (digits) card.addEventListener("click", () => openConversation(lead));
+      card.addEventListener("click", () => openLeadDetail(lead));
       wrap.append(card);
     }
     body.append(h("div", { class: "floow-section" }, [wrap]));
@@ -21786,6 +21807,7 @@ ${suffix}`;
       return;
     }
     returnStage = lead.status;
+    pinned = false;
     flash("Abrindo conversa\u2026");
     const ok = await openWhatsAppChat(digits, lead.empresa || lead.nome || "");
     if (ok) {
@@ -21919,6 +21941,7 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
       const rs = returnStage;
       const b = h("button", { class: "floow-back-funnel" }, [`\u2190 Voltar ao funil \xB7 ${STATUS_LABELS[rs]}`]);
       b.addEventListener("click", () => {
+        pinned = false;
         stageFilter = rs;
         view = "stage";
         render();
@@ -21962,6 +21985,8 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
     }
     const fonte = lead.fonte ? FONTE_LABELS[lead.fonte] ?? lead.fonte : null;
     const editable = canEditLead(lead);
+    if (pinned && chatMatchesLead(lead)) pinned = false;
+    const pinnedDetail = pinned;
     const waDigits = (() => {
       if (!lead.telefone || lead.telefone.includes("@lid")) return null;
       let d = lead.telefone.replace(/\D/g, "");
@@ -21970,7 +21995,11 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
       return d;
     })();
     let waButton = document.createTextNode("");
-    if (waDigits && editable) {
+    if (waDigits && pinnedDetail) {
+      const btn = h("button", { class: "floow-btn floow-wa", title: "Abre a conversa do lead no WhatsApp" }, ["\u{1F4AC} Abrir conversa no WhatsApp"]);
+      btn.addEventListener("click", () => openConversation(lead));
+      waButton = btn;
+    } else if (waDigits && editable) {
       const btn = h("button", {
         class: "floow-btn floow-wa",
         title: "Liga pelo WhatsApp e registra no hist\xF3rico"
@@ -22018,7 +22047,7 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
         callInfo
       ])
     );
-    if (waDigits && editable && audios.length > 0) {
+    if (waDigits && editable && !pinnedDetail && audios.length > 0) {
       const wrap = h("div", { class: "floow-pills" });
       for (const a of audios) {
         const btn = h("button", { class: "floow-audio" }, [`${a.emoji ? a.emoji + " " : "\u{1F3A4} "}${a.name}`]);
@@ -22904,7 +22933,7 @@ debug: tel=${readActiveChatPhone() ?? "\u2014"} \xB7 nome=${readActiveChatTitle(
       const key = (readActiveChatPhone() || "") + "|" + (readActiveChatTitle() || "");
       if (key === lastKey) return;
       lastKey = key;
-      matchFromChat();
+      if (!pinned) matchFromChat();
       if (authed && !searchMode && !collapsed && !document.querySelector(".floow-modal")) render();
     }, 1e3);
   }

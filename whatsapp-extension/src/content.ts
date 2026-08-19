@@ -61,6 +61,27 @@ let lastKey = "";
 let view: "lead" | "funnel" | "stage" | "tasks" = "lead";
 let stageFilter: LeadStatus | null = null;   // etapa cuja lista está aberta
 let returnStage: LeadStatus | null = null;    // pra "voltar ao funil" após abrir a conversa
+// "Fixado" = lead aberto pelo funil (detalhes), mesmo sem a conversa dele aberta.
+// Enquanto fixado, o watcher da conversa NÃO troca o lead exibido.
+let pinned = false;
+
+// A conversa aberta é a desse lead? (compara os últimos 8 dígitos)
+function chatMatchesLead(lead: Lead): boolean {
+  const p = (readActiveChatPhone() || "").replace(/\D/g, "");
+  const lp = (lead.telefone || "").replace(/\D/g, "");
+  if (p.length < 8 || lp.length < 8) return false;
+  return p.slice(-8) === lp.slice(-8);
+}
+
+// Abre os DETALHES do lead (fixado) a partir do funil, sem abrir a conversa.
+function openLeadDetail(lead: Lead) {
+  currentLeadId = lead.id;
+  pinned = true;
+  returnStage = lead.status;
+  matchInfo = "aberto pelo funil";
+  view = "lead";
+  render();
+}
 
 // Ligações de HOJE por lead (id → contagem). Colore os cards do funil.
 let callsToday = new Map<string, number>();
@@ -314,21 +335,28 @@ function renderStageList() {
     const digits = leadDigits(lead);
     const n = callsToday.get(lead.id) ?? 0;
     const color = callHeat(n);
-    const card = h("button", {
-      class: "floow-leaditem" + (digits ? "" : " nodial"),
-      style: `border-left:4px solid ${color}; background:${color}14;`,
+    // Botão de conversa (só se tem número). Clicar no card = ver detalhes.
+    const waBtn = digits
+      ? h("button", { class: "floow-leaditem-wa", title: "Abrir conversa no WhatsApp" }, ["💬"])
+      : document.createTextNode("");
+    if (digits) (waBtn as HTMLElement).addEventListener("click", (e: Event) => { e.stopPropagation(); openConversation(lead); });
+
+    const card = h("div", {
+      class: "floow-leaditem",
+      style: `border-left:4px solid ${color}; background:${color}14; cursor:pointer;`,
     }, [
       h("div", { class: "floow-leaditem-main" }, [
         h("span", { class: "floow-leaditem-name" }, [lead.empresa || lead.nome || "—"]),
-        h("span", { class: "floow-leaditem-sub" }, [digits ? "abrir conversa ›" : "sem número"]),
+        h("span", { class: "floow-leaditem-sub" }, ["ver detalhes ›"]),
       ]),
       h("span", {
         class: "floow-heatbadge",
         title: `${n} liga${n === 1 ? "ção" : "ções"} hoje`,
         style: `background:${color}22; color:${color}; border:1px solid ${color}66;`,
       }, [`📞 ${n}`]),
+      waBtn,
     ]);
-    if (digits) card.addEventListener("click", () => openConversation(lead));
+    card.addEventListener("click", () => openLeadDetail(lead));
     wrap.append(card);
   }
   body.append(h("div", { class: "floow-section" }, [wrap]));
@@ -341,6 +369,7 @@ async function openConversation(lead: Lead) {
   const digits = leadDigits(lead);
   if (!digits) { flash("Lead sem número real — não dá pra abrir a conversa."); return; }
   returnStage = lead.status; // pra "voltar ao funil"
+  pinned = false;            // vamos abrir a conversa de verdade → sai do modo detalhes
   flash("Abrindo conversa…");
   const ok = await openWhatsAppChat(digits, lead.empresa || lead.nome || "");
   if (ok) {
@@ -477,7 +506,7 @@ function renderLead() {
   if (returnStage) {
     const rs = returnStage;
     const b = h("button", { class: "floow-back-funnel" }, [`← Voltar ao funil · ${STATUS_LABELS[rs]}`]);
-    b.addEventListener("click", () => { stageFilter = rs; view = "stage"; render(); });
+    b.addEventListener("click", () => { pinned = false; stageFilter = rs; view = "stage"; render(); });
     body.append(h("div", { class: "floow-section" }, [b]));
   }
 
@@ -514,6 +543,10 @@ function renderLead() {
 
   const fonte = lead.fonte ? (FONTE_LABELS[lead.fonte] ?? lead.fonte) : null;
   const editable = canEditLead(lead); // trava edição se o lead for de outra pessoa
+  // Se está fixado (aberto pelo funil) mas a conversa desse lead já está aberta,
+  // solta o pin e segue o fluxo normal (com ligar/áudio). Senão, modo "detalhes".
+  if (pinned && chatMatchesLead(lead)) pinned = false;
+  const pinnedDetail = pinned; // detalhes sem a conversa aberta
   // Número discável pro whatsapp:// (leads @lid não têm número real → sem botão).
   const waDigits = (() => {
     if (!lead.telefone || lead.telefone.includes("@lid")) return null;
@@ -526,7 +559,12 @@ function renderLead() {
   // se não achar o botão nativo, abre o app desktop (fallback). Em qualquer caso,
   // ao terminar pergunta o resultado e REGISTRA no histórico do lead.
   let waButton: Node = document.createTextNode("");
-  if (waDigits && editable) {
+  if (waDigits && pinnedDetail) {
+    // Detalhes sem a conversa aberta → botão pra ABRIR a conversa (aí liga/áudio).
+    const btn = h("button", { class: "floow-btn floow-wa", title: "Abre a conversa do lead no WhatsApp" }, ["💬 Abrir conversa no WhatsApp"]);
+    btn.addEventListener("click", () => openConversation(lead));
+    waButton = btn;
+  } else if (waDigits && editable) {
     const btn = h("button", {
       class: "floow-btn floow-wa",
       title: "Liga pelo WhatsApp e registra no histórico",
@@ -593,8 +631,8 @@ function renderLead() {
     ]),
   );
 
-  // Áudios prontos (biblioteca) — só se o lead tem número real e é seu.
-  if (waDigits && editable && audios.length > 0) {
+  // Áudios prontos (biblioteca) — só com a conversa aberta (não no modo detalhes).
+  if (waDigits && editable && !pinnedDetail && audios.length > 0) {
     const wrap = h("div", { class: "floow-pills" });
     for (const a of audios) {
       const btn = h("button", { class: "floow-audio" }, [`${a.emoji ? a.emoji + " " : "🎤 "}${a.name}`]);
@@ -1488,7 +1526,7 @@ function startChatWatch() {
     const key = (readActiveChatPhone() || "") + "|" + (readActiveChatTitle() || "");
     if (key === lastKey) return;
     lastKey = key;
-    matchFromChat();
+    if (!pinned) matchFromChat(); // fixado (aberto pelo funil) → não troca o lead exibido
     if (authed && !searchMode && !collapsed && !document.querySelector(".floow-modal")) render();
   }, 1000);
 }

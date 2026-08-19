@@ -278,3 +278,12 @@
 /* Nav: botão de tarefas */
 #floow-panel .floow-nav-tasks { margin-top: 6px; background: rgba(167,139,250,0.12); border-color: rgba(167,139,250,0.4); color: #c4b5fd; }
 #floow-panel .floow-nav-tasks:hover { background: rgba(167,139,250,0.2); border-color: rgba(167,139,250,0.65); }
+
+/* Botão 💬 (abrir conversa) no card da lista do funil */
+#floow-panel .floow-leaditem-wa {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(37,211,102,0.12); border: 1px solid rgba(37,211,102,0.4); font-size: 15px;
+  transition: all .12s;
+}
+#floow-panel .floow-leaditem-wa:hover { background: rgba(37,211,102,0.22); border-color: rgba(37,211,102,0.65); }
