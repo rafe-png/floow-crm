@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "floow CRM — WhatsApp",
-  "version": "0.1.0",
-  "description": "Painel do floow CRM sobre o WhatsApp Web: vê o lead da conversa, muda etapa e observações em tempo real.",
+  "version": "0.2.0",
+  "description": "Painel do floow CRM sobre o WhatsApp Web: funil, tarefas, ligações e etapas do lead em tempo real.",
   "permissions": ["storage"],
   "host_permissions": [
     "https://web.whatsapp.com/*",
     "https://filzeqlhxxqdniypcrgi.supabase.co/*",
     "wss://filzeqlhxxqdniypcrgi.supabase.co/*",
+    "https://crm.floowdigital.com/*",
     "https://floow-crm.vercel.app/*"
   ],
   "content_scripts": [

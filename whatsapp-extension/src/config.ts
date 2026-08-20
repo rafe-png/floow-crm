@@ -5,5 +5,5 @@ declare const __SUPABASE_ANON_KEY__: string;
 
 export const SUPABASE_URL = __SUPABASE_URL__;
 export const SUPABASE_ANON_KEY = __SUPABASE_ANON_KEY__;
-export const APP_URL = "https://floow-crm.vercel.app";
+export const APP_URL = "https://crm.floowdigital.com";
 export const ADMIN_EMAIL = "rafe@floowdigital.com";

@@ -21062,7 +21062,7 @@ ${suffix}`;
   // src/config.ts
   var SUPABASE_URL = "https://filzeqlhxxqdniypcrgi.supabase.co";
   var SUPABASE_ANON_KEY = "sb_publishable_pHQlFU55EYT5V9l9R93JuA_dy_uqNbf";
-  var APP_URL = "https://floow-crm.vercel.app";
+  var APP_URL = "https://crm.floowdigital.com";
   var ADMIN_EMAIL = "rafe@floowdigital.com";
 
   // src/supabaseClient.ts
