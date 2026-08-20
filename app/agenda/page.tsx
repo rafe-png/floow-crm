@@ -10,8 +10,9 @@ import { DayView } from "@/components/agenda/DayView";
 import { MonthView } from "@/components/agenda/MonthView";
 import { WeekView } from "@/components/agenda/WeekView";
 import { LostReasonDialog } from "@/components/lead/LostReasonDialog";
+import { NewTaskDialog } from "@/components/tasks/NewTaskDialog";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
-import type { Lead, MotivoPerda } from "@/lib/types";
+import { STAGE_TASK_TIPO, type Lead, type MotivoPerda, type TaskTipo } from "@/lib/types";
 
 type ViewMode = "dia" | "semana" | "mes";
 
@@ -26,6 +27,7 @@ export default function AgendaPage() {
   const [view, setView] = useState<ViewMode>("semana");
   const [cursor, setCursor] = useState(new Date());
   const [selected, setSelected] = useState<Lead | null>(null);
+  const [pendingTask, setPendingTask] = useState<{ lead: Lead; tipo: TaskTipo } | null>(null);
   const [pendingLost, setPendingLost] = useState<{
     id: string;
     name: string;
@@ -48,6 +50,11 @@ export default function AgendaPage() {
       return;
     }
     await updateLead(id, patch);
+    // Moveu de etapa → abre o popup de tarefa (se a etapa sugere uma).
+    if (patch.status && lead && patch.status !== lead.status) {
+      const tipo = STAGE_TASK_TIPO[patch.status];
+      if (tipo) setPendingTask({ lead: { ...lead, ...patch }, tipo });
+    }
   }
 
   async function handleConfirmLost(motivo: MotivoPerda) {
@@ -156,6 +163,14 @@ export default function AgendaPage() {
         leadName={pendingLost?.name ?? ""}
         onCancel={() => setPendingLost(null)}
         onConfirm={handleConfirmLost}
+      />
+
+      {/* Tarefa sugerida ao mover de etapa pela agenda (pré-preenchida, pode pular). */}
+      <NewTaskDialog
+        open={pendingTask != null}
+        lead={pendingTask?.lead}
+        initialTipo={pendingTask?.tipo}
+        onClose={() => setPendingTask(null)}
       />
     </>
   );
