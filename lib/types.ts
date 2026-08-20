@@ -623,6 +623,19 @@ export function normalizePhone(telefone: string | null | undefined): string {
   return digits.length >= 12 ? digits : `55${digits}`;
 }
 
+/**
+ * Chave CANÔNICA do telefone pra comparar/deduplicar (não pra discar).
+ * Resolve o 9º dígito do celular BR: '5581996707429', '81996707429' e
+ * '558196707429' viram a MESMA chave ('8196707429'). Mesma lógica do webhook.
+ */
+export function phoneKey(telefone: string | null | undefined): string {
+  let d = (telefone ?? "").replace(/\D/g, "");
+  if (!d) return "";
+  d = d.replace(/^55/, "");                                   // tira código do país
+  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3); // tira o 9 extra do celular
+  return d;
+}
+
 // Helper pra abrir a conversa direto no WhatsApp WEB (não no app do PC).
 export function whatsappLink(telefone: string): string {
   return `https://web.whatsapp.com/send?phone=${normalizePhone(telefone)}`;
@@ -639,11 +652,11 @@ export function findDuplicateLead(
   contact: { telefone?: string | null; instagram?: string | null },
   ignoreId?: string,
 ): Lead | null {
-  const phone = normalizePhone(contact.telefone);
+  const phone = phoneKey(contact.telefone);
   const insta = (contact.instagram ?? "").trim().replace(/^@/, "").toLowerCase();
   for (const l of leads) {
     if (ignoreId && l.id === ignoreId) continue;
-    if (phone && normalizePhone(l.telefone) === phone) return l;
+    if (phone && phone.length >= 8 && phoneKey(l.telefone) === phone) return l;
     if (insta && (l.instagram ?? "").trim().replace(/^@/, "").toLowerCase() === insta) return l;
   }
   return null;
