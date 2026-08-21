@@ -325,6 +325,19 @@ export type Task = {
   updated_at: string;
 };
 
+// Playbook comercial (documento tipo Notion, Markdown). Admin edita; todos leem.
+export type Playbook = {
+  id: string;
+  title: string;
+  emoji: string | null;
+  categoria: string | null;
+  conteudo: string;
+  ordem: number;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type NewTaskInput = {
   lead_id?: string | null;
   titulo: string;

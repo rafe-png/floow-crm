@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AudioLines, BarChart3, Calendar, CheckSquare, DollarSign, LayoutDashboard, Kanban, Settings } from "lucide-react";
+import { AudioLines, BarChart3, BookOpen, Calendar, CheckSquare, DollarSign, LayoutDashboard, Kanban, Settings } from "lucide-react";
 import { FloowLogo } from "@/components/icons/FloowLogo";
 import { useTeamContext } from "@/lib/contexts/TeamContext";
 
@@ -20,6 +20,7 @@ function useNavItems(): NavItem[] {
     { href: "/kanban", label: "Funis de vendas", icon: Kanban },
     { href: "/agenda", label: "Agenda", icon: Calendar },
     { href: "/tarefas", label: "Tarefas", icon: CheckSquare },
+    { href: "/playbooks", label: "Playbooks", icon: BookOpen },
     { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   ];
   if (isAdmin) {
