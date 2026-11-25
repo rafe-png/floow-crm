@@ -5,9 +5,8 @@ import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertTriangle, Calendar, Loader2, Phone, Star, User } from "lucide-react";
+import { AlertTriangle, Calendar, Phone, Star, User } from "lucide-react";
 import { InstagramIcon, WhatsAppIcon } from "@/components/icons/BrandIcons";
-import { webphoneManager } from "@/lib/api4com/webphone";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useCallCount, useCallTotal } from "@/lib/hooks/useCallCounts";
 import { computeLeadScore, PRIORITY_LABELS, PRIORITY_META, PRIORITY_SHORT } from "@/lib/lead-score";
@@ -77,23 +76,6 @@ export function LeadCard({ lead, onClick }: Props) {
     e.stopPropagation();
     try { await updateLead(lead.id, { prioridade: !starred }); }
     catch (err) { console.error("Falha ao marcar prioridade:", err); }
-  }
-
-  // Botão de ligar por telefone (API4COM). O widget flutuante assume a ligação; aqui
-  // só iniciamos (com spinner). stopPropagation pra não ativar o drag do card.
-  const [calling, setCalling] = useState(false);
-  async function handleCall(e: MouseEvent) {
-    e.stopPropagation();
-    if (calling) return;
-    setCalling(true);
-    try {
-      await webphoneManager.placeCall({
-        leadId: lead.id,
-        phone: lead.telefone,
-        label: lead.empresa || lead.nome || lead.telefone,
-      });
-    } catch { /* o widget do webphone mostra o status/erro */ }
-    finally { setCalling(false); }
   }
 
   return (
@@ -270,17 +252,6 @@ export function LeadCard({ lead, onClick }: Props) {
         </div>
 
         <div className="flex shrink-0 items-center gap-0.5">
-          <button
-            type="button"
-            onClick={handleCall}
-            onPointerDown={(e) => e.stopPropagation()}
-            disabled={calling}
-            className="flex items-center rounded px-1.5 py-1 text-sky-400 hover:bg-sky-400/10 disabled:opacity-50"
-            title={`Ligar por telefone ${lead.telefone}`}
-          >
-            {calling ? <Loader2 size={13} className="animate-spin" /> : <Phone size={13} />}
-          </button>
-
           {lead.instagram && (
             <a
               href={`https://instagram.com/${lead.instagram}`}
