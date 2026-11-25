@@ -5,6 +5,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { MetaRing } from "@/components/dashboard/MetaRing";
 import { Funnel } from "@/components/dashboard/Funnel";
 import { UpcomingMeetings } from "@/components/dashboard/UpcomingMeetings";
+import { CadenceExpiryPanel } from "@/components/dashboard/CadenceExpiryPanel";
 import { useLeadsContext } from "@/lib/contexts/LeadsContext";
 import { useGoalsContext } from "@/lib/contexts/GoalsContext";
 import { useMetaSpendContext } from "@/lib/contexts/MetaSpendContext";
@@ -101,6 +102,9 @@ export default function DashboardPage() {
     <>
       <TopBar title="Dashboard" />
       <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+        {/* Aviso dos leads que bateram os 20 dias da cadência (admin troca o SDR) */}
+        <CadenceExpiryPanel />
+
         {/* Seletor de período (vale pra faturamento e custo de aquisição) */}
         <section className="mb-6">
           <PeriodPicker />

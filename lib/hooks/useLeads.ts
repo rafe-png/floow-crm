@@ -28,6 +28,23 @@ export type NewLeadInput = Omit<
   | "agendado_por"
   | "no_show_count"
   | "last_no_show_em"
+  | "last_inbound_at"
+  | "canal"
+  | "utm_source"
+  | "utm_medium"
+  | "utm_campaign"
+  | "utm_content"
+  | "utm_term"
+  | "campaign_id"
+  | "adset_id"
+  | "ad_id"
+  | "fbclid"
+  | "fbc"
+  | "fbp"
+  | "client_ip_address"
+  | "client_user_agent"
+  | "prioridade"
+  | "ciclo_entrada_em"
 >;
 
 // Permite editar `created_at` (data de entrada no funil, editável no painel do
@@ -48,14 +65,24 @@ export function useLeads() {
     let cancelled = false;
 
     async function fetchLeads() {
-      const { data, error } = await supabase
-        .from("leads")
-        .select("*")
-        .order("created_at", { ascending: false });
-
+      // Pagina de 1000 em 1000 — o PostgREST corta em 1000 por request. Sem isso,
+      // leads antigos (além dos 1000 mais recentes) somem do funil/relatórios/agenda.
+      const all: Lead[] = [];
+      const page = 1000;
+      for (let from = 0; ; from += page) {
+        const { data, error } = await supabase
+          .from("leads")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .range(from, from + page - 1);
+        if (cancelled) return;
+        if (error) { setError(error.message); break; }
+        const rows = (data ?? []) as Lead[];
+        all.push(...rows);
+        if (rows.length < page) break;
+      }
       if (cancelled) return;
-      if (error) setError(error.message);
-      else setLeads((data ?? []) as Lead[]);
+      setLeads(all);
       setLoading(false);
     }
     fetchLeads();
@@ -126,17 +153,23 @@ export function useLeads() {
   }, []);
 
   const updateLead = useCallback(async (id: string, patch: UpdateLeadInput) => {
-    // Voltar pra antes da reunião (Entrada/Qualificado) ou cair em No-show limpa
-    // o agendamento: zera a data e (via lógica abaixo) deleta o evento do Google
-    // Calendar + limpa google_event_id/meet_link, tirando da agenda.
+    // Sair de "Agendado" SEM a reunião ter acontecido limpa o agendamento INTEIRO
+    // (data + quem agendou + local) e, via lógica abaixo, deleta o evento do Google
+    // Calendar + limpa google_event_id/meet_link — tirando a reunião da agenda.
+    // Vale pras etapas anteriores (Entrada/Pré-qual/Qualificado/Em agendamento),
+    // No-show, Desqualificado e Carteira. NÃO limpa em Ganho/Perdido/Follow-up —
+    // nesses a reunião aconteceu e a data fica como histórico.
+    // O histórico do lead (lead_events) é preservado em qualquer caso.
     if (
       patch.status === "qualificado" ||
       patch.status === "pre_qualificado" ||
       patch.status === "em_agendamento" ||
       patch.status === "agendando" ||
-      patch.status === "no_show"
+      patch.status === "no_show" ||
+      patch.status === "desqualificado" ||
+      patch.status === "carteira"
     ) {
-      patch = { ...patch, data_agendamento: null };
+      patch = { ...patch, data_agendamento: null, agendado_por: null, local: null };
     }
 
     const supabase = getSupabase();
@@ -161,8 +194,11 @@ export function useLeads() {
       "data_agendamento" in patch && patch.data_agendamento !== prevLead.data_agendamento;
     const contentChanged =
       "nome" in patch || "empresa" in patch || "observacoes" in patch;
+    // Trocar o formato (online/presencial) também re-sincroniza o evento — assim o
+    // meet_link é (re)buscado. Conserta reuniões que ficaram sem o link na criação.
+    const localChanged = "local" in patch && patch.local !== prevLead.local;
 
-    if (!dateChanged && !contentChanged) return;
+    if (!dateChanged && !contentChanged && !localChanged) return;
 
     if (prevLead.google_event_id) {
       // Já existe evento

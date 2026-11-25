@@ -86,7 +86,7 @@ export type SegmentoConfeccao =
 
 // BANT
 export type BantBudget = "tem_verba" | "tem_indefinida" | "nao_tem";
-export type BantAuthority = "decisor" | "influenciador" | "precisa_aprovar";
+export type BantAuthority = "decisor" | "tem_socio";
 export type BantNeed = "alta" | "media" | "explorando";
 export type BantTiming = "agora" | "30_dias" | "60_90_dias" | "sem_urgencia";
 
@@ -118,15 +118,22 @@ export type MotivoCarteira =
 
 // Por que o lead foi DESqualificado (não vira oportunidade — sai cedo do funil).
 export type MotivoDesqualificacao =
-  | "nao_e_confeccao"
+  // Opções ATIVAS (aparecem no seletor de desqualificar):
   | "muito_pequeno"
-  | "sem_verba"
+  | "sem_estoque"
+  | "margem_baixa"
+  | "sem_verba"      // rotulado "Sem budget"
+  | "revende"
+  | "regiao_fora"    // rotulado "Segmento fora do foco"
+  | "sem_instagram"
+  | "sem_fit"
+  // LEGADAS (só pra exibir histórico; fora do seletor):
+  | "nao_e_confeccao"
   | "fora_perfil"
   | "nao_decisor"
   | "ja_tem_solucao"
   | "sem_interesse"
   | "nao_respondeu"
-  | "regiao_fora"
   | "outro";
 
 // ============================================================
@@ -136,6 +143,27 @@ export type Lead = {
   id: string;
   created_at: string;
   updated_at: string;
+  // Início do CICLO de cadência atual (migração 076). O relógio de 20 dias / a
+  // cobrança de toque contam a partir daqui; created_at (entrada original) não muda.
+  // Opcional: rows carregadas antes da migração rodar não trazem o campo → cai pra
+  // created_at nos helpers (ver cycleStart/isCadenceExpired).
+  ciclo_entrada_em?: string | null;
+  last_inbound_at: string | null; // última mensagem do lead (temperatura/reaquecimento)
+  // Rastreio de anúncio (migrações 061/064) — preenchido pela ponte de clique da LP.
+  canal: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  campaign_id: string | null;
+  adset_id: string | null;
+  ad_id: string | null;
+  fbclid: string | null;
+  fbc: string | null;                 // cookie _fbc (match forte no CAPI) — migração 066
+  fbp: string | null;                 // cookie _fbp (match forte no CAPI) — migração 066
+  client_ip_address: string | null;   // reforço de match server-side — migração 066
+  client_user_agent: string | null;   // reforço de match server-side — migração 066
   nome: string;
   telefone: string;
   dono: Owner;
@@ -211,6 +239,10 @@ export type Lead = {
   // Fonte de marketing do lead (exibida/selecionável no card). Leads que entram
   // pela automação do WhatsApp já nascem como 'meta_ads'.
   fonte: LeadFonte | null;
+
+  // Estrela de PRIORIDADE manual (migração 075). true = ranqueado no topo da coluna
+  // no kanban (CRM + extensão). Priorização manual, independente do score/BANT.
+  prioridade: boolean;
 };
 
 // De onde o lead veio (canal de marketing).
@@ -225,6 +257,37 @@ export const FONTE_LABELS: Record<LeadFonte, string> = {
 };
 
 export const FONTE_OPTIONS = Object.keys(FONTE_LABELS) as LeadFonte[];
+
+// Canal = plataforma real do lead (preenchido automático pelo prefixo do código /
+// ponte de clique da LP). É mais específico que a `fonte` (IG/FB/MT são todos
+// "meta_ads" na fonte). Usado pra exibir a ORIGEM real do lead.
+export const CANAL_LABELS: Record<string, string> = {
+  ig: "Instagram",
+  wa: "WhatsApp",
+  fb: "Facebook",
+  mt: "Meta Ads",
+  ad: "Meta Ads",
+  meta: "Meta",
+  whatsapp: "WhatsApp",
+  manual: "Manual",
+};
+
+// Origem de EXIBIÇÃO do lead: prioriza o canal real (ig → Instagram); se não houver
+// canal, cai pra fonte (meta_ads → Meta Ads, indicação, etc.).
+export function origemLabel(lead: { canal?: string | null; fonte?: string | null }): string | null {
+  if (lead.canal) return CANAL_LABELS[lead.canal] ?? lead.canal;
+  if (lead.fonte) return FONTE_LABELS[lead.fonte as LeadFonte] ?? lead.fonte;
+  return null;
+}
+
+// Código do criativo SEM o prefixo de canal: "MT08" → "08", "IG08" → "08", "IG-08" → "08".
+// Pra exibir só o criativo (a origem/canal é mostrada separada). Códigos sem prefixo
+// conhecido (numéricos "08", legado "C1-25") ficam inteiros.
+export function creativeCodeClean(code: string | null | undefined): string | null {
+  if (!code) return null;
+  const m = code.toUpperCase().match(/^(IG|WA|FB|MT)-?(.+)$/);
+  return m && m[2] ? m[2] : code;
+}
 
 // ============================================================
 // Localização — cidades-alvo + estados (UF) pro mapa de calor
@@ -267,15 +330,33 @@ export function ufForCidade(cidade: string | null): string | null {
 
 export type LeadEventType = "created" | "status_change" | "note" | "ligacao";
 
-// Resultado de uma ligação (registrada pela extensão no histórico do lead).
-export type CallOutcome = "atendeu" | "atendeu_desligou" | "rejeitou" | "chamou_ate_cair" | "nao_chamou";
+// Resultado de uma ligação (registrada pela extensão ou pela API4COM no histórico).
+export type CallOutcome =
+  | "atendeu" | "atendeu_desligou" | "rejeitou" | "chamou_ate_cair" | "nao_chamou"
+  // resultados da ligação por telefone (API4COM):
+  | "nao_atendeu" | "ocupado" | "caixa_postal" | "ligando" | "falhou";
 export const CALL_OUTCOME_LABELS: Record<CallOutcome, string> = {
   atendeu: "Atendeu ✅",
   atendeu_desligou: "Atendeu mas desligou",
   rejeitou: "Rejeitou",
   chamou_ate_cair: "Chamou até cair",
   nao_chamou: "Não chamou",
+  nao_atendeu: "Não atendeu",
+  ocupado: "Ocupado",
+  caixa_postal: "Caixa postal / caiu rápido",
+  ligando: "Ligando…",
+  falhou: "Não completou",
 };
+
+// Opções mostradas no popup "Como foi a ligação?" das ligações por TELEFONE (API4COM).
+// O vendedor marca o resultado no fim da ligação (a classificação automática do
+// webhook erra em caixa postal / não-atende, então a escolha manual é a verdade).
+export const CALL_OUTCOME_PHONE: { value: CallOutcome; label: string }[] = [
+  { value: "atendeu", label: "Atendeu ✅" },
+  { value: "nao_atendeu", label: "Não atendeu" },
+  { value: "caixa_postal", label: "Caixa postal" },
+  { value: "ocupado", label: "Ocupado" },
+];
 
 export type LeadEvent = {
   id: string;
@@ -307,6 +388,8 @@ export type TeamMember = {
   created_at: string;
   /** Admin do CRM. Vem da coluna is_admin (migração 016); undefined antes dela. */
   is_admin?: boolean;
+  /** Grava as ligações da extensão (migração 060). Controlado só pelo admin. Default true. */
+  record_calls?: boolean;
 };
 
 export type Task = {
@@ -320,18 +403,29 @@ export type Task = {
   assignee: string | null;
   notify: boolean;
   tipo: TaskTipo;
+  recorrente: boolean;   // ao concluir, recria a mesma tarefa pro dia seguinte
   created_by: string | null;
   created_at: string;
   updated_at: string;
 };
 
-// Playbook comercial (documento tipo Notion, Markdown). Admin edita; todos leem.
+// Playbook comercial (tipo Notion). Admin edita; todos leem.
+// `tipo` separa as 3 guias: documento (Markdown) · mapa_mental / organograma (Mermaid).
+export type PlaybookTipo = "documento" | "mapa_mental" | "organograma";
+
+export const PLAYBOOK_TIPO_LABELS: Record<PlaybookTipo, string> = {
+  documento: "Documentos",
+  mapa_mental: "Mapa mental",
+  organograma: "Organograma",
+};
+
 export type Playbook = {
   id: string;
   title: string;
   emoji: string | null;
   categoria: string | null;
   conteudo: string;
+  tipo: PlaybookTipo;
   ordem: number;
   updated_by: string | null;
   created_at: string;
@@ -346,6 +440,7 @@ export type NewTaskInput = {
   assignee?: string | null;
   notify?: boolean;
   tipo?: TaskTipo;
+  recorrente?: boolean;
 };
 
 // ============================================================
@@ -440,6 +535,49 @@ export type MetaAdSpendDay = {
 // Gasto diário POR CRIATIVO (nível anúncio; código lido do nome do anúncio).
 export type MetaCreativeSpendDay = MetaAdSpendDay & { criativo_codigo: number };
 
+export type MetaCampaignMeta = {
+  campaign_id: string;
+  name: string | null;
+  effective_status: string | null; // ACTIVE, PAUSED, CAMPAIGN_PAUSED, ARCHIVED, …
+  daily_budget: number | null;      // orçamento diário (R$); null em ABO
+  lifetime_budget: number | null;   // orçamento vitalício (R$)
+  updated_at: string;
+};
+
+export type MetaAdsetMeta = {
+  adset_id: string;
+  campaign_id: string | null;
+  name: string | null;
+  effective_status: string | null;
+  daily_budget: number | null;
+  lifetime_budget: number | null;
+  updated_at: string;
+};
+
+export type MetaAdMeta = {
+  ad_id: string;
+  adset_id: string | null;
+  campaign_id: string | null;
+  name: string | null;
+  effective_status: string | null;
+  updated_at: string;
+};
+
+export type MetaCampaignSpendDay = {
+  day: string;
+  campaign_id: string;
+  campaign_name: string | null;
+  adset_id: string;
+  adset_name: string | null;
+  ad_id: string;
+  ad_name: string | null;
+  spend: number;
+  leads: number;
+  impressions: number;
+  clicks: number;
+  updated_at: string;
+};
+
 // ============================================================
 // Constantes de UI
 // ============================================================
@@ -448,7 +586,6 @@ export const STATUS_ORDER: LeadStatus[] = [
   "sem_resposta",
   "qualificado",      // Entrada
   "pre_qualificado",
-  "em_agendamento",   // Qualificado
   "agendando",        // Em agendamento
   "carteira",
   "reuniao_agendada",
@@ -462,13 +599,49 @@ export const STATUS_ORDER: LeadStatus[] = [
 // até "Carteira". Exclui a Entrada (lead só chegou, sem valor/qualificação) e
 // as etapas fechadas (ganho, perdido, sem resposta, desqualificado).
 export const PIPELINE_STATUSES: LeadStatus[] = [
-  "em_agendamento",
   "agendando",
   "reuniao_agendada",
   "no_show",
   "follow_up",
   "carteira",
 ];
+
+// ============================================================
+// Cadência de toques (20 dias · 3 toques/dia)
+// ============================================================
+// Zona de cadência = etapas onde o lead ainda é TRABALHADO pelo SDR com ligações
+// diárias e onde vale o relógio de vida útil. Vai da Entrada (qualificado) até
+// "Qualificado" (em_agendamento). Ao entrar em "Em agendamento" (agendando) o lead
+// já está sendo marcado → sai da cadência: não cobra toque diário nem expira.
+export const CADENCE_STAGES: LeadStatus[] = ["qualificado", "pre_qualificado", "em_agendamento"];
+export function isCadenceStage(status: LeadStatus): boolean {
+  return CADENCE_STAGES.includes(status);
+}
+// Meta diária de toques (ligações) por lead na cadência — as 3 bolinhas do card.
+export const DAILY_TOUCH_GOAL = 3;
+// Vida útil do lead na cadência, em dias, antes de exigir troca de SDR (sem ir pro
+// Reaquecimento — fica na Entrada e troca o dono via aviso no Dashboard).
+export const CADENCE_LIFETIME_DAYS = 20;
+
+// Início do ciclo de cadência do lead. Usa ciclo_entrada_em; se o campo ainda não
+// existir (migração 076 não rodou) cai pra created_at.
+export function cycleStart(lead: Lead): Date {
+  return new Date(lead.ciclo_entrada_em ?? lead.created_at);
+}
+// Dias corridos desde o início do ciclo atual (base do relógio de 20 dias).
+export function cadenceCycleDays(lead: Lead, nowMs: number): number {
+  return (nowMs - cycleStart(lead).getTime()) / 86_400_000;
+}
+// Lead "venceu": está na zona de cadência E o ciclo atual passou dos 20 dias.
+// Esses são os que aparecem no aviso do Dashboard pra troca de SDR.
+// IMPORTANTE: exige ciclo_entrada_em preenchido (a cadência precisa ter sido
+// iniciada — migração 076). Sem ele, NÃO conta como vencido — evita uma enxurrada
+// falsa de "vencidos" por created_at antes da cadência estar ligada.
+export function isCadenceExpired(lead: Lead, nowMs: number): boolean {
+  if (!lead.ciclo_entrada_em) return false;
+  if (!isCadenceStage(lead.status)) return false;
+  return cadenceCycleDays(lead, nowMs) >= CADENCE_LIFETIME_DAYS;
+}
 
 // Nota: os VALORES do enum no banco continuam "qualificado"/"em_agendamento";
 // só os rótulos exibidos mudaram (entrada/qualificado). A ordem é preservada,
@@ -484,7 +657,7 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
   carteira: "Carteira",
   negocio_ganho: "Negócio ganho",
   negocio_perdido: "Negócio perdido",
-  sem_resposta: "Sem resposta",
+  sem_resposta: "Reaquecimento",
   desqualificado: "Desqualificado",
 };
 
@@ -548,8 +721,7 @@ export const BANT_BUDGET_LABELS: Record<BantBudget, string> = {
 
 export const BANT_AUTHORITY_LABELS: Record<BantAuthority, string> = {
   decisor: "É o decisor",
-  influenciador: "Influencia",
-  precisa_aprovar: "Precisa aprovar",
+  tem_socio: "Tem sócio",
 };
 
 export const BANT_NEED_LABELS: Record<BantNeed, string> = {
@@ -616,17 +788,30 @@ export const MOTIVO_CARTEIRA_LABELS: Record<MotivoCarteira, string> = {
 };
 
 export const MOTIVO_DESQUALIFICACAO_LABELS: Record<MotivoDesqualificacao, string> = {
-  nao_e_confeccao: "Não é confecção",
+  // Ativas
   muito_pequeno: "Muito pequeno / sem estrutura",
-  sem_verba: "Sem verba pra investir",
+  sem_estoque: "Sem estoque",
+  margem_baixa: "Margem muito baixa",
+  sem_verba: "Sem budget",
+  revende: "Revende",
+  regiao_fora: "Segmento fora do foco",
+  sem_instagram: "Sem Instagram",
+  sem_fit: "Sem fit",
+  // Legadas (só exibição do histórico)
+  nao_e_confeccao: "Não é confecção",
   fora_perfil: "Fora do perfil (ICP)",
   nao_decisor: "Não é o decisor",
   ja_tem_solucao: "Já tem agência/solução",
   sem_interesse: "Sem interesse real",
   nao_respondeu: "Não respondeu / sumiu",
-  regiao_fora: "Região/segmento fora do foco",
   outro: "Outro",
 };
+
+// Motivos mostrados no SELETOR de desqualificar (nesta ordem). As legadas ficam
+// fora daqui — só existem no mapa acima pra exibir leads antigos.
+export const MOTIVO_DESQUALIFICACAO_OPTIONS: MotivoDesqualificacao[] = [
+  "muito_pequeno", "sem_estoque", "margem_baixa", "sem_verba", "revende", "regiao_fora", "sem_instagram", "sem_fit",
+];
 
 // Normaliza um telefone pra comparar/deduplicar: só dígitos, com código do país.
 // "(11) 91234-5678" e "55 11 91234 5678" viram a mesma string.
@@ -650,8 +835,9 @@ export function phoneKey(telefone: string | null | undefined): string {
 }
 
 // Helper pra abrir a conversa direto no WhatsApp WEB (não no app do PC).
-export function whatsappLink(telefone: string): string {
-  return `https://web.whatsapp.com/send?phone=${normalizePhone(telefone)}`;
+export function whatsappLink(telefone: string, text?: string): string {
+  const base = `https://web.whatsapp.com/send?phone=${normalizePhone(telefone)}`;
+  return text ? `${base}&text=${encodeURIComponent(text)}` : base;
 }
 
 // Nome fixo da aba do WhatsApp Web — usar como `target` pra reaproveitar a MESMA
@@ -673,4 +859,55 @@ export function findDuplicateLead(
     if (insta && (l.instagram ?? "").trim().replace(/^@/, "").toLowerCase() === insta) return l;
   }
   return null;
+}
+
+// ============================================================
+// Temperatura do lead — por DIAS desde a ENTRADA no CRM (created_at).
+// (Redefinido 2026-11-12, a pedido do Rafe. Antes era por horas desde a última
+// resposta.) Faixas: <3d Super hot · 3–7d Hot · 7–14d Warm · 14–30d Cold · +30d Frio.
+// Usada no SELO de temperatura de TODO card do CRM e pra montar as 4 faixas da Entrada.
+// +30d (frio) é movido pra Reaquecimento pela automação /api/cron/entrada-aging.
+// ============================================================
+export type LeadTempKey = "super_hot" | "hot" | "warm" | "cold" | "frio";
+export type LeadTemp = { key: LeadTempKey; label: string; emoji: string; dot: string; text: string; border: string; days: number };
+
+export const TEMP_META: Record<LeadTempKey, { label: string; emoji: string; dot: string; text: string; border: string }> = {
+  super_hot: { label: "Super hot", emoji: "🔥", dot: "bg-red-500",    text: "text-red-400",    border: "border-red-500/40" },
+  hot:       { label: "Hot",       emoji: "🟠", dot: "bg-orange-500", text: "text-orange-400", border: "border-orange-500/40" },
+  warm:      { label: "Warm",      emoji: "🟡", dot: "bg-amber-400",  text: "text-amber-300",  border: "border-amber-400/40" },
+  cold:      { label: "Cold",      emoji: "🔵", dot: "bg-sky-500",    text: "text-sky-400",    border: "border-sky-500/40" },
+  frio:      { label: "Frio",      emoji: "⚪", dot: "bg-zinc-500",   text: "text-zinc-400",   border: "border-zinc-500/30" },
+};
+
+// Limite superior de DIAS de cada faixa (exclusivo). A última (frio) é aberta.
+const TEMP_LEVELS: { key: LeadTempKey; maxDays: number }[] = [
+  { key: "super_hot", maxDays: 3 },
+  { key: "hot",       maxDays: 7 },
+  { key: "warm",      maxDays: 14 },
+  { key: "cold",      maxDays: 30 },
+  { key: "frio",      maxDays: Infinity },
+];
+
+/** Dias em que um lead vira "frio" (+30d) → vai pra Reaquecimento. */
+export const ENTRADA_FRIO_DAYS = 30;
+
+/** Faixas exibidas na Entrada do kanban, da mais FRIA pra mais QUENTE (esq → dir). Exclui "frio" (+30d sai pra Reaquecimento). */
+export const ENTRADA_BANDS: LeadTempKey[] = ["cold", "warm", "hot", "super_hot"];
+
+/** Momento do último sinal do lead: a última resposta dele, ou a entrada. (Mantido p/ outros usos.) */
+export function leadLastSignal(lead: Pick<Lead, "last_inbound_at" | "created_at">): string {
+  return lead.last_inbound_at || lead.created_at;
+}
+
+/** Dias desde a entrada do lead no CRM (created_at). */
+export function leadDaysInCrm(lead: Pick<Lead, "created_at">, nowMs: number): number {
+  const base = new Date(lead.created_at).getTime();
+  return Number.isFinite(base) ? (nowMs - base) / 86_400_000 : Infinity;
+}
+
+/** Temperatura do lead pela DATA DE ENTRADA (created_at), em dias. `nowMs` vem de fora (pureza de render do React 19). */
+export function leadTemperature(lead: Pick<Lead, "created_at">, nowMs: number): LeadTemp {
+  const days = leadDaysInCrm(lead, nowMs);
+  const lvl = TEMP_LEVELS.find((l) => days < l.maxDays) ?? TEMP_LEVELS[TEMP_LEVELS.length - 1];
+  return { key: lvl.key, ...TEMP_META[lvl.key], days };
 }
