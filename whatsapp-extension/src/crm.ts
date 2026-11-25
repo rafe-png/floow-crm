@@ -43,6 +43,16 @@ export type AudioSnippet = {
   owner: string | null; // null = todos; senão só aparece pro dono (team_members.name)
 };
 
+// Mensagem pronta — na extensão aparece o título. Só texto → COPIA; com vídeo → ENVIA o vídeo.
+export type CannedMessage = {
+  id: string;
+  title: string;
+  content: string | null;
+  video_url: string | null; // null = mensagem de texto (copia); preenchido = vídeo (envia)
+  owner: string | null; // null = todos
+  ordem: number;
+};
+
 export type Lead = {
   id: string;
   nome: string;
@@ -53,14 +63,21 @@ export type Lead = {
   estado: string | null;
   telefone: string;
   status: LeadStatus;
+  valor: number | null;
   observacoes: string | null;
   sdr_responsavel: string | null;
   closer_responsavel: string | null;
   fonte: string | null;
+  prioridade?: boolean; // estrela de prioridade (migração 075) — topo da coluna
+  canal: string | null;
+  wa_lid: string | null;
+  wa_contact_name: string | null;
   data_agendamento: string | null;
+  local: string | null;
   agendado_por: string | null;
   google_event_id: string | null;
   criativo_codigo: number | null;
+  criativo_codigo_txt: string | null;
   // Qualificação (pra saber se está completa e pré-preencher)
   experiencia: string | null;
   situacao: string | null;
@@ -72,12 +89,32 @@ export type Lead = {
   bant_authority: string | null;
   bant_need: string | null;
   bant_timing: string | null;
+  // Motivo preenchido ao mover pra etapa (desqualificado / perdido / carteira)
+  motivo_perda: string | null;
+  motivo_desqualificacao: string | null;
+  motivo_carteira: string | null;
   updated_at: string;
+  created_at?: string | null;
+  last_inbound_at?: string | null; // última resposta do lead (temperatura)
 };
 
-// Colunas que a extensão lê do banco.
-export const LEAD_COLUMNS =
-  "id,nome,empresa,instagram,segmento,cidade,estado,telefone,status,observacoes,sdr_responsavel,closer_responsavel,fonte,data_agendamento,google_event_id,criativo_codigo,experiencia,situacao,canal_vendas,estoque,historico,estrutura,bant_budget,bant_authority,bant_need,bant_timing,updated_at";
+// Temperatura do lead pela DATA DE ENTRADA no CRM (created_at), em dias. Igual ao CRM
+// (redefinido 2026-11-12): <3d Super hot · 3–7d Hot · 7–14d Warm · 14–30d Cold · +30d Frio.
+export type LeadTemp = { label: string; color: string; days: number };
+export function leadTemperature(lead: { created_at?: string | null }, nowMs: number): LeadTemp {
+  const base = new Date(lead.created_at || Date.now()).getTime();
+  const days = (nowMs - base) / 86_400_000;
+  if (days < 3) return { label: "🔥 Super hot", color: "#ef4444", days };
+  if (days < 7) return { label: "🟠 Hot", color: "#f97316", days };
+  if (days < 14) return { label: "🟡 Warm", color: "#f59e0b", days };
+  if (days < 30) return { label: "🔵 Cold", color: "#0ea5e9", days };
+  return { label: "⚪ Frio", color: "#a1a1aa", days };
+}
+
+// Colunas que a extensão lê do banco. Usamos "*" de propósito: assim uma coluna
+// nova (ex.: wa_lid, wa_contact_name) adicionada por migração NÃO quebra o SELECT
+// — se a coluna ainda não existe, ela só não vem (degrada), em vez de derrubar tudo.
+export const LEAD_COLUMNS = "*";
 
 export const STATUS_LABELS: Record<LeadStatus, string> = {
   qualificado: "Entrada",
@@ -90,13 +127,13 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
   carteira: "Carteira",
   negocio_ganho: "Negócio ganho",
   negocio_perdido: "Negócio perdido",
-  sem_resposta: "Sem resposta",
+  sem_resposta: "Reaquecimento",
   desqualificado: "Desqualificado",
 };
 
 // Ordem do funil (igual STATUS_ORDER do app).
 export const STATUS_ORDER: LeadStatus[] = [
-  "desqualificado", "sem_resposta", "qualificado", "pre_qualificado", "em_agendamento", "agendando",
+  "desqualificado", "sem_resposta", "qualificado", "pre_qualificado", "agendando",
   "carteira", "reuniao_agendada", "no_show", "follow_up", "negocio_ganho", "negocio_perdido",
 ];
 
@@ -120,11 +157,35 @@ export const FONTE_LABELS: Record<string, string> = {
 };
 export const FONTE_OPTIONS = Object.keys(FONTE_LABELS);
 
+// Canal real do lead (ig/wa/fb/mt) — mais específico que a fonte. Usado pra exibir a ORIGEM.
+export const CANAL_LABELS: Record<string, string> = {
+  ig: "Instagram", wa: "WhatsApp", fb: "Facebook", mt: "Meta Ads", ad: "Meta Ads", meta: "Meta", whatsapp: "WhatsApp", manual: "Manual",
+};
+// Origem de exibição: prioriza o canal real; cai pra fonte.
+export function origemLabel(lead: { canal?: string | null; fonte?: string | null }): string | null {
+  if (lead.canal) return CANAL_LABELS[lead.canal] ?? lead.canal;
+  if (lead.fonte) return FONTE_LABELS[lead.fonte] ?? lead.fonte;
+  return null;
+}
+// Código do criativo sem o prefixo de canal (MT08 → 08, IG08 → 08). A origem é separada.
+export function creativeCodeClean(code: string | null | undefined): string | null {
+  if (!code) return null;
+  const m = code.toUpperCase().match(/^(IG|WA|FB|MT)-?(.+)$/);
+  return m && m[2] ? m[2] : code;
+}
+
 // Resultado de uma ligação (registrada no histórico do lead).
 export const CALL_OUTCOME_LABELS: Record<string, string> = {
   atendeu: "Atendeu ✅", atendeu_desligou: "Atendeu mas desligou", rejeitou: "Rejeitou", chamou_ate_cair: "Chamou até cair", nao_chamou: "Não chamou",
+  // resultados da ligação por telefone (API4COM):
+  nao_atendeu: "Não atendeu", caixa_postal: "Caixa postal", ocupado: "Ocupado", ligando: "Ligando…", falhou: "Não completou",
 };
 export const CALL_OUTCOME_OPTIONS = Object.keys(CALL_OUTCOME_LABELS);
+
+// Opções do popup "Como foi a ligação?" das ligações por TELEFONE (API4COM).
+export const CALL_OUTCOME_PHONE_LABELS: Record<string, string> = {
+  atendeu: "Atendeu ✅", nao_atendeu: "Não atendeu", caixa_postal: "Caixa postal", ocupado: "Ocupado",
+};
 
 // ---- Tarefas tipadas (espelho do app) ----
 export type TaskTipo = "qualificar" | "agendar" | "lembrete_reuniao" | "follow_up" | "pos_venda" | "outro";
@@ -195,31 +256,54 @@ export const BANT_BUDGET_LABELS: Record<string, string> = {
   tem_verba: "Tem verba definida", tem_indefinida: "Tem mas indefinida", nao_tem: "Não tem agora",
 };
 export const BANT_AUTHORITY_LABELS: Record<string, string> = {
-  decisor: "É o decisor", influenciador: "Influencia", precisa_aprovar: "Precisa aprovar",
+  decisor: "É o decisor", tem_socio: "Tem sócio",
 };
 export const BANT_NEED_LABELS: Record<string, string> = { alta: "Alta", media: "Média", explorando: "Explorando" };
 export const BANT_TIMING_LABELS: Record<string, string> = {
   agora: "Quer começar já", "30_dias": "Em 30 dias", "60_90_dias": "60-90 dias", sem_urgencia: "Sem urgência",
 };
 
+// Motivo preenchido ao mover o lead pra etapa (desqualificado / perdido /
+// carteira). Prioriza o da etapa atual; senão mostra o último registrado.
+export function motivoDaEtapa(lead: Lead): { titulo: string; texto: string } | null {
+  const desq = lead.motivo_desqualificacao
+    ? { titulo: "Motivo da desqualificação", texto: MOTIVO_DESQUALIFICACAO_LABELS[lead.motivo_desqualificacao] || lead.motivo_desqualificacao }
+    : null;
+  const perda = lead.motivo_perda
+    ? { titulo: "Motivo da perda", texto: MOTIVO_PERDA_LABELS[lead.motivo_perda] || lead.motivo_perda }
+    : null;
+  const cart = lead.motivo_carteira
+    ? { titulo: "Motivo da carteira", texto: MOTIVO_CARTEIRA_LABELS[lead.motivo_carteira] || lead.motivo_carteira }
+    : null;
+  if (lead.status === "desqualificado" && desq) return desq;
+  if (lead.status === "negocio_perdido" && perda) return perda;
+  if (lead.status === "carteira" && cart) return cart;
+  return desq || perda || cart || null;
+}
+
 export const MOTIVO_PERDA_LABELS: Record<string, string> = {
   sem_budget: "Sem budget", sem_timing: "Timing ruim", sem_fit: "Sem fit", concorrente: "Foi pro concorrente",
   nao_decisor: "Não era decisor", sem_retorno: "Sumiu / sem retorno", preco_alto: "Preço alto", outro: "Outro",
 };
+// Mapa COMPLETO (exibição do histórico).
 export const MOTIVO_DESQUALIFICACAO_LABELS: Record<string, string> = {
-  nao_e_confeccao: "Não é confecção", muito_pequeno: "Muito pequeno / sem estrutura", sem_verba: "Sem verba pra investir",
-  fora_perfil: "Fora do perfil (ICP)", nao_decisor: "Não é o decisor", ja_tem_solucao: "Já tem agência/solução",
-  sem_interesse: "Sem interesse real", nao_respondeu: "Não respondeu / sumiu", regiao_fora: "Região/segmento fora do foco", outro: "Outro",
+  muito_pequeno: "Muito pequeno / sem estrutura", sem_estoque: "Sem estoque", margem_baixa: "Margem muito baixa",
+  sem_verba: "Sem budget", revende: "Revende", regiao_fora: "Segmento fora do foco", sem_instagram: "Sem Instagram", sem_fit: "Sem fit",
+  // legadas
+  nao_e_confeccao: "Não é confecção", fora_perfil: "Fora do perfil (ICP)", nao_decisor: "Não é o decisor",
+  ja_tem_solucao: "Já tem agência/solução", sem_interesse: "Sem interesse real", nao_respondeu: "Não respondeu / sumiu", outro: "Outro",
+};
+// Só as opções ativas (o que aparece no seletor de desqualificar), nesta ordem.
+export const MOTIVO_DESQUALIFICACAO_PICK: Record<string, string> = {
+  muito_pequeno: "Muito pequeno / sem estrutura", sem_estoque: "Sem estoque", margem_baixa: "Margem muito baixa",
+  sem_verba: "Sem budget", revende: "Revende", regiao_fora: "Segmento fora do foco", sem_instagram: "Sem Instagram", sem_fit: "Sem fit",
 };
 
 // Os 10 campos da qualificação (na ordem do app), pro form completo.
 export const QUAL_FIELDS: { key: keyof Lead; label: string; options: Record<string, string> }[] = [
-  { key: "experiencia", label: "Experiência", options: EXPERIENCIA_LABELS },
   { key: "situacao", label: "Situação", options: SITUACAO_LABELS },
   { key: "canal_vendas", label: "Canal de vendas", options: CANAL_VENDAS_LABELS },
-  { key: "estoque", label: "📦 Estoque", options: ESTOQUE_LABELS },
   { key: "historico", label: "📈 Histórico de tráfego", options: HISTORICO_LABELS },
-  { key: "estrutura", label: "👥 Estrutura comercial", options: ESTRUTURA_LABELS },
   { key: "bant_budget", label: "💰 Budget", options: BANT_BUDGET_LABELS },
   { key: "bant_authority", label: "🎯 Authority", options: BANT_AUTHORITY_LABELS },
   { key: "bant_need", label: "🔥 Need", options: BANT_NEED_LABELS },
@@ -261,11 +345,11 @@ export const SEGMENTO_OPTIONS = Object.keys(SEGMENTO_LABELS);
 // Info do negócio (empresa, instagram, decisor, segmento) — obrigatória de
 // "Pré qualificado" em diante (igual BUSINESS_STAGES do app).
 export const BUSINESS_STAGES: LeadStatus[] = [
-  "pre_qualificado", "em_agendamento", "agendando", "reuniao_agendada", "no_show", "follow_up", "negocio_ganho",
+  "pre_qualificado", "agendando", "reuniao_agendada", "no_show", "follow_up", "negocio_ganho",
 ];
 
 export function isPreQualComplete(l: Lead): boolean {
-  return !!(l.nome && l.empresa && l.instagram && l.segmento && l.estado && l.cidade);
+  return !!(l.nome && l.empresa && l.instagram && l.segmento);
 }
 
 export function needsBusinessInfo(lead: Lead, target: LeadStatus): boolean {
@@ -274,8 +358,8 @@ export function needsBusinessInfo(lead: Lead, target: LeadStatus): boolean {
 
 export function isQualComplete(l: Lead): boolean {
   return !!(
-    l.fonte &&
-    l.experiencia && l.situacao && l.canal_vendas && l.estoque && l.historico && l.estrutura &&
+    l.fonte && l.estado && l.cidade &&
+    l.situacao && l.canal_vendas && l.historico &&
     l.bant_budget && l.bant_authority && l.bant_need && l.bant_timing
   );
 }
@@ -294,11 +378,15 @@ export function canMoveTo(
   return true;
 }
 
-// Mover pra antes da reunião / no-show limpa o agendamento (espelha useLeads).
+// Sair de "Agendado" sem a reunião acontecer limpa o agendamento INTEIRO
+// (data + quem agendou + local). Espelha useLeads.updateLead. NÃO limpa em
+// Ganho/Perdido/Follow-up (a reunião aconteceu = histórico).
 export function patchForStatus(status: LeadStatus): Record<string, unknown> {
   const patch: Record<string, unknown> = { status };
-  if (["qualificado", "pre_qualificado", "em_agendamento", "agendando", "no_show"].includes(status)) {
+  if (["qualificado", "pre_qualificado", "em_agendamento", "agendando", "no_show", "desqualificado", "carteira"].includes(status)) {
     patch.data_agendamento = null;
+    patch.agendado_por = null;
+    patch.local = null;
   }
   return patch;
 }
@@ -331,4 +419,53 @@ export function samePhone(a: string | null | undefined, b: string | null | undef
 export function looksLikePhone(s: string): boolean {
   const digits = s.replace(/\D/g, "");
   return digits.length >= 8 && /^[+\d][\d\s().-]+$/.test(s.trim());
+}
+
+// ── Mensagens prontas (agendamento) ───────────────────────────────────────
+function firstName(n: string | null | undefined): string {
+  const s = (n || "").trim();
+  return s ? s.split(/\s+/)[0] : "";
+}
+export function msgConfirmacao(nome: string | null, dataIso: string | null): string {
+  let dia = "[dia]", data = "xx/xx", hora = "[hora]";
+  if (dataIso) {
+    const d = new Date(dataIso);
+    dia = d.toLocaleDateString("pt-BR", { weekday: "long" });
+    data = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  }
+  return `${firstName(nome)}, agendei aqui nossa conversa para ${dia} (${data}) as ${hora} 📆\nNessa conversa vou te mostrar como vamos trazer esses resultados para sua confecção 👇🏼\n\nhttps://floow-cases.vercel.app/`;
+}
+export function msgLembrete(nome: string | null, dataIso: string | null, local: string | null): string {
+  let hora = "[hora]";
+  if (dataIso) hora = new Date(dataIso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const formato = local === "presencial" ? "a localização" : "o link da videochamada";
+  return `Oi ${firstName(nome)}, passando rápido só pra lembrar da nossa conversa agendada para hoje as ${hora} 🕢\nDurante o dia te envio alguns lembretes e faltando 15 minutos te envio ${formato}\nAté lá`;
+}
+
+export function msgProposta(marca: string | null, validadeDias = 0): string {
+  const hoje = new Date();
+  const val = new Date(hoje.getTime() + validadeDias * 86400000);
+  const f = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  const m = (marca || "").trim() || "[Marca]";
+  return `*Proposta feita | Floow Digital & ${m} | ${f(hoje)}*
+
+O que está incluso:
+•  Estruturação estratégica
+•  Produção de 3-9 videos criativos
+•  Gestão de tráfego pago
+•  Implementação de site 100% personalizado
+•  Acompanhamento comercial + Planilha
+•  Relatórios semanais
+•  Suporte diário humanizado
+
+🎁 *Bônus exclusivo:* Implementação de catálogo virtual + manutenção contínua (pelo período contratado, sem custos adicionais)
+
+_(Proposta com o bônus inclusos válida até dia ${f(val)})_
+
+*Plano semestral: 6x de R$ 1.397*
+*Plano trimestral: 3x de R$ 1.597*
+*Plano mensal: R$ 1.997*
+
+Vamos iniciar seu projeto? 💛`;
 }

@@ -44271,14 +44271,17 @@ ${suffix}`;
     return s ? s.split(/\s+/)[0] : "";
   }
   function msgConfirmacao(nome, dataIso) {
-    let dia = "[dia]", hora = "[hora]";
+    let dia = "[dia]", data = "xx/xx", hora = "[hora]";
     if (dataIso) {
       const d = new Date(dataIso);
-      dia = d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" });
+      dia = d.toLocaleDateString("pt-BR", { weekday: "long" });
+      data = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
       hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     }
-    return `${firstName(nome)}, agendei aqui nossa conversa para ${dia} as ${hora} \u{1F4C6}
-Nessa conversa vou te mostrar como vamos trazer esses resultados para sua confec\xE7\xE3o \u{1F447}\u{1F3FC}`;
+    return `${firstName(nome)}, agendei aqui nossa conversa para ${dia} (${data}) as ${hora} \u{1F4C6}
+Nessa conversa vou te mostrar como vamos trazer esses resultados para sua confec\xE7\xE3o \u{1F447}\u{1F3FC}
+
+https://floow-cases.vercel.app/`;
   }
   function msgLembrete(nome, dataIso, local) {
     let hora = "[hora]";
